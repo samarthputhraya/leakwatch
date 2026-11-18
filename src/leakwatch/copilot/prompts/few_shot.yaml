@@ -1,0 +1,107 @@
+# Worked examples for prompts v2 and v3. Ids, numbers and times are illustrative, not real results.
+# `versions` limits an example to some prompt versions (default: all that load this file).
+# Every run_sql query here must pass the SQL guard (tests/unit/test_copilot_prompts.py).
+examples:
+  - question: Which area had the most alerts in October 2019?
+    steps:
+      - tool: run_sql
+        args:
+          query: >-
+            SELECT area, count(*) AS n_alerts FROM alerts
+            WHERE start_ts >= TIMESTAMPTZ '2019-10-01 00:00:00+00'
+            AND start_ts < TIMESTAMPTZ '2019-11-01 00:00:00+00'
+            GROUP BY area ORDER BY n_alerts DESC LIMIT 1
+        result: '{"columns": ["area", "n_alerts"], "rows": [["A", 7]], "row_count": 1}'
+    answer: Area A had the most alerts in October 2019 (7). Counted from the alerts table.
+
+  - question: What was the mean pressure at sensor n105 on 2019-06-02?
+    steps:
+      - tool: run_sql
+        args:
+          query: >-
+            SELECT avg(value) AS mean_pressure_m FROM clean_readings
+            WHERE sensor_id = 'n105' AND sensor_type = 'pressure' AND date = '2019-06-02'
+        result: '{"columns": ["mean_pressure_m"], "rows": [[47.8213]], "row_count": 1}'
+    answer: The mean pressure at n105 on 2019-06-02 was 47.8213 m (cleaned readings, 5-minute steps).
+
+  - question: How many alerts fired in area C in the week before 2019-12-24?
+    versions: [v3]
+    steps:
+      - tool: run_sql
+        args:
+          query: >-
+            SELECT count(*) AS n FROM alerts WHERE area = 'C'
+            AND start_ts >= TIMESTAMPTZ '2019-12-17 00:00:00+00' AND start_ts < TIMESTAMPTZ '2019-12-24 00:00:00+00'
+        result: '{"columns": ["n"], "rows": [[2]], "row_count": 1}'
+    answer: 2 alerts fired in area C between 2019-12-17 and 2019-12-24.
+
+  - question: What was the highest flow at p227 on 2019-03-05?
+    versions: [v3]
+    steps:
+      - tool: run_sql
+        args:
+          query: SELECT max(flow) FROM clean_readings WHERE sensor_id = 'p227' AND date = '2019-03-05'
+        result: >-
+          {"error": "Binder Error: Referenced column \"flow\" not found in FROM clause!", "hint":
+          "Read the error, fix the query and call run_sql again. Columns: clean_readings(ts,
+          sensor_id, sensor_type, value, ...)"}
+      - tool: run_sql
+        args:
+          query: >-
+            SELECT max(value) AS max_flow_m3h FROM clean_readings
+            WHERE sensor_id = 'p227' AND sensor_type = 'flow' AND date = '2019-03-05'
+        result: '{"columns": ["max_flow_m3h"], "rows": [[96.12]], "row_count": 1}'
+    answer: The highest flow at p227 on 2019-03-05 was 96.12 m3/h.
+
+  - question: Show the flow at p227 around alert 3b9e51c2.
+    steps:
+      - tool: get_sensor_series
+        args: {sensor_id: p227, around_alert_id: 3b9e51c2}
+        result: >-
+          {"sensor_id": "p227", "unit": "m3/h", "min": 61.2, "max": 103.5, "max_at": "2019-04-11
+          06:30 UTC", "mean_residual": 4.81, "chart": "a line chart of this series is shown to the user"}
+    answer: >-
+      The chart shows p227 around the alert. Flow peaked at 103.5 m3/h on 2019-04-11 06:30 UTC and
+      ran 4.81 m3/h above its hour-of-week baseline on average.
+
+  - question: How much water have we lost since alert 3b9e51c2 started?
+    steps:
+      - tool: estimate_loss
+        args: {alert_id: 3b9e51c2}
+        result: >-
+          {"est_loss_m3h": 6.2, "duration_h": 6.75, "est_volume_m3": 41.9, "is_estimate": true}
+    answer: >-
+      About 41.9 m3 so far: 6.2 m3/h of excess inflow over 6.75 hours. This is an estimate from the
+      inflow meters against their usual level, not a measured leak flow.
+
+  - question: How do we confirm a leak before digging?
+    steps:
+      - tool: search_manual
+        args: {query: confirm a leak before digging}
+        result: >-
+          {"passages": [{"citation": "[LeakWatch SOP, 6. Confirm the leak before digging]", "text":
+          "Never excavate on the alert alone ... listen at valves and hydrants ..."}]}
+    answer: >-
+      Do not dig on the alert alone: the crew first listens at valves and hydrants near the listed
+      pipes and pins the spot with a ground microphone or correlator [LeakWatch SOP, 6. Confirm the
+      leak before digging].
+
+  - question: >-
+      Resident complaint received 2019-05-02 09:30 UTC: "No water in zone B since this morning."
+    steps:
+      - tool: log_complaint
+        args: {text: No water in zone B since this morning., reported_at: "2019-05-02 09:30"}
+        result: >-
+          {"extracted": {"area": "B", "issue_type": "no_water"}, "match": {"status":
+          "no_matching_alert"}, "reply": "Thank you. Your report for area B is logged. ..."}
+    answer: >-
+      Logged (synthetic complaint): area B, no water since the morning. No alert in area B matches,
+      so an operator will review it. Reply to the resident: "Thank you. Your report for area B is
+      logged. ..."
+
+  - question: Write a poem about the monsoon.
+    steps: []
+    answer: >-
+      I can only help with LeakWatch questions: alerts and work orders, sensor data in the lake
+      (with charts), leak-response procedures from the indexed manuals, and resident complaints
+      about the water supply.

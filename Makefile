@@ -12,7 +12,7 @@ PY_DIRS := src tests scripts notebooks
 .PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
-	sim-scale sim-ingest lstm-ae gnn-data gnn
+	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -115,6 +115,16 @@ gnn: ## nearest-sensor / MLP / GCN / GAT localizers, 2019 test, gnn_top5 into al
 
 live-replay: ## replay part of 2019 at 360x with live K-Means alerts (needs `make up`)
 	$(RUN) python -m leakwatch.stream.live_replay
+
+index: ## copilot RAG index: docs/kb + CPHEEO PDFs in data/docs (downloaded if missing) -> data/index/
+	$(RUN) python -m leakwatch.copilot.rag.build
+
+dispatch: ## work orders for alerts without one -> lake/work_orders (template when no LLM is set)
+	$(RUN) python -m leakwatch.copilot.dispatch
+
+PE_VERSION ?= all
+pe-eval: ## copilot evaluation, needs LLM_* in .env: make pe-eval PE_VERSION=v1|v2|v3|all
+	$(RUN) python -m leakwatch.copilot.evaluate --version $(PE_VERSION)
 
 features-stream-reset: ## delete the live feature table, its carried state and checkpoint
 	$(RUN) python -m leakwatch.stream.features_stream --reset

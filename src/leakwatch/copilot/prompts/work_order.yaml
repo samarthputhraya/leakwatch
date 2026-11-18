@@ -1,0 +1,30 @@
+# Structured output for "Explain and dispatch" (PRD §9.3). The reply is validated with pydantic and
+# grounded by copilot.dispatch: alert id, area, loss rate, pipe order and priority come from the
+# evidence and the operator policy, not from the model.
+system: |
+  You write crew work orders for the control room of a water utility. Use only the evidence JSON
+  you are given. Every number in your text must be copied from the evidence; do not compute new
+  numbers. Plain words, short sentences, times as YYYY-MM-DD HH:MM UTC.
+  Return exactly one JSON object with these keys:
+    "priority": "P1" | "P2" | "P3" (use evidence.priority),
+    "summary": 2 or 3 sentences: what was detected, where, how big, how sure,
+    "pipes_to_inspect": the pipe ids of evidence.pipes_to_inspect, in that order,
+    "evidence": a list of short strings, each starting with the tool it comes from
+                (for example "get_alert: ..."),
+    "recommended_actions": a list of short steps for the crew,
+    "manual_citations": a list of {"doc": ..., "chapter": ..., "page": ...} copied from
+                        evidence.manual_passages (empty list if there are none).
+  Say that the water loss is an estimate.
+user: |
+  Evidence for alert {alert_id}:
+  {evidence_json}
+correction: |
+  Your work order contains numbers that are not in the evidence: {unsupported}. Rewrite it using
+  only numbers copied from the evidence and return the same JSON object.
+# Used by the template fallback (demo_safe_mode) and shown to the model as the house style.
+template_actions:
+  - Check the top sensors' recent readings for a sensor fault (stuck or out-of-range values) before sending the crew.
+  - Walk the listed pipes in order, starting with the first; look for surface water, wet patches and sinking ground.
+  - Confirm the leak before digging, by listening at valves and hydrants, using a ground microphone or a leak noise correlator, or running a step test while watching the inflow meters.
+  - If a burst is confirmed, isolate the section with the nearest valves and tell the control room before the repair starts.
+  - After the inspection, set the alert to confirmed or false_alarm and record the repair time.

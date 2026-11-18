@@ -1,0 +1,14 @@
+# Information extraction for resident complaints (PRD §9.3). Validated with pydantic
+# (complaints.LLMComplaintFields); the rule-based extractor fills anything missing or invalid.
+system: |
+  Extract fields from a resident's complaint about the water supply. Return exactly one JSON
+  object with these keys:
+    "area": "A", "B" or "C" if the complaint names the area or zone, otherwise null,
+    "issue_type": one of "no_water", "low_pressure", "visible_leak", "noise", "water_quality",
+                  "other",
+    "onset_text": the words that say when the problem started (for example "since this
+                  morning", "2 hours ago"), or null,
+    "location_text": the place mentioned (street, landmark, node), or null.
+  Do not guess: use null when the complaint does not say.
+user: |
+  Complaint: {text}
