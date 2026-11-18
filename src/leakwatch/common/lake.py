@@ -7,7 +7,12 @@
 - ``clean_readings``: ``lake/clean`` (same partitions, plus ``filled`` and ``stuck`` flags);
 - ``baselines``: ``lake/baselines/hour_of_week`` (one row per series and hour of week);
 - ``features`` / ``features_stream``: the batch and streaming feature tables (partitions
-  ``source``, ``window``, ``date``).
+  ``source``, ``window``, ``date``);
+- ``scores``: anomaly scores per window (partitions ``model``, ``origin``, ``date``);
+- ``alert_events``: every alert version (append-only, partition ``origin``);
+- ``work_orders``: work orders written by the copilot;
+- ``alerts``: the current alerts = latest version per ``alert_id``, with the latest work order
+  (``work_order_json``) joined in (PRD §6.3).
 """
 
 from __future__ import annotations
@@ -32,6 +37,23 @@ def _has_parquet(directory: Path) -> bool:
 
 
 FEATURE_HIVE_TYPES = {"source": "VARCHAR", "window": "VARCHAR", "date": "VARCHAR"}
+SCORE_HIVE_TYPES = {"model": "VARCHAR", "origin": "VARCHAR", "date": "VARCHAR"}
+ALERT_HIVE_TYPES = {"origin": "VARCHAR"}
+
+#: Current alerts: latest version of each alert plus its latest work order (if any).
+ALERTS_VIEW_SQL = """
+SELECT a.* EXCLUDE (rn), w.work_order_json, w.generator AS work_order_generator
+FROM (
+    SELECT *, row_number() OVER (PARTITION BY alert_id ORDER BY version DESC, updated_at DESC) AS rn
+    FROM alert_events
+) a
+LEFT JOIN (
+    SELECT alert_id, work_order_json, generator,
+           row_number() OVER (PARTITION BY alert_id ORDER BY generated_at DESC) AS wn
+    FROM work_orders
+) w ON w.alert_id = a.alert_id AND w.wn = 1
+WHERE a.rn = 1
+"""
 
 
 def hive_parquet_sql(layer_dir: Path, hive_types: dict[str, str]) -> str:
@@ -131,6 +153,9 @@ def layer_dirs(lake_root: Path | None = None) -> dict[str, Path]:
         "baselines": paths.lake_baselines_dir(),
         "features": paths.lake_features_dir(),
         "features_stream": paths.lake_features_stream_dir(),
+        "scores": paths.lake_scores_dir(),
+        "alert_events": paths.lake_alerts_dir(),
+        "work_orders": paths.lake_work_orders_dir(),
     }
     if lake_root is None:
         return default
@@ -157,6 +182,8 @@ def connect(
         "clean_readings": RAW_HIVE_TYPES,
         "features": FEATURE_HIVE_TYPES,
         "features_stream": FEATURE_HIVE_TYPES,
+        "scores": SCORE_HIVE_TYPES,
+        "alert_events": ALERT_HIVE_TYPES,
     }
     for view, layer_dir in dirs.items():
         if not _has_parquet(layer_dir):
@@ -167,6 +194,15 @@ def connect(
             glob = (layer_dir / "**" / "*.parquet").as_posix().replace("'", "''")
             sql = f"SELECT * FROM read_parquet('{glob}')"
         con.execute(f"CREATE VIEW {view} AS {sql}")
+    views = {r[0] for r in con.execute("SELECT view_name FROM duckdb_views()").fetchall()}
+    if "alert_events" in views:
+        if "work_orders" not in views:  # empty stand-in so the alerts view always has the column
+            con.execute(
+                "CREATE VIEW work_orders AS SELECT NULL::VARCHAR AS alert_id, "
+                "NULL::VARCHAR AS work_order_json, NULL::VARCHAR AS generator, "
+                "NULL::VARCHAR AS prompt_version, NULL::TIMESTAMPTZ AS generated_at WHERE false"
+            )
+        con.execute(f"CREATE VIEW alerts AS {ALERTS_VIEW_SQL}")
     return con
 
 

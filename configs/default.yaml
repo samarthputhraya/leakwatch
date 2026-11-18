@@ -77,6 +77,30 @@ stream:
     level: [0.0, 10.0]             # m
     amr: [0.0, 100000.0]           # L/h
 
+bdt:
+  # PRD §7.3–7.4: K-Means anomaly detection on the 1 h feature windows (Phase 3)
+  model: kmeans
+  train_year: 2018
+  eval_year: 2019
+  # Time-blocked split of normal 2018 windows (overlapping windows: never split at random):
+  # day index mod split_cycle_days -> train days, threshold day (tau), validation day (tuning m).
+  split_cycle_days: 5
+  threshold_day: 3
+  validation_day: 4
+  pca_variance: 0.95               # keep PCA components explaining this share of variance
+  k_min: 2
+  k_max: 20
+  max_iter: 100
+  kmeans_init_steps: 5
+  threshold_quantile: 0.99         # tau = this quantile of held-out normal scores
+  persistence_windows: 3           # m: alert after m consecutive windows above tau (tuned on 2018)
+  persistence_candidates: [1, 2, 3, 4, 6, 8, 12]
+  max_false_alarms_per_week: 2.0   # PRD §10 aim; constraint when tuning m on 2018
+  close_after_windows: 4           # an alert closes after 4 windows (1 h) back below tau
+  detection_horizon_days: 7        # PRD §7.4: alert within [leak start, start + 7 days]
+  top_sensors: 3
+  inflow_series: [flow__p227, flow__p235]   # reservoir inlets; PUMP_1 moves water inside the net
+
 network:
   # Zones you get by cutting L-Town at its pump and PRVs are named by one node inside each
   # (verified in tests: A has 29 pressure sensors, B is the zone behind PRV-3, C holds tank T1 + AMRs).

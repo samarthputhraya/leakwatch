@@ -422,6 +422,130 @@ def feature_table_schema(feature_columns: list[str]) -> pa.DataFrameSchema:
     )
 
 
+#: Anomaly scores (``lake/scores/model=…/origin=…/date=…``). ``origin`` is ``batch`` (offline
+#: evaluation) or ``stream`` (live job); ``above`` = score > threshold (docs/DECISIONS.md D-020).
+SCORE_COLUMNS: tuple[str, ...] = (
+    "source",
+    "scenario_id",
+    "window_start",
+    "window_end",
+    "score",
+    "threshold",
+    "above",
+    "cluster",
+    "top_sensor",
+)
+ORIGINS: tuple[str, ...] = ("batch", "stream")
+
+SCORES_SCHEMA = pa.DataFrameSchema(
+    {
+        "source": pa.Column(str, pa.Check.isin(SOURCES)),
+        "scenario_id": pa.Column(str, nullable=True),
+        "window_start": pa.Column(_UTC),
+        "window_end": pa.Column(_UTC),
+        "score": pa.Column(float, pa.Check.ge(0.0)),
+        "threshold": pa.Column(float, pa.Check.gt(0.0)),
+        "above": pa.Column(bool),
+        "cluster": pa.Column("int32", pa.Check.ge(0)),
+        "top_sensor": pa.Column(str),
+        "model": pa.Column(str),
+        "origin": pa.Column(str, pa.Check.isin(ORIGINS)),
+        "date": pa.Column(str),
+    },
+    checks=[
+        pa.Check(lambda df: df["above"] == (df["score"] > df["threshold"]), error="above flag"),
+    ],
+    strict=True,
+    name="scores",
+)
+
+#: One row per alert *version* in ``lake/alerts`` (append-only); the current alert is the row with
+#: the highest ``version`` per ``alert_id``. Fields follow PRD §6.3 / :class:`Alert`, plus
+#: ``origin``, ``model``, ``version``, ``windows_above`` and ``last_window_end`` (event time of the
+#: last window that was above the threshold). ``start_ts`` is the event time the alert fired (end
+#: of the m-th consecutive window above the threshold); ``created_at``/``updated_at`` are wall-clock
+#: times the version was written. Work orders live in ``lake/work_orders`` (D-021).
+ALERT_LAKE_COLUMNS: tuple[str, ...] = (
+    "alert_id",
+    "version",
+    "origin",
+    "model",
+    "source",
+    "scenario_id",
+    "start_ts",
+    "end_ts",
+    "status",
+    "kmeans_score_max",
+    "threshold",
+    "top_sensors",
+    "area",
+    "lstm_score_max",
+    "gnn_top5",
+    "est_loss_m3h",
+    "windows_above",
+    "last_window_end",
+    "created_at",
+    "updated_at",
+)
+
+
+def alerts_spark_schema():  # -> pyspark.sql.types.StructType
+    """Spark schema of ``lake/alerts`` rows (``ALERT_LAKE_COLUMNS``), nested lists included."""
+    from pyspark.sql.types import (
+        ArrayType,
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+        TimestampType,
+    )
+
+    top = ArrayType(
+        StructType(
+            [StructField("sensor_id", StringType()), StructField("contribution", DoubleType())]
+        )
+    )
+    gnn = ArrayType(
+        StructType([StructField("node_id", StringType()), StructField("prob", DoubleType())])
+    )
+    types = {
+        "alert_id": StringType(),
+        "version": IntegerType(),
+        "origin": StringType(),
+        "model": StringType(),
+        "source": StringType(),
+        "scenario_id": StringType(),
+        "start_ts": TimestampType(),
+        "end_ts": TimestampType(),
+        "status": StringType(),
+        "kmeans_score_max": DoubleType(),
+        "threshold": DoubleType(),
+        "top_sensors": top,
+        "area": StringType(),
+        "lstm_score_max": DoubleType(),
+        "gnn_top5": gnn,
+        "est_loss_m3h": DoubleType(),
+        "windows_above": IntegerType(),
+        "last_window_end": TimestampType(),
+        "created_at": TimestampType(),
+        "updated_at": TimestampType(),
+    }
+    if list(types) != list(ALERT_LAKE_COLUMNS):
+        raise RuntimeError("alerts Spark schema is out of sync with ALERT_LAKE_COLUMNS")
+    return StructType([StructField(n, t, nullable=True) for n, t in types.items()])
+
+
+#: Work orders (``lake/work_orders``): one row per generated order; latest per alert is current.
+WORK_ORDER_COLUMNS: tuple[str, ...] = (
+    "alert_id",
+    "work_order_json",
+    "generator",  # "llm" or "template" (demo_safe_mode fallback, PRD §9.1)
+    "prompt_version",
+    "generated_at",
+)
+
+
 def readings_payload_spark_schema():  # -> pyspark.sql.types.StructType
     """Spark schema of a ``scada.readings`` JSON payload (``ts`` parsed separately, as text).
 

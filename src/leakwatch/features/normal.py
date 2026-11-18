@@ -105,6 +105,25 @@ def is_normal(ts: pd.DatetimeIndex | pd.Series, intervals: pd.DataFrame) -> np.n
     return normal
 
 
+def window_normal_mask(
+    window_start: pd.Series | pd.DatetimeIndex,
+    window_s: int,
+    step_s: int,
+    intervals: pd.DataFrame,
+) -> np.ndarray:
+    """True for windows all of whose steps are normal.
+
+    A window ``[start, start + window - step]`` is normal iff it meets no excluded interval
+    (D-015: a 1 h window is normal iff all its steps are).
+    """
+    start = pd.DatetimeIndex(window_start)
+    last = start + pd.Timedelta(seconds=window_s - step_s)
+    normal = np.ones(len(start), dtype=bool)
+    for a, b in zip(intervals["start_ts"], intervals["end_ts"], strict=True):
+        normal &= ~((a <= last) & (b >= start))
+    return normal
+
+
 def normal_condition(ts_col: str, intervals: pd.DataFrame):  # -> pyspark.sql.Column
     """Spark column: True where ``ts_col`` lies in none of the excluded intervals (inclusive)."""
     from pyspark.sql import functions as F

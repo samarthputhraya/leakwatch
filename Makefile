@@ -11,7 +11,7 @@ PY_DIRS := src tests scripts notebooks
 
 .PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
-	stream-features features-parity features-stream-reset
+	stream-features features-parity features-stream-reset bdt-train bdt-eval
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -90,6 +90,12 @@ stream-features: ## Kafka -> live feature rows (same function as the batch job) 
 
 features-parity: ## compare live (stream) and batch feature tables window by window
 	$(RUN) python -m leakwatch.features.parity
+
+bdt-train: ## Spark MLlib K-Means on normal 2018 windows (+ strict ablation), tau and m from 2018
+	$(RUN) python -m leakwatch.bdt.train
+
+bdt-eval: ## score 2018-2019, write scores + alerts, evaluate on 2019 -> bdt_kmeans_2019.json
+	$(RUN) python -m leakwatch.bdt.evaluate
 
 features-stream-reset: ## delete the live feature table, its carried state and checkpoint
 	$(RUN) python -m leakwatch.stream.features_stream --reset

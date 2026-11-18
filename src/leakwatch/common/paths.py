@@ -96,6 +96,21 @@ def lake_features_stream_dir() -> Path:
     return lake_dir() / "features_stream"
 
 
+def lake_scores_dir() -> Path:
+    """Anomaly scores per window: ``scores/model=…/origin=…/date=…/`` (PRD §6.2)."""
+    return lake_dir() / "scores"
+
+
+def lake_alerts_dir() -> Path:
+    """Alert versions (append-only event log; latest version per alert is current, PRD §6.3)."""
+    return lake_dir() / "alerts"
+
+
+def lake_work_orders_dir() -> Path:
+    """Work orders written by the copilot, one file per order (PRD §9.3, D-021)."""
+    return lake_dir() / "work_orders"
+
+
 def lake_state_dir(job: str) -> Path:
     """State a streaming job carries between micro-batches (committed with each batch)."""
     return lake_dir() / "_state" / job

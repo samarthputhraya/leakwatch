@@ -106,6 +106,31 @@ def pipe_areas(wn: wntr.network.WaterNetworkModel, areas: pd.Series | None = Non
     ).sort_index()
 
 
+def series_areas(
+    wn: wntr.network.WaterNetworkModel,
+    series_ids: list[str] | tuple[str, ...],
+    areas: pd.Series | None = None,
+) -> dict[str, str]:
+    """Area of each feature series (``pressure__n54``, ``flow__p227``, ``amr_sum__C``, …).
+
+    Node sensors take their node's area; flow sensors on pipes take the pipe's area; a pump or
+    valve takes the area it feeds (its end node); an AMR area sum carries its area in its name.
+    """
+    areas = node_areas(wn) if areas is None else areas
+    out: dict[str, str] = {}
+    for series in series_ids:
+        kind, _, ident = series.partition("__")
+        if kind == "amr_sum":
+            out[series] = ident
+        elif ident in areas.index:
+            out[series] = str(areas[ident])
+        elif ident in wn.link_name_list:
+            out[series] = str(areas[wn.get_link(ident).end_node_name])
+        else:
+            raise KeyError(f"cannot place series {series!r} in an area")
+    return out
+
+
 def node_coordinates(wn: wntr.network.WaterNetworkModel) -> pd.DataFrame:
     """``x, y`` map coordinates of every node (from the ``.inp`` [COORDINATES] section)."""
     coords = {name: node.coordinates for name, node in wn.nodes()}
