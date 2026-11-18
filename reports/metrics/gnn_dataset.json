@@ -1,13 +1,13 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T22:56:17+00:00",
-    "git_commit": "545367a",
+    "generated_at": "2026-11-18T23:29:48+00:00",
+    "git_commit": "f3bbb4f",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
   "engine": "WNTR EpanetSimulator (PDD) with emitter leaks (orifice law, D-024)",
-  "scenarios": 500,
+  "scenarios": 5000,
   "junctions": 782,
   "sensors": 33,
   "leak_diameter_m": [
@@ -27,14 +27,14 @@
   "baseline_runs_per_start": 5,
   "demand_noise": 0.1,
   "sensor_noise_m": 0.02,
-  "wall_s": 156.3,
-  "baseline_wall_s": 8.1,
-  "scenario_wall_s_mean": 1.152,
+  "wall_s": 1944.9,
+  "baseline_wall_s": 23.6,
+  "scenario_wall_s_mean": 1.533,
   "workers": 4,
   "residual_m": {
-    "abs_mean_all": 0.1051,
-    "max_abs_per_scenario_median": 0.1824
+    "abs_mean_all": 0.1049,
+    "max_abs_per_scenario_median": 0.1694
   },
-  "unique_leak_nodes": 378,
+  "unique_leak_nodes": 781,
   "output": "/root/leakwatch-data/sim/gnn"
 }
