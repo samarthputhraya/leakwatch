@@ -366,7 +366,7 @@ def make_live_scoring(
         producer.flush(10)
 
     return LiveScoring.from_model_dir(
-        paths.models_dir() / str(cfg["bdt"]["model"]),
+        paths.models_dir() / str(cfg["bdt"]["live_model"]),
         cfg,
         series_area_map(spec),
         origin="stream",

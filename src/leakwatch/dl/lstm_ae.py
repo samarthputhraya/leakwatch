@@ -286,6 +286,179 @@ def main(argv: list[str] | None = None) -> int:
     )
     curves = {"LSTM-AE": lstm_curve}
     comparison: dict[str, Any] = {}
+    feats = pd.concat([load_features(train_year), load_features(eval_year)], ignore_index=True)
+    labels = {
+        "kmeans": "K-Means (all PRD features)",
+        "kmeans_residual": "K-Means (residual features)",
+    }
+    for model_name, label in labels.items():
+        km_dir = model_dir(model_name)
+        if not (km_dir / "params.json").exists():
+            continue
+        params = KMeansParams.load(km_dir)
+        rows = feature_view(feats, spec, str(params.meta.get("feature_view", "absolute")))
+        km_scorer = KMeansScorer(params)
+        km_scored, km_shares = km_scorer.score_frame(rows)
+        km_normal = is_normal(km_scored["window_start"], intervals) & is_normal(
+            km_scored["window_start"] + pd.Timedelta(seconds=spec.window_s - spec.step_s), intervals
+        )
+        km_roles = split_roles(km_scored["window_start"], bdt)
+        km_thr = km_scored.loc[
+            km_normal
+            & (km_roles == "threshold")
+            & (km_scored["window_start"].dt.year == train_year),
+            "score",
+        ].to_numpy()
+        km_eval = (km_scored["window_start"].dt.year == eval_year).to_numpy()
+        curves[label] = operating_points(
+            km_thr,
+            QUANTILES,
+            int(params.persistence_windows),
+            km_scored[km_eval].reset_index(drop=True),
+            km_shares[km_eval],
+            km_scorer.series,
+            cfg,
+            gt,
+            areas,
+            model_name,
+            period,
+        )
+    for name, pts in curves.items():
+        pts = sorted(pts, key=lambda p: p["false_alarms_per_week"])
+        ax.plot(
+            [p["false_alarms_per_week"] for p in pts],
+            [p["detection_rate"] for p in pts],
+            "o-",
+            label=name,
+        )
+    ax.axvline(2.0, color="grey", ls="--", lw=1, label="aim: ≤ 2 false alarms/week")
+    ax.set_xlabel(f"false alarms per week ({year})")
+    ax.set_ylabel(f"share of {year} leaks detected within 7 days")
+    ax.set_ylim(0, 1.05)
+    ax.legend(fontsize=8)
+    ax.set_title("K-Means vs LSTM autoencoder (thresholds = quantiles of 2018 normal scores)")
+    fig.tight_layout()
+    out = paths.FIGURES_DIR / f"dl_detector_comparison_{year}.png"
+    fig.savefig(out, dpi=130)
+    plt.close(fig)
+    return out.name
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Train, threshold, tune, evaluate and compare (see module docstring)."""
+    argparse.ArgumentParser(description="LSTM autoencoder detector.").parse_args(argv)
+    t_start = time.perf_counter()
+    cfg = load_config()
+    dl = cfg["dl"]["lstm"]
+    bdt = cfg["bdt"]
+    seed = int(cfg["project"]["seed"])
+    torch.set_num_threads(int(dl["threads"]))
+    spec = load_feature_spec(cfg)
+    series = list(spec.sensor_series)
+    gt = load_ground_truth()
+    areas = series_area_map(spec)
+    train_year, eval_year = int(bdt["train_year"]), int(bdt["eval_year"])
+
+    resid = residual_matrix([train_year, eval_year], series)
+    intervals = intervals_from_config(gt, cfg["normal"], rule="main")
+    step_normal = is_normal(resid.index, intervals)
+    in_train_year = resid.index.year == train_year
+    roles_step = split_roles(pd.Series(resid.index), bdt)
+    fit_rows = step_normal & in_train_year & (roles_step == "train")
+    mean = np.nanmean(resid.to_numpy()[fit_rows], axis=0)
+    std = np.nanstd(resid.to_numpy()[fit_rows], axis=0, ddof=1)
+    seqs = make_sequences(
+        resid,
+        mean,
+        std,
+        int(dl["seq_steps"]),
+        spec.slide_s // spec.step_s,
+        spec.step_s,
+        spec.window_s,
+    )
+    # a sequence is normal if all its steps are normal
+    normal_csum = np.concatenate([[0], np.cumsum(~step_normal)])
+    seq_normal = (normal_csum[seqs.ends + 1] - normal_csum[seqs.ends + 1 - seqs.seq_steps]) == 0
+    roles = split_roles(pd.Series(seqs.window_start), bdt)
+    year = seqs.window_start.year
+    base = seq_normal & (year == train_year)
+    train = seqs.subset(base & (roles == "train"))
+    thr_set = seqs.subset(base & (roles == "threshold"))
+    log.info("sequences: %d total, %d train, %d threshold", len(seqs), len(train), len(thr_set))
+
+    model, history = train_model(train, thr_set, len(series), dl, seed)
+    scores, shares = reconstruction(model, seqs)
+    thr_scores = scores[base & (roles == "threshold")]
+    tau = float(np.quantile(thr_scores, float(bdt["threshold_quantile"])))
+    scored = pd.DataFrame(
+        {
+            "source": "battledim",
+            "scenario_id": None,
+            "window_start": seqs.window_start,
+            "window_end": seqs.window_end,
+            "score": scores,
+        }
+    )
+    in_train = year == train_year
+    validation_normal = (base & (roles == "validation"))[in_train]
+    m, tuning = tune_persistence(
+        tau,
+        scored[in_train].reset_index(drop=True),
+        shares[in_train],
+        series,
+        validation_normal,
+        None,
+        [],
+        cfg,
+        gt,
+        areas,
+        "lstm_ae",
+        spec.window_s,
+        spec.slide_s,
+    )
+    rule = make_rule(tau, m, cfg, areas, "lstm_ae")
+    alerts = run_alerts(scored, shares, series, rule)
+    period = year_bounds(eval_year)
+    horizon = float(bdt["detection_horizon_days"])
+    ev = evaluate_detections(alerts, gt, *period, horizon)
+    ev["chance_level"] = chance_detection(ev["alerts"]["total"], gt, *period, horizon)
+    ev["onset_contrast_24h"] = onset_contrast(scored, gt, *period)
+
+    out_dir = paths.models_dir() / "lstm_ae"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), out_dir / "model.pt")
+    (out_dir / "params.json").write_text(
+        json.dumps(
+            {
+                "series": series,
+                "mean": mean.tolist(),
+                "std": std.tolist(),
+                "threshold": tau,
+                "persistence_windows": m,
+                "config": dl,
+            },
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
+
+    # Matched false-alarm comparison with K-Means (both at their own 2018-tuned m).
+    eval_mask = year == eval_year
+    lstm_curve = operating_points(
+        thr_scores,
+        QUANTILES,
+        m,
+        scored[eval_mask].reset_index(drop=True),
+        shares[eval_mask],
+        series,
+        cfg,
+        gt,
+        areas,
+        "lstm_ae",
+        period,
+    )
+    curves = {"LSTM-AE": lstm_curve}
+    comparison: dict[str, Any] = {}
     km_dir = model_dir("kmeans")
     if (km_dir / "params.json").exists():
         params = KMeansParams.load(km_dir)

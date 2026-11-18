@@ -48,14 +48,21 @@ from leakwatch.stream.spark import get_spark
 
 log = get_logger("leakwatch.bdt.train")
 
-#: Detector variants: model directory, D-015 rule for "normal", feature view.
-#: ``absolute`` = the PRD §7.2 features; ``weekly_change`` = each window minus the same window
-#: 7 days earlier (an improvement experiment, D-020): accumulated leakage cancels out.
-MODELS = {"main": "kmeans", "strict": "kmeans_strict", "delta": "kmeans_delta"}
-VARIANTS: dict[str, tuple[str, str]] = {
-    "main": ("main", "absolute"),
-    "strict": ("strict", "absolute"),
-    "delta": ("main", "weekly_change"),
+#: Detector variants: model directory, D-015 rule for "normal", feature view, PCA variance.
+#: ``absolute`` = all PRD §7.2 features; ``weekly_change`` = each window minus the same window
+#: 7 days earlier; ``residual`` = only the residual statistic of each series (value minus its
+#: hour-of-week baseline), chosen on 2018 validation leak onsets (D-020). ``None`` = config value.
+MODELS = {
+    "main": "kmeans",
+    "strict": "kmeans_strict",
+    "delta": "kmeans_delta",
+    "residual": "kmeans_residual",
+}
+VARIANTS: dict[str, tuple[str, str, float | None]] = {
+    "main": ("main", "absolute", None),
+    "strict": ("strict", "absolute", None),
+    "delta": ("main", "weekly_change", None),
+    "residual": ("main", "residual", 0.99),
 }
 
 
@@ -140,9 +147,15 @@ def tune_persistence(
     return int(chosen["m"]), rows
 
 
+def view_columns(spec: FeatureSpec, view: str) -> list[str]:
+    """Model input columns of a feature view."""
+    cols = spec.feature_columns()
+    return [c for c in cols if c.endswith("__residual")] if view == "residual" else cols
+
+
 def feature_view(features: pd.DataFrame, spec: FeatureSpec, view: str) -> pd.DataFrame:
-    """The feature rows a variant sees: as stored (absolute) or week-over-week change."""
-    if view == "absolute":
+    """The feature rows a variant sees: as stored, residuals only, or week-over-week change."""
+    if view in ("absolute", "residual"):
         return features
     if view == "weekly_change":
         return weekly_change(features, spec.feature_columns())
@@ -213,8 +226,11 @@ def train_one(
     t0 = time.perf_counter()
     bdt = cfg["bdt"]
     variant = rule
-    rule, view = VARIANTS[variant]
+    rule, view, variance = VARIANTS[variant]
     features = feature_view(features, spec, view)
+    columns = view_columns(spec, view)
+    if variance is not None:
+        bdt = {**bdt, "pca_variance": variance}
     normal = normal_mask(features, spec, gt, cfg, rule)
     if view == "weekly_change":  # the reference window a week earlier must be normal too
         earlier = features.assign(window_start=features["window_start"] - pd.Timedelta(days=7))
@@ -222,7 +238,7 @@ def train_one(
     roles = split_roles(features["window_start"], bdt)
     train = features[normal & (roles == "train")]
     log.info("%s: %d normal windows (%d train)", rule, normal.sum(), len(train))
-    trained = fit_kmeans(spark, train, spec.feature_columns(), bdt, int(cfg["project"]["seed"]))
+    trained = fit_kmeans(spark, train, columns, bdt, int(cfg["project"]["seed"]))
     scorer = KMeansScorer(trained.params)
     scored, shares = scorer.score_frame(features)
     thr_scores = scored.loc[normal & (roles == "threshold"), "score"]
@@ -249,6 +265,8 @@ def train_one(
     return {
         "rule": rule,
         "feature_view": view,
+        "features": len(columns),
+        "pca_variance": float(bdt["pca_variance"]),
         "model_dir": str(out_dir),
         "normal_windows": int(normal.sum()),
         "windows_by_role": {

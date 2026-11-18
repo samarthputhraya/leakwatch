@@ -215,13 +215,13 @@ def main(argv: list[str] | None = None) -> int:
                 k: round(float(v), 4) for k, v in monthly.groupby("m")["above"].mean().items()
             },
         }
-        if rule in ("main", "delta"):
+        if rule in ("main", "delta", "residual"):
             suffix = "" if rule == "main" else f"_{rule}"
             figures += [
                 plot_timeline(scored, alerts, gt, float(params.threshold), eval_year, suffix),
                 plot_per_leak(ev["per_leak"], eval_year, suffix),
             ]
-        if rule == "main" and not args.no_write:
+        if name == str(cfg["bdt"]["live_model"]) and not args.no_write:
             spark = get_spark(cfg["spark"], "leakwatch-bdt-eval")
             n_scores = write_scores(spark, scored, "kmeans", "batch")
             n_alerts = write_alerts(spark, alerts, "batch", mode="overwrite")
@@ -230,6 +230,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "train_year": train_year,
         "eval_year": eval_year,
+        "live_model": str(cfg["bdt"]["live_model"]),
         "label_rules": "eval.detection (D-020): tp = alert within [leak start, +7 d]; "
         "preexisting = only carried-over 2018 leaks active; fp = everything else",
         "models": results,
@@ -237,6 +238,8 @@ def main(argv: list[str] | None = None) -> int:
         "wall_s": round(time.perf_counter() - t0, 1),
     }
     path = write_metrics("bdt_kmeans_2019", payload)
+    payload_live = str(cfg["bdt"]["live_model"])
+    log.info("lake scores/alerts written for the live model %s", payload_live)
     main_ev = results.get("main", {}).get("eval_2019", {})
     log.info(
         "2019: detection %s, precision %s, false alarms/week %s -> %s",
