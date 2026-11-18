@@ -70,7 +70,8 @@ class GraphData:
         w = diameter / np.maximum(length, 1.0)
         self.edge_weight = torch.from_numpy((w / w.mean()).astype("float32"))
         attr = np.stack([np.log1p(length), diameter / diameter.mean()], axis=1)
-        self.edge_attr = torch.from_numpy(((attr - attr.mean(0)) / attr.std(0)).astype("float32"))
+        spread = np.where(attr.std(0) > 0, attr.std(0), 1.0)  # constant columns -> 0, not NaN
+        self.edge_attr = torch.from_numpy(((attr - attr.mean(0)) / spread).astype("float32"))
         adj = csr_matrix((np.maximum(length, 0.0), (ei[0], ei[1])), shape=(self.n, self.n))
         self.dist = shortest_path(adj, directed=False)
         elev = np.asarray(graph["elevation_m"], dtype="float64")
