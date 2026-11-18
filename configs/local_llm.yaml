@@ -1,0 +1,7 @@
+# Overlay for a local CPU model (`make llm-local`): LEAKWATCH_CONFIG=configs/local_llm.yaml.
+# CPU inference takes tens of seconds per call, so the client waits longer; everything else is
+# the default configuration.
+copilot:
+  llm:
+    timeout_s: 900
+    max_retries: 0

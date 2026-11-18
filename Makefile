@@ -13,7 +13,7 @@ PY_DIRS := src tests scripts notebooks
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
-	demo-check bdt-scaling reports test-report prepare
+	demo-check bdt-scaling reports test-report prepare llm-local
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -131,6 +131,9 @@ index: ## copilot RAG index: docs/kb + CPHEEO PDFs in data/docs (downloaded if m
 
 dispatch: ## work orders for alerts without one -> lake/work_orders (template when no LLM is set)
 	$(RUN) python -m leakwatch.copilot.dispatch
+
+llm-local: ## local CPU model for the copilot (llama.cpp + Qwen3-4B, ~2.1 GB download) on :8080
+	bash scripts/local_llm.sh
 
 PE_VERSION ?= all
 pe-eval: ## copilot evaluation, needs LLM_* in .env: make pe-eval PE_VERSION=v1|v2|v3|all
