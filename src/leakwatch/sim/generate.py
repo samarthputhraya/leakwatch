@@ -18,7 +18,9 @@ import argparse
 import json
 import os
 import resource
+import shutil
 import sys
+import tempfile
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -47,7 +49,27 @@ def run_partition(
     sensors: dict[str, list[str]],
     tank_area: dict[str, float],
 ) -> Iterator[dict[str, Any]]:
-    """Spark task: simulate each scenario of the partition and write it (skip if present)."""
+    """Spark task: simulate each scenario of the partition and write it (skip if present).
+
+    EPANET writes temporary files into the working directory, so each task works inside its own
+    scratch directory (otherwise crashed runs litter the repository with ~80 MB files).
+    """
+    scratch = Path(tempfile.mkdtemp(prefix="leakwatch-sim-"))
+    os.chdir(scratch)
+    try:
+        yield from _simulate_rows(rows, root, inp, sensors, tank_area)
+    finally:
+        os.chdir(tempfile.gettempdir())
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+def _simulate_rows(
+    rows: Iterator[tuple[str, str]],
+    root: str,
+    inp: str,
+    sensors: dict[str, list[str]],
+    tank_area: dict[str, float],
+) -> Iterator[dict[str, Any]]:
     for scenario_id, text in rows:
         target = output_path(Path(root), scenario_id)
         if target.exists():

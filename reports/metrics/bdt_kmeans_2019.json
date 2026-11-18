@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T20:42:04+00:00",
-    "git_commit": "9c79eba",
+    "generated_at": "2026-11-18T21:08:35+00:00",
+    "git_commit": "86a026e",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -266,6 +266,168 @@
             "first_alert": "2019-11-24T09:45:00+00:00"
           }
         ],
+        "onset_contrast_24h": {
+          "hours": 24.0,
+          "leaks": 19,
+          "share_rising_overall": 0.1053,
+          "share_rising_abrupt": 0.1111,
+          "share_rising_incipient": 0.1,
+          "median_ratio_abrupt": 1.162,
+          "per_leak": [
+            {
+              "leak_id": "L2019_p523",
+              "type": "abrupt",
+              "before_mean": 6.927,
+              "after_mean": 6.868,
+              "ratio": 0.991,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p827",
+              "type": "abrupt",
+              "before_mean": 6.643,
+              "after_mean": 13.919,
+              "ratio": 2.095,
+              "after_above_before_p95": true
+            },
+            {
+              "leak_id": "L2019_p280",
+              "type": "abrupt",
+              "before_mean": 7.092,
+              "after_mean": 10.391,
+              "ratio": 1.465,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p653",
+              "type": "incipient",
+              "before_mean": 7.424,
+              "after_mean": 8.301,
+              "ratio": 1.118,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p710",
+              "type": "abrupt",
+              "before_mean": 8.737,
+              "after_mean": 10.154,
+              "ratio": 1.162,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p514",
+              "type": "abrupt",
+              "before_mean": 11.274,
+              "after_mean": 10.252,
+              "ratio": 0.909,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p331",
+              "type": "abrupt",
+              "before_mean": 18.282,
+              "after_mean": 19.86,
+              "ratio": 1.086,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p193",
+              "type": "incipient",
+              "before_mean": 21.29,
+              "after_mean": 14.751,
+              "ratio": 0.693,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p277",
+              "type": "incipient",
+              "before_mean": 12.188,
+              "after_mean": 21.841,
+              "ratio": 1.792,
+              "after_above_before_p95": true
+            },
+            {
+              "leak_id": "L2019_p142",
+              "type": "abrupt",
+              "before_mean": 19.409,
+              "after_mean": 25.938,
+              "ratio": 1.336,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p680",
+              "type": "abrupt",
+              "before_mean": 35.201,
+              "after_mean": 35.668,
+              "ratio": 1.013,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p586",
+              "type": "incipient",
+              "before_mean": 32.277,
+              "after_mean": 28.96,
+              "ratio": 0.897,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p721",
+              "type": "incipient",
+              "before_mean": 26.371,
+              "after_mean": 27.796,
+              "ratio": 1.054,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p800",
+              "type": "incipient",
+              "before_mean": 29.46,
+              "after_mean": 27.686,
+              "ratio": 0.94,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p123",
+              "type": "incipient",
+              "before_mean": 49.172,
+              "after_mean": 46.382,
+              "ratio": 0.943,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p455",
+              "type": "incipient",
+              "before_mean": 31.426,
+              "after_mean": 31.098,
+              "ratio": 0.99,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p762",
+              "type": "incipient",
+              "before_mean": 29.288,
+              "after_mean": 24.659,
+              "ratio": 0.842,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p426",
+              "type": "abrupt",
+              "before_mean": 29.529,
+              "after_mean": 35.137,
+              "ratio": 1.19,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p879",
+              "type": "incipient",
+              "before_mean": 36.235,
+              "after_mean": 42.038,
+              "ratio": 1.16,
+              "after_above_before_p95": false
+            }
+          ]
+        },
         "chance_level": {
           "n_alerts": 275,
           "mean_rate": 0.9955,
@@ -597,6 +759,168 @@
             "first_alert": "2019-11-22T04:15:00+00:00"
           }
         ],
+        "onset_contrast_24h": {
+          "hours": 24.0,
+          "leaks": 19,
+          "share_rising_overall": 0.0,
+          "share_rising_abrupt": 0.0,
+          "share_rising_incipient": 0.0,
+          "median_ratio_abrupt": 1.182,
+          "per_leak": [
+            {
+              "leak_id": "L2019_p523",
+              "type": "abrupt",
+              "before_mean": 8.739,
+              "after_mean": 13.462,
+              "ratio": 1.54,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p827",
+              "type": "abrupt",
+              "before_mean": 15.226,
+              "after_mean": 23.59,
+              "ratio": 1.549,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p280",
+              "type": "abrupt",
+              "before_mean": 9.149,
+              "after_mean": 11.439,
+              "ratio": 1.25,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p653",
+              "type": "incipient",
+              "before_mean": 10.839,
+              "after_mean": 9.669,
+              "ratio": 0.892,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p710",
+              "type": "abrupt",
+              "before_mean": 13.207,
+              "after_mean": 14.178,
+              "ratio": 1.073,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p514",
+              "type": "abrupt",
+              "before_mean": 18.414,
+              "after_mean": 19.596,
+              "ratio": 1.064,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p331",
+              "type": "abrupt",
+              "before_mean": 28.034,
+              "after_mean": 28.168,
+              "ratio": 1.005,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p193",
+              "type": "incipient",
+              "before_mean": 23.706,
+              "after_mean": 24.323,
+              "ratio": 1.026,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p277",
+              "type": "incipient",
+              "before_mean": 23.829,
+              "after_mean": 26.0,
+              "ratio": 1.091,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p142",
+              "type": "abrupt",
+              "before_mean": 29.757,
+              "after_mean": 36.61,
+              "ratio": 1.23,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p680",
+              "type": "abrupt",
+              "before_mean": 46.843,
+              "after_mean": 45.358,
+              "ratio": 0.968,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p586",
+              "type": "incipient",
+              "before_mean": 41.231,
+              "after_mean": 37.031,
+              "ratio": 0.898,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p721",
+              "type": "incipient",
+              "before_mean": 37.348,
+              "after_mean": 37.745,
+              "ratio": 1.011,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p800",
+              "type": "incipient",
+              "before_mean": 39.621,
+              "after_mean": 36.534,
+              "ratio": 0.922,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p123",
+              "type": "incipient",
+              "before_mean": 57.851,
+              "after_mean": 54.18,
+              "ratio": 0.937,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p455",
+              "type": "incipient",
+              "before_mean": 41.576,
+              "after_mean": 40.785,
+              "ratio": 0.981,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p762",
+              "type": "incipient",
+              "before_mean": 39.728,
+              "after_mean": 34.96,
+              "ratio": 0.88,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p426",
+              "type": "abrupt",
+              "before_mean": 36.624,
+              "after_mean": 43.306,
+              "ratio": 1.182,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p879",
+              "type": "incipient",
+              "before_mean": 47.202,
+              "after_mean": 52.744,
+              "ratio": 1.117,
+              "after_above_before_p95": false
+            }
+          ]
+        },
         "chance_level": {
           "n_alerts": 366,
           "mean_rate": 0.9987,
@@ -924,6 +1248,168 @@
             "first_alert": "2019-11-20T12:00:00+00:00"
           }
         ],
+        "onset_contrast_24h": {
+          "hours": 24.0,
+          "leaks": 19,
+          "share_rising_overall": 0.1053,
+          "share_rising_abrupt": 0.2222,
+          "share_rising_incipient": 0.0,
+          "median_ratio_abrupt": 0.952,
+          "per_leak": [
+            {
+              "leak_id": "L2019_p523",
+              "type": "abrupt",
+              "before_mean": 5.85,
+              "after_mean": 19.005,
+              "ratio": 3.249,
+              "after_above_before_p95": true
+            },
+            {
+              "leak_id": "L2019_p827",
+              "type": "abrupt",
+              "before_mean": 9.703,
+              "after_mean": 25.581,
+              "ratio": 2.636,
+              "after_above_before_p95": true
+            },
+            {
+              "leak_id": "L2019_p280",
+              "type": "abrupt",
+              "before_mean": 24.017,
+              "after_mean": 26.442,
+              "ratio": 1.101,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p653",
+              "type": "incipient",
+              "before_mean": 29.377,
+              "after_mean": 15.757,
+              "ratio": 0.536,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p710",
+              "type": "abrupt",
+              "before_mean": 10.236,
+              "after_mean": 15.097,
+              "ratio": 1.475,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p514",
+              "type": "abrupt",
+              "before_mean": 33.224,
+              "after_mean": 24.64,
+              "ratio": 0.742,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p331",
+              "type": "abrupt",
+              "before_mean": 33.081,
+              "after_mean": 24.999,
+              "ratio": 0.756,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p193",
+              "type": "incipient",
+              "before_mean": 35.605,
+              "after_mean": 25.979,
+              "ratio": 0.73,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p277",
+              "type": "incipient",
+              "before_mean": 12.881,
+              "after_mean": 12.423,
+              "ratio": 0.964,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p142",
+              "type": "abrupt",
+              "before_mean": 32.157,
+              "after_mean": 30.622,
+              "ratio": 0.952,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p680",
+              "type": "abrupt",
+              "before_mean": 34.526,
+              "after_mean": 32.422,
+              "ratio": 0.939,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p586",
+              "type": "incipient",
+              "before_mean": 24.089,
+              "after_mean": 12.572,
+              "ratio": 0.522,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p721",
+              "type": "incipient",
+              "before_mean": 23.743,
+              "after_mean": 19.578,
+              "ratio": 0.825,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p800",
+              "type": "incipient",
+              "before_mean": 10.583,
+              "after_mean": 9.525,
+              "ratio": 0.9,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p123",
+              "type": "incipient",
+              "before_mean": 30.873,
+              "after_mean": 12.588,
+              "ratio": 0.408,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p455",
+              "type": "incipient",
+              "before_mean": 34.816,
+              "after_mean": 28.26,
+              "ratio": 0.812,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p762",
+              "type": "incipient",
+              "before_mean": 34.281,
+              "after_mean": 31.016,
+              "ratio": 0.905,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p426",
+              "type": "abrupt",
+              "before_mean": 17.471,
+              "after_mean": 16.463,
+              "ratio": 0.942,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p879",
+              "type": "incipient",
+              "before_mean": 11.856,
+              "after_mean": 14.442,
+              "ratio": 1.218,
+              "after_above_before_p95": false
+            }
+          ]
+        },
         "chance_level": {
           "n_alerts": 409,
           "mean_rate": 0.9995,
@@ -1002,5 +1488,5 @@
     "bdt_score_timeline_2019_delta.png",
     "bdt_detection_per_leak_2019_delta.png"
   ],
-  "wall_s": 487.9
+  "wall_s": 655.4
 }
