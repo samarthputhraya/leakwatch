@@ -111,6 +111,11 @@ def lake_work_orders_dir() -> Path:
     return lake_dir() / "work_orders"
 
 
+def lake_sim_dir() -> Path:
+    """Simulator scenario configs and outputs (PRD §6.2 ``sim/scenarios/``); not readings yet."""
+    return lake_dir() / "sim" / "scenarios"
+
+
 def lake_state_dir(job: str) -> Path:
     """State a streaming job carries between micro-batches (committed with each batch)."""
     return lake_dir() / "_state" / job

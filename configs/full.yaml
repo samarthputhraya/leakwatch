@@ -9,6 +9,9 @@ battledim:
 sim:
   bench:
     repeats: 3
+  scale:
+    scenarios: 73                  # 73 x 30 days x 288 x 119 = 75.0M simulated readings
+    workers: 8
 
 spark:
   master: local[*]

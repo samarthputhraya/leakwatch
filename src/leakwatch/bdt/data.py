@@ -81,7 +81,8 @@ def write_scores(
     out["date"] = out["window_start"].dt.strftime("%Y-%m-%d")
     spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
     spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
-    sdf = spark.createDataFrame(out)
+    # An all-null scenario_id would be inferred as VOID, which Parquet cannot store.
+    sdf = spark.createDataFrame(out).withColumn("scenario_id", F.col("scenario_id").cast("string"))
     (
         sdf.repartition("date")
         .write.mode("overwrite" if overwrite else "append")

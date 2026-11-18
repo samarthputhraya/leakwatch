@@ -107,6 +107,19 @@ network:
   area_anchors: {A: n54, B: n215, C: T1}
 
 sim:
+  # Phase 4 scaling data (PRD §4.2, §7.5): consecutive simulated scenarios, Spark-parallel.
+  # Laptop-safe default: 4 x 30 days = ~12.4M readings. configs/full.yaml: 73 scenarios (~75M,
+  # i.e. 100M+ readings in the lake together with BattLeDIM 2018-2019).
+  scale:
+    start: "2020-01-06"            # Monday after BattLeDIM 2019 ends: event time keeps moving forward
+    scenario_days: 30
+    scenarios: 4
+    workers: 4                     # Spark tasks in parallel (one epyt-flow process each, ~0.4 GB)
+    leaks_per_scenario: [0, 2]
+    leak_diameter_m: [0.008, 0.025]   # BattLeDIM leak diameters span 0.0088-0.0229 m
+    incipient_share: 0.5
+    demand_uncertainty: 0.10       # demand patterns x U(0.9, 1.1)
+    noise: {pressure_m: 0.02, level_m: 0.005, flow_rel: 0.01, amr_rel: 0.02}
   # Phase 0 speed benchmark (`make sim-bench`): one leak, simulated with each engine.
   bench:
     durations_hours: [48, 168]       # PRD §4.2: one 48-hour and one 7-day scenario
