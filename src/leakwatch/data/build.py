@@ -47,8 +47,13 @@ def scada_quality(year: int, wide: pd.DataFrame, stuck_min_steps: int) -> dict[s
             "constant_run_steps": int(stuck.loc[cols, "stuck_steps"].sum()),
             "longest_constant_run_steps": int(stuck.loc[cols, "longest_run"].max()),
         }
+    flagged = stuck[stuck["stuck_runs"] > 0].sort_values("stuck_steps", ascending=False)
     return {
         "year": year,
+        "sensors_with_constant_runs": [
+            {"column": str(col), **{k: int(v) for k, v in row.items()}}
+            for col, row in flagged.iterrows()
+        ],
         "timesteps": len(wide),
         "first_ts": wide.index[0].isoformat(),
         "last_ts": wide.index[-1].isoformat(),
