@@ -87,11 +87,11 @@ def main(argv: list[str] | None = None) -> int:
             t_click = time.perf_counter()
             send_command("inject_leak", node_id=node, diameter_m=diameter)
 
-            def since_click(predicate: Any) -> float | None:
+            def since_click(predicate: Any, t0: float = t_click) -> float | None:
                 """Wall seconds from the click until ``predicate`` holds (None on timeout)."""
                 if wait_for(predicate, args.budget_s * 3) is None:
                     return None
-                return round(time.perf_counter() - t_click, 1)
+                return round(time.perf_counter() - t0, 1)
 
             alert_s = since_click(lambda t=sim_before: not current_alerts(t).empty)
             gnn_s = since_click(
