@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T22:47:35+00:00",
-    "git_commit": "f68e3ab",
+    "generated_at": "2026-11-18T23:41:01+00:00",
+    "git_commit": "afd7cf2",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -1433,11 +1433,10 @@
           }
         },
         "time_to_detection_h": {
-          "median": null,
-          "mean": null,
+          "median": 10.17,
+          "mean": 27.353846153846156,
           "values": [
             22.25,
-            null,
             73.17,
             24.58,
             0.5,
@@ -1508,8 +1507,8 @@
           }
         },
         "time_to_detection_h": {
-          "median": null,
-          "mean": null,
+          "median": 9.58,
+          "mean": 25.71285714285714,
           "values": [
             36.25,
             1.0,
@@ -1524,12 +1523,7 @@
             165.25,
             41.83,
             1.0,
-            45.0,
-            null,
-            null,
-            null,
-            null,
-            null
+            45.0
           ]
         },
         "alerts": {
@@ -1980,5 +1974,5 @@
     "bdt_score_timeline_2019_residual.png",
     "bdt_detection_per_leak_2019_residual.png"
   ],
-  "wall_s": 129.3
+  "wall_s": 361.0
 }
