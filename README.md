@@ -8,9 +8,11 @@ Software-only leak detection for water distribution networks, built and evaluate
 - **Where** is the leak? A graph neural network ranks the 5 most likely leak locations.
 - **What do we do?** An operator copilot turns alerts into work orders and answers questions with data.
 
-Status: **Phase 0 (environment and data)**. See [PROGRESS.md](PROGRESS.md) for what works today and
-[docs/PRD.md](docs/PRD.md) for the full specification. Results are reported only from
-`reports/metrics/*.json`; none are published yet.
+Status: **Phase 0 (environment and data) done; Phase 1 (streaming ingestion) next.** See
+[PROGRESS.md](PROGRESS.md) for what works today, [docs/architecture.md](docs/architecture.md) for
+the design and [docs/PRD.md](docs/PRD.md) for the full specification. Every number we report comes
+from `reports/metrics/*.json`; so far these hold data, network and simulator facts, not model
+results.
 
 ## Quick start (Windows + WSL2 Ubuntu)
 
@@ -20,6 +22,8 @@ From a PowerShell terminal in the repo folder:
 wsl make setup   # Python 3.11 venv via uv (pinned)
 wsl make data    # download BattLeDIM from Zenodo, convert to Parquet, build the leak ground truth
 wsl make test    # unit + contract tests
+wsl make eda     # run the EDA notebook headless; figures in reports/figures/
+wsl make help    # all targets
 ```
 
 One-time toolchain inside WSL (already done on the development machine): `apt install openjdk-17-jdk-headless
