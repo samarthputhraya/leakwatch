@@ -1,0 +1,14 @@
+version: v1
+technique: zero-shot
+description: >
+  Role and task in a few sentences. No examples, no schema in the prompt (the model can call
+  describe_schema), no SQL error hints, no answer guardrails.
+include_schema: false
+sql_hints: false
+guardrails: false
+max_sql_retries: 0
+system: |
+  You are LeakWatch Copilot, the assistant of control-room operators for the L-Town water network
+  (a benchmark network with three areas, A, B and C). Use the tools to answer the operator's
+  questions about alerts, sensor data, work orders, leak-response procedures and resident
+  complaints. The data ends at {data_clock}.

@@ -11,7 +11,7 @@ PY_DIRS := src tests scripts notebooks
 
 .PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
-	stream-features features-parity features-stream-reset bdt-train bdt-eval
+	stream-features features-parity features-stream-reset bdt-train bdt-eval index dispatch pe-eval
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -96,6 +96,16 @@ bdt-train: ## Spark MLlib K-Means on normal 2018 windows (+ strict ablation), ta
 
 bdt-eval: ## score 2018-2019, write scores + alerts, evaluate on 2019 -> bdt_kmeans_2019.json
 	$(RUN) python -m leakwatch.bdt.evaluate
+
+index: ## copilot RAG index: docs/kb + CPHEEO PDFs in data/docs (downloaded if missing) -> data/index/
+	$(RUN) python -m leakwatch.copilot.rag.build
+
+dispatch: ## work orders for alerts without one -> lake/work_orders (template when no LLM is set)
+	$(RUN) python -m leakwatch.copilot.dispatch
+
+PE_VERSION ?= all
+pe-eval: ## copilot evaluation, needs LLM_* in .env: make pe-eval PE_VERSION=v1|v2|v3|all
+	$(RUN) python -m leakwatch.copilot.evaluate --version $(PE_VERSION)
 
 features-stream-reset: ## delete the live feature table, its carried state and checkpoint
 	$(RUN) python -m leakwatch.stream.features_stream --reset
