@@ -134,11 +134,11 @@ class KMeansScorer:
         share = np.divide(sq, total, out=np.zeros_like(sq), where=total > 0) @ self._to_series
         return {"score": dist, "cluster": cluster, "series_share": share}
 
-    def score_frame(self, features: pd.DataFrame) -> pd.DataFrame:
+    def score_frame(self, features: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray]:
         """Score a feature table.
 
         Returns the key columns plus ``score``, ``cluster``, ``top_sensor`` and, if a threshold is
-        set, ``threshold`` and ``above``; ``out.attrs["series_share"]`` keeps the share matrix.
+        set, ``threshold`` and ``above``; and the ``(n, n_series)`` share matrix.
         """
         cols = list(self.params.feature_columns)
         missing = [c for c in cols if c not in features.columns]
@@ -155,8 +155,7 @@ class KMeansScorer:
         if self.params.threshold is not None:
             out["threshold"] = float(self.params.threshold)
             out["above"] = out["score"] > out["threshold"]
-        out.attrs["series_share"] = res["series_share"]
-        return out
+        return out, res["series_share"]
 
     def top_series(self, share_row: np.ndarray, n: int) -> list[tuple[str, float]]:
         """The ``n`` series with the largest share in one row of ``series_share``."""

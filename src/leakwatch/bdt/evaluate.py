@@ -57,7 +57,7 @@ def score_and_alert(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Scores for every window and the final state of every alert."""
     scorer = KMeansScorer(params)
-    scored = scorer.score_frame(features)
+    scored, shares = scorer.score_frame(features)
     rule = AlertRule(
         threshold=float(params.threshold),  # type: ignore[arg-type]
         persistence_windows=int(params.persistence_windows),  # type: ignore[arg-type]
@@ -69,7 +69,7 @@ def score_and_alert(
     )
     alerts = run_alerts(
         scored,
-        scored.attrs["series_share"],
+        shares,
         scorer.series,
         rule,
         inflow_residual_columns(cfg),

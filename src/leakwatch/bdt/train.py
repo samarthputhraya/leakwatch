@@ -195,12 +195,11 @@ def train_one(
     log.info("%s: %d normal windows (%d train)", rule, normal.sum(), len(train))
     trained = fit_kmeans(spark, train, spec.feature_columns(), bdt, int(cfg["project"]["seed"]))
     scorer = KMeansScorer(trained.params)
-    scored = scorer.score_frame(features)
-    shares = scored.attrs["series_share"]
+    scored, shares = scorer.score_frame(features)
     thr_scores = scored.loc[normal & (roles == "threshold"), "score"]
     tau = float(np.quantile(thr_scores, float(bdt["threshold_quantile"])))
     scorer = KMeansScorer(trained.params.with_threshold(tau))
-    scored = scorer.score_frame(features)
+    scored, shares = scorer.score_frame(features)
     validation_normal = normal & (roles == "validation")
     m, table = tune_persistence(
         scorer, features, scored, shares, validation_normal, spec, cfg, gt, areas
