@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T15:03:27+00:00",
+    "git_commit": "22ba83c",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "scenario": {
+    "step_s": 300,
+    "leak_pipe": "p461",
+    "leak_diameter_m": 0.015,
+    "leak_start_hour": 12,
+    "discharge_coeff": 0.75
+  },
+  "machine": {
+    "cpu_count": 18
+  },
+  "runs": [
+    {
+      "engine": "wntr",
+      "hours": 48,
+      "repeat": 1,
+      "wall_s": 22.31,
+      "timesteps": 577,
+      "leak_outflow_end_m3h": 15.102891332091444,
+      "peak_rss_mb": 410.2,
+      "equivalent_readings": 68663,
+      "readings_per_s": 3077.0,
+      "simulated_days_per_wall_minute": 5.39,
+      "projected_single_core_hours_for_100M": 9.03
+    },
+    {
+      "engine": "wntr",
+      "hours": 168,
+      "repeat": 1,
+      "wall_s": 74.01,
+      "timesteps": 2017,
+      "leak_outflow_end_m3h": 15.107980911554815,
+      "peak_rss_mb": 755.7,
+      "equivalent_readings": 240023,
+      "readings_per_s": 3242.9,
+      "simulated_days_per_wall_minute": 5.68,
+      "projected_single_core_hours_for_100M": 8.57
+    },
+    {
+      "engine": "epyt_flow",
+      "hours": 48,
+      "repeat": 1,
+      "wall_s": 15.14,
+      "timesteps": 577,
+      "leak_outflow_end_m3h": null,
+      "peak_rss_mb": 262.1,
+      "equivalent_readings": 68663,
+      "readings_per_s": 4534.9,
+      "simulated_days_per_wall_minute": 7.94,
+      "projected_single_core_hours_for_100M": 6.13
+    },
+    {
+      "engine": "epyt_flow",
+      "hours": 168,
+      "repeat": 1,
+      "wall_s": 51.44,
+      "timesteps": 2017,
+      "leak_outflow_end_m3h": null,
+      "peak_rss_mb": 358.2,
+      "equivalent_readings": 240023,
+      "readings_per_s": 4666.3,
+      "simulated_days_per_wall_minute": 8.17,
+      "projected_single_core_hours_for_100M": 5.95
+    }
+  ],
+  "fastest_engine": "epyt_flow",
+  "best_readings_per_s": {
+    "wntr": 3242.9,
+    "epyt_flow": 4666.3
+  }
+}

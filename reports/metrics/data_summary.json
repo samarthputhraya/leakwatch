@@ -1,0 +1,288 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T15:08:01+00:00",
+    "git_commit": "4103d16",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "source": "Zenodo record 4017659 (doi:10.5281/zenodo.4017659)",
+  "scada": [
+    {
+      "year": 2018,
+      "sensors_with_constant_runs": [
+        {
+          "column": "flow__PUMP_1",
+          "longest_run": 233,
+          "stuck_runs": 343,
+          "stuck_steps": 41002
+        },
+        {
+          "column": "pressure__n215",
+          "longest_run": 84,
+          "stuck_runs": 610,
+          "stuck_steps": 21400
+        },
+        {
+          "column": "amr__n25",
+          "longest_run": 109,
+          "stuck_runs": 231,
+          "stuck_steps": 10538
+        },
+        {
+          "column": "level__T1",
+          "longest_run": 83,
+          "stuck_runs": 92,
+          "stuck_steps": 1740
+        },
+        {
+          "column": "pressure__n740",
+          "longest_run": 28,
+          "stuck_runs": 40,
+          "stuck_steps": 618
+        },
+        {
+          "column": "amr__n347",
+          "longest_run": 14,
+          "stuck_runs": 9,
+          "stuck_steps": 118
+        },
+        {
+          "column": "pressure__n495",
+          "longest_run": 17,
+          "stuck_runs": 4,
+          "stuck_steps": 58
+        },
+        {
+          "column": "pressure__n296",
+          "longest_run": 17,
+          "stuck_runs": 4,
+          "stuck_steps": 57
+        },
+        {
+          "column": "pressure__n722",
+          "longest_run": 14,
+          "stuck_runs": 1,
+          "stuck_steps": 14
+        },
+        {
+          "column": "pressure__n769",
+          "longest_run": 14,
+          "stuck_runs": 1,
+          "stuck_steps": 14
+        }
+      ],
+      "timesteps": 105120,
+      "first_ts": "2018-01-01T00:00:00+00:00",
+      "last_ts": "2018-12-31T23:55:00+00:00",
+      "regular_5min_steps": true,
+      "sensors": 119,
+      "readings": 12509280,
+      "missing": 0,
+      "by_type": {
+        "pressure": {
+          "sensors": 33,
+          "readings": 3468960,
+          "missing": 0,
+          "sensors_with_missing": 0,
+          "min": 25.67,
+          "max": 56.97,
+          "sensors_with_constant_runs_ge_12": 6,
+          "constant_run_steps": 22161,
+          "longest_constant_run_steps": 84
+        },
+        "flow": {
+          "sensors": 3,
+          "readings": 315360,
+          "missing": 0,
+          "sensors_with_missing": 0,
+          "min": 0.0,
+          "max": 195.28,
+          "sensors_with_constant_runs_ge_12": 1,
+          "constant_run_steps": 41002,
+          "longest_constant_run_steps": 233
+        },
+        "level": {
+          "sensors": 1,
+          "readings": 105120,
+          "missing": 0,
+          "sensors_with_missing": 0,
+          "min": 1.95,
+          "max": 3.9,
+          "sensors_with_constant_runs_ge_12": 1,
+          "constant_run_steps": 1740,
+          "longest_constant_run_steps": 83
+        },
+        "amr": {
+          "sensors": 82,
+          "readings": 8619840,
+          "missing": 0,
+          "sensors_with_missing": 0,
+          "min": 0.0,
+          "max": 37795.88,
+          "sensors_with_constant_runs_ge_12": 2,
+          "constant_run_steps": 10656,
+          "longest_constant_run_steps": 109
+        }
+      }
+    },
+    {
+      "year": 2019,
+      "sensors_with_constant_runs": [
+        {
+          "column": "flow__PUMP_1",
+          "longest_run": 162,
+          "stuck_runs": 220,
+          "stuck_steps": 23256
+        },
+        {
+          "column": "pressure__n215",
+          "longest_run": 84,
+          "stuck_runs": 528,
+          "stuck_steps": 16284
+        },
+        {
+          "column": "amr__n25",
+          "longest_run": 109,
+          "stuck_runs": 231,
+          "stuck_steps": 10538
+        },
+        {
+          "column": "level__T1",
+          "longest_run": 61,
+          "stuck_runs": 456,
+          "stuck_steps": 7807
+        },
+        {
+          "column": "pressure__n740",
+          "longest_run": 20,
+          "stuck_runs": 12,
+          "stuck_steps": 166
+        },
+        {
+          "column": "amr__n347",
+          "longest_run": 14,
+          "stuck_runs": 9,
+          "stuck_steps": 118
+        }
+      ],
+      "timesteps": 105120,
+      "first_ts": "2019-01-01T00:00:00+00:00",
+      "last_ts": "2019-12-31T23:55:00+00:00",
+      "regular_5min_steps": true,
+      "sensors": 119,
+      "readings": 12509280,
+      "missing": 0,
+      "by_type": {
+        "pressure": {
+          "sensors": 33,
+          "readings": 3468960,
+          "missing": 0,
+          "sensors_with_missing": 0,
+          "min": 25.72,
+          "max": 56.94,
+          "sensors_with_constant_runs_ge_12": 2,
+          "constant_run_steps": 16450,
+          "longest_constant_run_steps": 84
+        },
+        "flow": {
+          "sensors": 3,
+          "readings": 315360,
+          "missing": 0,
+          "sensors_with_missing": 0,
+          "min": 0.0,
+          "max": 205.44,
+          "sensors_with_constant_runs_ge_12": 1,
+          "constant_run_steps": 23256,
+          "longest_constant_run_steps": 162
+        },
+        "level": {
+          "sensors": 1,
+          "readings": 105120,
+          "missing": 0,
+          "sensors_with_missing": 0,
+          "min": 2.09,
+          "max": 3.9,
+          "sensors_with_constant_runs_ge_12": 1,
+          "constant_run_steps": 7807,
+          "longest_constant_run_steps": 61
+        },
+        "amr": {
+          "sensors": 82,
+          "readings": 8619840,
+          "missing": 0,
+          "sensors_with_missing": 0,
+          "min": 0.0,
+          "max": 37795.88,
+          "sensors_with_constant_runs_ge_12": 2,
+          "constant_run_steps": 10656,
+          "longest_constant_run_steps": 109
+        }
+      }
+    }
+  ],
+  "share_of_readings_equal_across_years": {
+    "2018_vs_2019": {
+      "pressure": 0.0213,
+      "flow": 0.0505,
+      "level": 0.0361,
+      "amr": 0.9856
+    }
+  },
+  "leak_activity": {
+    "2018": {
+      "share_of_steps_with_no_leak_flowing": 0.021974885844748857,
+      "steps_with_no_leak_flowing": 2310,
+      "max_simultaneous_leaks": 6,
+      "mean_simultaneous_leaks": 3.45,
+      "mean_total_leak_outflow_m3h": 25.52,
+      "mean_inflow_m3h": 201.7,
+      "leak_share_of_inflow": 0.1265
+    },
+    "2019": {
+      "share_of_steps_with_no_leak_flowing": 0.0,
+      "steps_with_no_leak_flowing": 0,
+      "max_simultaneous_leaks": 16,
+      "mean_simultaneous_leaks": 10.26,
+      "mean_total_leak_outflow_m3h": 74.65,
+      "mean_inflow_m3h": 250.82,
+      "leak_share_of_inflow": 0.2976
+    }
+  },
+  "ground_truth": {
+    "leaks_total": 33,
+    "started_by_year": {
+      "2019": 19,
+      "2018": 14
+    },
+    "repaired_in_data": 17,
+    "active_in_2018": {
+      "total": 14,
+      "by_type": {
+        "incipient": 8,
+        "abrupt": 6
+      },
+      "carried_over_from_previous_year": 0,
+      "repaired_within_year": 10
+    },
+    "active_in_2019": {
+      "total": 23,
+      "by_type": {
+        "incipient": 14,
+        "abrupt": 9
+      },
+      "carried_over_from_previous_year": 4,
+      "repaired_within_year": 7
+    },
+    "peak_outflow_m3h": {
+      "min": 5.11,
+      "median": 15.71,
+      "max": 35.38
+    }
+  },
+  "cross_checks": {
+    "fixed_report_2018": "agrees",
+    "leak_flow_files": "agree",
+    "epyt_flow_leak_configs": "agree"
+  }
+}

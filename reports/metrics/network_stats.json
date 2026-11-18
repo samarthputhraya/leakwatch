@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T15:08:02+00:00",
+    "git_commit": "4103d16",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "source": "L-TOWN.inp (nominal model, Zenodo record 4017659)",
+  "counts": {
+    "junctions": 782,
+    "reservoirs": 2,
+    "tanks": 1,
+    "pipes": 905,
+    "pumps": 1,
+    "valves": 3
+  },
+  "valves": {
+    "PRV-1": {
+      "type": "PRV",
+      "from": "n303",
+      "to": "n300",
+      "setting_m": 40.0
+    },
+    "PRV-2": {
+      "type": "PRV",
+      "from": "n336",
+      "to": "n111",
+      "setting_m": 50.0
+    },
+    "PRV-3": {
+      "type": "PRV",
+      "from": "n229",
+      "to": "n226",
+      "setting_m": 35.0
+    }
+  },
+  "pumps": {
+    "PUMP_1": {
+      "from": "n54",
+      "to": "T1"
+    }
+  },
+  "pipe_length_m": {
+    "total": 43163.2,
+    "mean": 47.69,
+    "median": 48.59,
+    "min": 4.51,
+    "max": 79.51
+  },
+  "total_pipe_length_km": 43.163,
+  "areas": {
+    "A": {
+      "junctions": 659,
+      "tanks": [],
+      "reservoirs": [
+        "R1",
+        "R2"
+      ],
+      "pressure_sensors": [
+        "n54",
+        "n105",
+        "n114",
+        "n163",
+        "n188",
+        "n229",
+        "n288",
+        "n296",
+        "n332",
+        "n342",
+        "n410",
+        "n415",
+        "n429",
+        "n458",
+        "n469",
+        "n495",
+        "n506",
+        "n516",
+        "n519",
+        "n549",
+        "n613",
+        "n636",
+        "n644",
+        "n679",
+        "n722",
+        "n726",
+        "n740",
+        "n752",
+        "n769"
+      ],
+      "amrs": 0,
+      "pipes": 764,
+      "pipe_length_km": 36.34,
+      "n_pressure_sensors": 29
+    },
+    "B": {
+      "junctions": 31,
+      "tanks": [],
+      "reservoirs": [],
+      "pressure_sensors": [
+        "n215"
+      ],
+      "amrs": 0,
+      "pipes": 32,
+      "pipe_length_km": 1.426,
+      "n_pressure_sensors": 1
+    },
+    "C": {
+      "junctions": 92,
+      "tanks": [
+        "T1"
+      ],
+      "reservoirs": [],
+      "pressure_sensors": [
+        "n1",
+        "n4",
+        "n31"
+      ],
+      "amrs": 82,
+      "pipes": 109,
+      "pipe_length_km": 5.398,
+      "n_pressure_sensors": 3
+    }
+  },
+  "sensors": {
+    "pressure": 33,
+    "flow": 3,
+    "level": 1,
+    "amr": 82
+  },
+  "sensor_count_total": 119,
+  "options": {
+    "demand_model": "DDA",
+    "headloss": "H-W",
+    "pattern_timestep_s": 300,
+    "patterns": [
+      "P-Residential",
+      "P-Commercial",
+      "P-Industrial"
+    ]
+  },
+  "search_area": {
+    "assumption": "leak is in the top-5 candidates; one pipe each",
+    "top_k": 5,
+    "pipe_length_to_inspect_m": 238.5,
+    "reduction_factor_vs_whole_network": 181.0
+  }
+}
