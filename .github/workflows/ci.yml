@@ -7,7 +7,7 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -21,18 +21,19 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           version: "0.13.9"
+          enable-cache: true
 
-      - name: Install Python 3.11 and pinned dependencies
+      - name: Install Python 3.11 and pinned dependencies (all extras, CPU-only torch)
         run: |
           uv python install 3.11
-          uv sync --locked
+          uv sync --locked --all-extras
 
       - name: Lint
         run: |
-          uv run --locked ruff check src tests scripts notebooks
-          uv run --locked ruff format --check src tests scripts notebooks
+          uv run --locked --all-extras ruff check src tests scripts notebooks
+          uv run --locked --all-extras ruff format --check src tests scripts notebooks
 
       - name: Unit + contract tests
         # Tests that need the BattLeDIM download or the built lake skip automatically in CI;
         # slow and integration (Kafka) tests are excluded here and run locally.
-        run: uv run --locked pytest -m "not slow and not integration" --cov --cov-report=term
+        run: uv run --locked --all-extras pytest -m "not slow and not integration" --cov --cov-report=term
