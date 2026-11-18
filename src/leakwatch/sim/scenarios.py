@@ -152,7 +152,7 @@ def simulate(
         )
         sim.set_pressure_sensors(list(sensors["pressure"]))
         sim.set_flow_sensors(list(sensors["flow"]))
-        sim.set_tank_volume_sensors(list(sensors["level"]))
+        sim.set_tank_sensors(list(sensors["level"]))
         sim.set_demand_sensors(list(sensors["amr"]))
         u = float(config.demand_uncertainty)
         if u > 0:

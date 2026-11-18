@@ -98,10 +98,12 @@ def alerts_to_spark(spark: SparkSession, alerts: pd.DataFrame):  # -> DataFrame
     for rec in alerts[list(ALERT_LAKE_COLUMNS)].to_dict("records"):
         clean = {}
         for k, v in rec.items():
-            if isinstance(v, pd.Timestamp):
-                clean[k] = v.to_pydatetime()
-            elif v is None or (isinstance(v, float) and np.isnan(v)):
+            if isinstance(v, list | dict):
+                clean[k] = v
+            elif v is None or v is pd.NaT or (np.isscalar(v) and pd.isna(v)):
                 clean[k] = None
+            elif isinstance(v, pd.Timestamp):
+                clean[k] = v.to_pydatetime()
             elif k in ("version", "windows_above"):
                 clean[k] = int(v)
             else:
