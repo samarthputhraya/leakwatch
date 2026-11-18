@@ -14,7 +14,8 @@ Status markers: **built** (code + tests in the repo), **planned** (phase number)
 
  epyt-flow (bulk) / WNTR (GNN scenarios) ──► simulated readings                    [benchmarked; P4/P5]
                                     │
- replayer ──► Kafka `scada.readings` ──► Spark Structured Streaming ──► data/lake/raw/...     [P1]
+ replayer ──► Kafka `scada.readings` ──► Spark Structured Streaming ──► data/lake/raw/...  [built]
+              (parse + validate → watermark dedup → range flag → exactly-once commit; rejects → lake/_rejects)
                                                   │
                          hour-of-week baselines + 1 h windows (batch == stream)               [P2]
                                                   │
@@ -37,7 +38,8 @@ All in [`src/leakwatch/common/schemas.py`](../src/leakwatch/common/schemas.py):
 
 | Contract | pydantic | pandera | Spark |
 |---|---|---|---|
-| `scada.readings` message | `Reading` | `READINGS_SCHEMA` | Phase 1 |
+| `scada.readings` message | `Reading` | `READINGS_SCHEMA` | `readings_payload_spark_schema()` |
+| raw lake rows | – | `RAW_LAKE_SCHEMA` (`RAW_LAKE_COLUMNS`) | written by `stream.raw_ingest` |
 | `demo.commands` message | `DemoCommand` | – | – |
 | alerts table / `alerts` topic | `Alert` (+ `TopSensor`, `GnnCandidate`) | Phase 3 | Phase 3 |
 | work order | `WorkOrder` (+ `ManualCitation`) | – | – |
@@ -47,6 +49,16 @@ All in [`src/leakwatch/common/schemas.py`](../src/leakwatch/common/schemas.py):
 Sensor naming: `sensor_id` is the L-Town element ID (`n54`, `p227`, `PUMP_1`, `T1`). In wide tables
 columns are `<sensor_type>__<sensor_id>` (`pressure__n54`, `amr__n1`) because nodes n1, n4 and n31
 carry both a pressure sensor and an AMR.
+
+## Streaming guarantees (Phase 1)
+
+- **No loss:** every message is either written to `lake/raw`, kept in `lake/_rejects` (breaks the
+  contract), or counted as a duplicate / late row in the run's metrics.
+- **No duplicates:** idempotent producer; watermark dedup on (source, scenario, sensor, ts);
+  `foreachBatch` commit protocol so a retried micro-batch is never written twice (D-013).
+- **Order:** event time must move forward; years are streamed oldest first.
+- **Reading the lake:** `leakwatch.common.lake.connect()` gives a DuckDB view `raw_readings` with
+  typed partition columns.
 
 ## Network areas
 

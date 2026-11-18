@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T16:08:39+00:00",
+    "git_commit": "109076c",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "scenario": {
+    "start": "2019-01-15 18:00:00+00:00",
+    "simulated_hours": 12.0,
+    "speed": 360.0,
+    "steps": 144,
+    "readings": 17136,
+    "readings_per_s_offered": 143.8
+  },
+  "trigger_seconds": 5,
+  "batches_with_data": 24,
+  "kafka_records_read": 17136,
+  "rows_written": 17136,
+  "rejects": 0,
+  "out_of_range_flagged": 0,
+  "duplicates_dropped": 0,
+  "late_rows_dropped_by_watermark": 0,
+  "batch_duration_s": {
+    "p50": 2.223,
+    "p95": 3.559,
+    "max": 11.259,
+    "mean": 2.751041666666667
+  },
+  "target_batch_duration_s": 10,
+  "batches_over_target": 1,
+  "processing_span_s": 121.718,
+  "rows_per_s_over_span": 140.78443615570416,
+  "publish_to_lake_s": {
+    "newest_in_batch": {
+      "p50": 2.3037991523742676,
+      "p95": 3.9475290775299072
+    },
+    "oldest_in_batch": {
+      "p50": 6.465097665786743,
+      "p95": 11.178015232086182
+    }
+  },
+  "first_batch_duration_s": 11.259,
+  "steady_state_excluding_first_batch": {
+    "batches": 23,
+    "batch_duration_s": {
+      "p50": 2.21,
+      "p95": 3.092,
+      "max": 3.559
+    },
+    "batches_over_target": 0,
+    "publish_to_lake_s": {
+      "newest_in_batch": {
+        "p50": 2.2970974445343018,
+        "p95": 3.6411726474761963
+      },
+      "oldest_in_batch": {
+        "p50": 6.4516003131866455,
+        "p95": 7.388123512268066
+      }
+    }
+  },
+  "note": "publish_to_lake_s.newest_in_batch = commit time minus Kafka timestamp of the newest message in each micro-batch; includes waiting for the next trigger."
+}
