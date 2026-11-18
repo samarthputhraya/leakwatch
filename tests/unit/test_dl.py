@@ -25,12 +25,16 @@ from leakwatch.dl.sequences import make_sequences, standardize  # noqa: E402
 def residual_frame(steps: int = 300, channels: int = 3) -> pd.DataFrame:
     idx = pd.date_range("2018-01-01", periods=steps, freq="5min", tz="UTC")
     rng = np.random.default_rng(0)
-    return pd.DataFrame(rng.normal(size=(steps, channels)), index=idx, columns=list("abc")[:channels])
+    return pd.DataFrame(
+        rng.normal(size=(steps, channels)), index=idx, columns=list("abc")[:channels]
+    )
 
 
 def test_sequences_end_at_window_ends_and_have_full_history():
     r = residual_frame()
-    seqs = make_sequences(r, np.zeros(3), np.ones(3), seq_steps=24, stride_steps=3, step_s=300, window_s=3600)
+    seqs = make_sequences(
+        r, np.zeros(3), np.ones(3), seq_steps=24, stride_steps=3, step_s=300, window_s=3600
+    )
     # windows start every 15 min; the sequence ends at the window's last step (start + 55 min)
     assert all((seqs.window_end - seqs.window_start) == pd.Timedelta(hours=1))
     assert all(ws.minute % 15 == 0 for ws in seqs.window_start)
@@ -49,7 +53,9 @@ def test_gaps_break_sequences():
 
 
 def test_standardize_handles_nan_and_zero_std():
-    z = standardize(np.array([[1.0, np.nan, 5.0]]), np.array([0.0, 0.0, 5.0]), np.array([2.0, 1.0, 0.0]))
+    z = standardize(
+        np.array([[1.0, np.nan, 5.0]]), np.array([0.0, 0.0, 5.0]), np.array([2.0, 1.0, 0.0])
+    )
     np.testing.assert_allclose(z, [[0.5, 0.0, 0.0]])
 
 
