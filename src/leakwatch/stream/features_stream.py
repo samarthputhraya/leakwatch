@@ -34,10 +34,17 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import orjson
 import pyarrow.parquet as pq
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
+from leakwatch.bdt.live import (
+    LiveScoring,
+    alert_message,
+    write_alerts_staged,
+    write_scores_staged,
+)
 from leakwatch.common import paths
 from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
@@ -69,46 +76,61 @@ class FeatureStreamPaths:
     layout: lake_writer.LakeLayout
     state_dir: Path
     checkpoint_dir: Path
+    scores: lake_writer.LakeLayout
+    alerts: lake_writer.LakeLayout
 
     @classmethod
     def default(cls) -> FeatureStreamPaths:
         """Locations under the configured data dir."""
-        return cls(
-            layout=lake_writer.LakeLayout(
-                layer_dir=paths.lake_features_stream_dir(),
-                staging_dir=paths.lake_staging_dir(JOB),
-                commits_dir=paths.lake_commits_dir(JOB),
-            ),
-            state_dir=paths.lake_state_dir(JOB),
-            checkpoint_dir=paths.checkpoints_dir() / JOB,
-        )
+        return cls.under(paths.lake_dir(), checkpoints=paths.checkpoints_dir())
 
     @classmethod
-    def under(cls, root: Path) -> FeatureStreamPaths:
-        """Same layout below ``root`` (tests and benchmarks)."""
+    def under(cls, root: Path, checkpoints: Path | None = None) -> FeatureStreamPaths:
+        """Same layout below a lake root ``root`` (tests and benchmarks use a scratch root)."""
+        commits = root / "_commits"
         return cls(
             layout=lake_writer.LakeLayout(
                 layer_dir=root / "features_stream",
                 staging_dir=root / "_staging" / JOB,
-                commits_dir=root / "_commits" / JOB,
+                commits_dir=commits / JOB,
             ),
             state_dir=root / "_state" / JOB,
-            checkpoint_dir=root / "checkpoints" / JOB,
+            checkpoint_dir=(checkpoints or root / "checkpoints") / JOB,
+            # Live scores and alerts share the lake layers with the batch evaluation
+            # (origin=stream partitions); they are committed together with the feature files.
+            scores=lake_writer.LakeLayout(
+                layer_dir=root / "scores",
+                staging_dir=root / "_staging" / f"{JOB}_scores",
+                commits_dir=commits / f"{JOB}_scores",
+            ),
+            alerts=lake_writer.LakeLayout(
+                layer_dir=root / "alerts",
+                staging_dir=root / "_staging" / f"{JOB}_alerts",
+                commits_dir=commits / f"{JOB}_alerts",
+            ),
         )
 
     def ensure(self) -> None:
         """Create the layer, staging, commit and state directories."""
-        self.layout.ensure()
+        for layout in (self.layout, self.scores, self.alerts):
+            layout.ensure()
         self.state_dir.mkdir(parents=True, exist_ok=True)
 
     def reset(self) -> None:
         """Delete the stream's features, bookkeeping, state and checkpoint."""
+        stream_outputs = [
+            *self.scores.layer_dir.glob("model=*/origin=stream"),
+            self.alerts.layer_dir / "origin=stream",
+        ]
         for d in (
             self.layout.layer_dir,
             self.layout.staging_dir,
             self.layout.commits_dir,
+            self.scores.staging_dir,
+            self.alerts.staging_dir,
             self.state_dir,
             self.checkpoint_dir,
+            *stream_outputs,
         ):
             if d.exists():
                 shutil.rmtree(d)
@@ -129,6 +151,7 @@ class StreamState:
     max_ts_s: int | None = None
     next_window_start_s: int | None = None
     tail: str | None = None  # directory name under state_dir
+    alerts: dict[str, Any] | None = None  # alert-tracker state per "source|scenario" (live)
 
     @classmethod
     def load(cls, layout: lake_writer.LakeLayout) -> StreamState:
@@ -148,6 +171,7 @@ class FeatureBatchWriter:
     stream_paths: FeatureStreamPaths
     spec: FeatureSpec
     baselines: DataFrame
+    live: LiveScoring | None = None  # score windows + raise alerts in the same commit (Phase 3)
 
     def __call__(self, batch_df: DataFrame, batch_id: int) -> None:  # noqa: D102 (class doc)
         layout = self.stream_paths.layout
@@ -210,8 +234,8 @@ class FeatureBatchWriter:
 
         windows = 0
         next_after = next_start
+        stage = layout.staging_for(batch_id)
         if last_start >= next_start:
-            stage = layout.staging_for(batch_id)
             features = window_features(combined, self.baselines, spec)
             (
                 with_partitions(select_windows(features, next_start, last_start), spec)
@@ -229,22 +253,61 @@ class FeatureBatchWriter:
         combined.where(F.col("ts") >= keep_from).write.mode("overwrite").parquet(
             str(state_dir / tail)
         )
-        new_state = StreamState(max_ts_s=max_ts, next_window_start_s=next_after, tail=tail)
-        lake_writer.commit_batch(
-            layout,
-            batch_id,
-            {
-                **info,
-                "committed_epoch_s": time.time(),
-                "windows": windows,
-                "first_window_start_s": next_start if windows else None,
-                "last_window_start_s": last_start if windows else None,
-                "state": asdict(new_state),
-            },
+        alert_state, alert_rows, live_info = state.alerts, [], {}
+        if self.live is not None:
+            alert_state, alert_rows, live_info = self._score(stage, batch_id, windows, state)
+        new_state = StreamState(
+            max_ts_s=max_ts, next_window_start_s=next_after, tail=tail, alerts=alert_state
         )
+        marker = {
+            **info,
+            **live_info,
+            "committed_epoch_s": time.time(),
+            "windows": windows,
+            "first_window_start_s": next_start if windows else None,
+            "last_window_start_s": last_start if windows else None,
+            "state": asdict(new_state),
+        }
+        if self.live is not None:
+            others = [self.stream_paths.scores, self.stream_paths.alerts]
+            lake_writer.commit_batch_multi(layout, others, batch_id, marker)
+            if alert_rows and self.live.publish is not None:
+                self.live.publish([alert_message(r) for r in alert_rows])
+        else:
+            lake_writer.commit_batch(layout, batch_id, marker)
         for old in state_dir.glob("tail-b*"):
             if old.name != tail:
                 shutil.rmtree(old, ignore_errors=True)
+
+    def _score(
+        self, stage: Path, batch_id: int, windows: int, state: StreamState
+    ) -> tuple[dict[str, Any] | None, list[dict[str, Any]], dict[str, Any]]:
+        """Score this batch's staged feature rows; stage score and alert rows next to them."""
+        live = self.live
+        assert live is not None
+        if not windows:
+            return state.alerts, [], {"scored": 0, "alert_versions": 0}
+        table = pq.read_table(str(stage), partitioning="hive")
+        features = table.drop_columns(["window", "date"]).to_pandas()
+        features["source"] = features["source"].astype(str)
+        scored, rows, alert_state = live.process(features, state.alerts)
+        n_scores = write_scores_staged(
+            scored, self.stream_paths.scores.staging_for(batch_id), live.model, live.rule.origin
+        )
+        n_alerts = write_alerts_staged(
+            rows, self.stream_paths.alerts.staging_for(batch_id), live.rule.origin
+        )
+        return (
+            alert_state,
+            rows,
+            {
+                "scored": n_scores,
+                "windows_above": int(scored["above"].sum()) if "above" in scored else 0,
+                "alert_versions": n_alerts,
+                "alerts_opened": sum(1 for r in rows if r["version"] == 1),
+                "alert_ids": sorted({r["alert_id"] for r in rows}),
+            },
+        )
 
 
 def start_query(
@@ -287,6 +350,30 @@ def summarise(progress: list[dict[str, Any]], markers: list[dict[str, Any]]) -> 
     }
 
 
+def make_live_scoring(
+    cfg: Mapping[str, Any], spec: FeatureSpec, alerts_topic: str | None = None
+) -> LiveScoring:
+    """Live scoring with the trained main detector; alerts published to Kafka ``alerts``."""
+    from leakwatch.bdt.data import series_area_map
+    from leakwatch.ingest import kafka_io
+
+    topic = alerts_topic or cfg["kafka"]["topics"]["alerts"]["name"]
+    producer = kafka_io.make_producer(cfg["kafka"])
+
+    def publish(rows: list[dict[str, Any]]) -> None:
+        for row in rows:
+            producer.produce(topic, key=row["alert_id"].encode(), value=orjson.dumps(row))
+        producer.flush(10)
+
+    return LiveScoring.from_model_dir(
+        paths.models_dir() / str(cfg["bdt"]["model"]),
+        cfg,
+        series_area_map(spec),
+        origin="stream",
+        publish=publish,
+    )
+
+
 def run(
     cfg: Mapping[str, Any],
     topic: str | None = None,
@@ -295,8 +382,12 @@ def run(
     available_now: bool = False,
     spark: SparkSession | None = None,
     spec: FeatureSpec | None = None,
+    live: LiveScoring | None = None,
 ) -> dict[str, Any]:
-    """Run the feature stream from Kafka until idle (or drained) and return its summary."""
+    """Run the feature stream from Kafka until idle (or drained) and return its summary.
+
+    With ``live`` set, every emitted window is scored and alerts are raised in the same commit.
+    """
     feat_cfg = cfg["features"]["stream"]
     topic_name: str = topic or cfg["kafka"]["topics"]["readings"]["name"]
     stream_paths = stream_paths or FeatureStreamPaths.default()
@@ -306,7 +397,7 @@ def run(
     baselines = read_baselines(spark, paths.lake_baselines_dir()).cache()
     before = {m["batch_id"] for m in lake_writer.read_markers(stream_paths.layout)}
     readings = kafka_readings(spark, cfg, topic_name, feat_cfg)
-    writer = FeatureBatchWriter(stream_paths, spec, baselines)
+    writer = FeatureBatchWriter(stream_paths, spec, baselines, live)
     query = start_query(readings, writer, feat_cfg["trigger_seconds"], available_now)
     log.info("feature stream running: topic=%s -> %s", topic_name, stream_paths.layout.layer_dir)
     t0 = time.perf_counter()
@@ -325,6 +416,13 @@ def run(
         "wall_s": round(wall, 1),
         **summarise([dict(p) for p in query.recentProgress], markers),
     }
+    if live is not None:
+        summary["live_scoring"] = {
+            "windows_scored": sum(int(m.get("scored") or 0) for m in markers),
+            "windows_above_threshold": sum(int(m.get("windows_above") or 0) for m in markers),
+            "alert_versions": sum(int(m.get("alert_versions") or 0) for m in markers),
+            "alerts_opened": sum(int(m.get("alerts_opened") or 0) for m in markers),
+        }
     log.info(
         "feature stream done: %d readings -> %d windows in %d batches (p95 batch %.1f s)",
         summary["readings_processed"],
@@ -343,6 +441,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--available-now", action="store_true", help="drain the topic, then stop")
     parser.add_argument("--reset", action="store_true", help="delete stream features + state")
     parser.add_argument("--metrics-name", help="write reports/metrics/<name>.json when done")
+    parser.add_argument(
+        "--score", action="store_true", help="score windows with the trained K-Means + raise alerts"
+    )
     args = parser.parse_args(argv)
 
     cfg = load_config()
@@ -350,12 +451,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.reset:
         stream_paths.reset()
         return 0
+    live = make_live_scoring(cfg, load_feature_spec(cfg)) if args.score else None
     summary = run(
         cfg,
         topic=args.topic,
         stream_paths=stream_paths,
         stop_when_idle_s=args.stop_when_idle,
         available_now=args.available_now,
+        live=live,
     )
     if args.metrics_name:
         path = write_metrics(

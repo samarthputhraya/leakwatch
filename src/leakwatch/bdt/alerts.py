@@ -56,6 +56,12 @@ class AlertRule:
             raise ValueError("persistence and close-after must be at least 1 window")
 
 
+def epoch_seconds(ts: pd.Series) -> np.ndarray:
+    """UTC timestamps of any resolution -> integer epoch seconds."""
+    since = pd.to_datetime(ts, utc=True) - pd.Timestamp(0, tz="UTC")
+    return (since // pd.Timedelta(seconds=1)).to_numpy()
+
+
 def _ts(epoch_s: int | None) -> pd.Timestamp | None:
     return None if epoch_s is None else pd.Timestamp(epoch_s, unit="s", tz="UTC")
 
@@ -265,7 +271,7 @@ def run_alerts(
         tracker = AlertTracker(
             rule, part["source"].iloc[0], None if pd.isna(scenario) else scenario, series
         )
-        ends = (part["window_end"].astype("int64") // 10**9).to_numpy()
+        ends = epoch_seconds(part["window_end"])
         latest = tracker.update(
             ends,
             part["score"].to_numpy(),

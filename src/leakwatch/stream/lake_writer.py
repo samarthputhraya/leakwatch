@@ -115,6 +115,29 @@ def latest_marker(layout: LakeLayout) -> dict[str, Any] | None:
     return json.loads(markers[-1].read_text(encoding="utf-8")) if markers else None
 
 
+def commit_batch_multi(
+    primary: LakeLayout, others: list[LakeLayout], batch_id: int, info: dict[str, Any]
+) -> dict[str, int]:
+    """Commit one batch that wrote several layers; the primary layer's marker is written last.
+
+    Every layer is staged under its own ``staging_for(batch_id)``; files left by an interrupted
+    attempt are removed from every layer before anything is moved, so a retried batch never
+    leaves duplicates in any of them.
+    """
+    moved: dict[str, int] = {}
+    for layout in [*others, primary]:
+        removed = remove_partial(layout, batch_id)
+        if removed:
+            log.warning(
+                "batch %d: removed %d stale files in %s", batch_id, removed, layout.layer_dir
+            )
+    for layout in others:
+        moved[layout.layer_dir.name] = publish_staged(layout, batch_id)
+    moved[primary.layer_dir.name] = publish_staged(primary, batch_id)
+    write_marker(primary, batch_id, {**info, "files": moved})
+    return moved
+
+
 def commit_batch(layout: LakeLayout, batch_id: int, info: dict[str, Any]) -> int:
     """Steps 3–4 of the protocol once the batch is staged. Returns files published."""
     removed = remove_partial(layout, batch_id)

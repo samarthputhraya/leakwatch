@@ -1,0 +1,203 @@
+"""Live K-Means scoring and alerting inside the streaming job (PRD §7.3, Phase 3; D-022).
+
+:class:`LiveScoring` is plugged into the feature stream's ``foreachBatch`` writer
+(``stream.features_stream``). For each micro-batch it receives the newly emitted feature rows and
+
+1. scores them with :class:`~leakwatch.bdt.scorer.KMeansScorer` (the batch evaluation's code);
+2. runs one :class:`~leakwatch.bdt.alerts.AlertTracker` per (source, scenario), resuming from the
+   state committed with the previous batch;
+3. returns score rows and changed alert versions, which the writer stages next to the features
+   and commits atomically with them; after the commit, alert versions go to Kafka ``alerts``.
+
+The rows of one micro-batch are tiny (a few windows), so they are written by the Spark driver with
+pyarrow inside the same commit protocol rather than by two extra Spark jobs per batch (latency).
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+from leakwatch.bdt.alerts import AlertRule, AlertTracker, epoch_seconds
+from leakwatch.bdt.scorer import KMeansParams, KMeansScorer
+from leakwatch.common.schemas import ALERT_LAKE_COLUMNS, SCORE_COLUMNS
+
+Localizer = Callable[[dict[str, Any], pd.DataFrame], list[dict[str, Any]] | None]
+UTC_US = pa.timestamp("us", tz="UTC")
+
+
+def alerts_arrow_schema(include_origin: bool = False) -> pa.Schema:
+    """Arrow schema of ``lake/alerts`` files (``origin`` is the partition directory)."""
+    top = pa.list_(pa.struct([("sensor_id", pa.string()), ("contribution", pa.float64())]))
+    gnn = pa.list_(pa.struct([("node_id", pa.string()), ("prob", pa.float64())]))
+    types = {
+        "alert_id": pa.string(),
+        "version": pa.int32(),
+        "origin": pa.string(),
+        "model": pa.string(),
+        "source": pa.string(),
+        "scenario_id": pa.string(),
+        "start_ts": UTC_US,
+        "end_ts": UTC_US,
+        "status": pa.string(),
+        "kmeans_score_max": pa.float64(),
+        "threshold": pa.float64(),
+        "top_sensors": top,
+        "area": pa.string(),
+        "lstm_score_max": pa.float64(),
+        "gnn_top5": gnn,
+        "est_loss_m3h": pa.float64(),
+        "windows_above": pa.int32(),
+        "last_window_end": UTC_US,
+        "created_at": UTC_US,
+        "updated_at": UTC_US,
+    }
+    assert list(types) == list(ALERT_LAKE_COLUMNS)
+    return pa.schema([(k, v) for k, v in types.items() if include_origin or k != "origin"])
+
+
+@dataclass
+class LiveScoring:
+    """Score emitted feature windows and keep alerts up to date (see module docstring)."""
+
+    scorer: KMeansScorer
+    rule: AlertRule
+    inflow_columns: Sequence[str]
+    model: str = "kmeans"
+    publish: Callable[[list[dict[str, Any]]], None] | None = None
+    localize: Localizer | None = None
+    stats: dict[str, int] = field(default_factory=lambda: {"windows": 0, "alerts": 0})
+
+    @classmethod
+    def from_model_dir(
+        cls,
+        directory: Path,
+        cfg: Mapping[str, Any],
+        series_area: Mapping[str, str],
+        origin: str = "stream",
+        publish: Callable[[list[dict[str, Any]]], None] | None = None,
+    ) -> LiveScoring:
+        """Load a trained detector (``bdt.train``) for live use."""
+        params = KMeansParams.load(directory)
+        if params.threshold is None or params.persistence_windows is None:
+            raise ValueError(f"{directory}: model has no threshold/persistence (run bdt-train)")
+        bdt = cfg["bdt"]
+        rule = AlertRule(
+            threshold=float(params.threshold),
+            persistence_windows=int(params.persistence_windows),
+            close_after_windows=int(bdt["close_after_windows"]),
+            top_n=int(bdt["top_sensors"]),
+            series_area=dict(series_area),
+            origin=origin,
+            model=str(bdt["model"]),
+        )
+        inflow = [f"{s}__residual" for s in bdt["inflow_series"]]
+        return cls(KMeansScorer(params), rule, inflow, str(bdt["model"]), publish)
+
+    def process(
+        self, features: pd.DataFrame, state: Mapping[str, Any] | None
+    ) -> tuple[pd.DataFrame, list[dict[str, Any]], dict[str, Any]]:
+        """Score ``features`` (one micro-batch); return scores, changed alerts, new state."""
+        new_state = dict(state or {})
+        if features.empty:
+            return pd.DataFrame(columns=list(SCORE_COLUMNS)), [], new_state
+        features = features.sort_values(["source", "scenario_id", "window_start"]).reset_index(
+            drop=True
+        )
+        scored, shares = self.scorer.score_frame(features)
+        excess_all = (
+            features[list(self.inflow_columns)].sum(axis=1, min_count=1)
+            if all(c in features for c in self.inflow_columns)
+            else pd.Series(np.nan, index=features.index)
+        )
+        rows: list[dict[str, Any]] = []
+        keys = features["scenario_id"].fillna("")
+        for (source, scenario), idx in features.groupby([features["source"], keys]).groups.items():
+            key = f"{source}|{scenario}"
+            tracker = AlertTracker(
+                self.rule, str(source), scenario or None, self.scorer.series, new_state.get(key)
+            )
+            pos = np.asarray(idx)
+            changed = tracker.update(
+                epoch_seconds(features.loc[pos, "window_end"]),
+                scored.loc[pos, "score"].to_numpy(),
+                shares[pos],
+                [None if pd.isna(v) else float(v) for v in excess_all.loc[pos]],
+            )
+            if self.localize is not None:
+                part = features.loc[pos]
+                for row in changed:
+                    if row["gnn_top5"] is None:
+                        row["gnn_top5"] = self.localize(row, part)
+            rows.extend(changed)
+            new_state[key] = tracker.state()
+        self.stats["windows"] += len(scored)
+        self.stats["alerts"] += len(rows)
+        return scored, rows, new_state
+
+
+def write_scores_staged(scored: pd.DataFrame, stage: Path, model: str, origin: str) -> int:
+    """Write score rows under ``stage/model=…/origin=…/date=…/`` (hive layout of lake/scores)."""
+    if scored.empty:
+        return 0
+    df = scored[list(SCORE_COLUMNS)].copy()
+    df["window_start"] = pd.to_datetime(df["window_start"], utc=True)
+    df["window_end"] = pd.to_datetime(df["window_end"], utc=True)
+    df["cluster"] = df["cluster"].astype("int32")
+    df["above"] = df["above"].astype(bool)
+    schema = pa.schema(
+        [
+            ("source", pa.string()),
+            ("scenario_id", pa.string()),
+            ("window_start", UTC_US),
+            ("window_end", UTC_US),
+            ("score", pa.float64()),
+            ("threshold", pa.float64()),
+            ("above", pa.bool_()),
+            ("cluster", pa.int32()),
+            ("top_sensor", pa.string()),
+        ]
+    )
+    for day, part in df.groupby(df["window_start"].dt.strftime("%Y-%m-%d")):
+        target = stage / f"model={model}" / f"origin={origin}" / f"date={day}"
+        target.mkdir(parents=True, exist_ok=True)
+        table = pa.Table.from_pandas(part, schema=schema, preserve_index=False, safe=False)
+        pq.write_table(table, target / "part-00000.parquet", compression="zstd")
+    return len(df)
+
+
+def write_alerts_staged(rows: list[dict[str, Any]], stage: Path, origin: str) -> int:
+    """Write alert versions under ``stage/origin=…/`` (hive layout of lake/alerts)."""
+    if not rows:
+        return 0
+    schema = alerts_arrow_schema()
+    clean = []
+    for row in rows:
+        rec = {}
+        for name in schema.names:
+            v = row.get(name)
+            if isinstance(v, pd.Timestamp):
+                v = (
+                    v.tz_localize("UTC") if v.tzinfo is None else v.tz_convert("UTC")
+                ).to_pydatetime()
+            rec[name] = v
+        clean.append(rec)
+    target = stage / f"origin={origin}"
+    target.mkdir(parents=True, exist_ok=True)
+    pq.write_table(pa.Table.from_pylist(clean, schema=schema), target / "part-00000.parquet")
+    return len(rows)
+
+
+def alert_message(row: Mapping[str, Any]) -> dict[str, Any]:
+    """JSON-safe alert version for the Kafka ``alerts`` topic."""
+    out = {}
+    for k, v in row.items():
+        out[k] = v.isoformat() if isinstance(v, pd.Timestamp) else v
+    return out
