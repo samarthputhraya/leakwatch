@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T18:46:33+00:00",
+    "git_commit": "bc09f55",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "raw_readings": {
+    "parquet_files": 3415,
+    "bytes": 231404374,
+    "megabytes": 231.4,
+    "rows": 25018560
+  },
+  "clean_readings": {
+    "parquet_files": 2920,
+    "bytes": 101339818,
+    "megabytes": 101.3,
+    "rows": 25018560
+  },
+  "baselines": {
+    "parquet_files": 1,
+    "bytes": 29477,
+    "megabytes": 0.0,
+    "rows": 6384
+  },
+  "features": {
+    "parquet_files": 730,
+    "bytes": 150855034,
+    "megabytes": 150.9,
+    "rows": 70077
+  },
+  "features_stream": {
+    "parquet_files": 853,
+    "bytes": 160915135,
+    "megabytes": 160.9,
+    "rows": 70076
+  }
+}
