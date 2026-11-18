@@ -549,3 +549,46 @@ def write_gnn_top5(
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def make_localizer(model_dir: Any = None) -> Any:
+    """Live localizer for ``bdt.live.LiveScoring.localize`` (None if no model is trained).
+
+    Input at alert time: each pressure sensor's ``residual`` feature (metres, against the
+    hour-of-week baseline) in the last two 1 h windows up to the alert — the quantity the model
+    was trained on (``dl.gnn_data``).
+    """
+    from leakwatch.data import network
+
+    model_dir = model_dir or paths.models_dir() / "gnn"
+    meta_path = model_dir / "meta.json"
+    if not meta_path.exists():
+        return None
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    g = GraphData(np.load(paths.sim_dir() / "gnn" / "graph.npz", allow_pickle=False))
+    cfg = meta["config"]
+    if meta["model"] == "mlp":
+        model: nn.Module = MLPLocalizer(len(g.sensor_idx) * 2, g.n, int(cfg["hidden"]))
+    else:
+        model = GNNLocalizer(meta["model"], 2 + g.static.shape[1], int(cfg["hidden"]), int(cfg["layers"]), int(cfg["heads"]))
+    model.load_state_dict(torch.load(model_dir / "model.pt", map_location="cpu"))
+    model.eval()
+    sensors = network.parse_sensor_config()["pressure"]
+    cols = [f"pressure__{s}__residual" for s in sensors]
+    scale = float(meta["scale"])
+
+    def localize(alert: Mapping[str, Any], features: pd.DataFrame) -> list[dict[str, Any]] | None:
+        if not set(cols) <= set(features.columns):
+            return None
+        rows = features[pd.to_datetime(features["window_end"], utc=True) <= pd.Timestamp(alert["start_ts"])]
+        rows = rows.sort_values("window_end").tail(2)
+        if rows.empty:
+            return None
+        x = rows[cols].to_numpy(dtype="float32").T  # (sensors, windows)
+        if x.shape[1] == 1:
+            x = np.repeat(x, 2, axis=1)
+        probs = predict(model, g, np.nan_to_num(x)[None], scale)[0]
+        top = np.argsort(-probs)[:5]
+        return [{"node_id": g.nodes[j], "prob": round(float(probs[j]), 4)} for j in top]
+
+    return localize
