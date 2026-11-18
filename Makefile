@@ -10,7 +10,8 @@ RUN := uv run --locked
 PY_DIRS := src tests scripts notebooks
 
 .PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
-	lake-reset replay stream ingest-year stream-latency lake-stats test-integration
+	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
+	stream-features features-parity features-stream-reset
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -58,8 +59,9 @@ down: ## stop Kafka (its messages are dropped; the lake is kept)
 kafka-reset: ## delete and recreate the Kafka topics (drops queued messages)
 	$(RUN) python -m leakwatch.ingest.topics --recreate
 
-lake-reset: ## delete the raw lake layer + streaming checkpoint, and empty the topics
+lake-reset: ## delete the raw lake + live features (and their checkpoints), and empty the topics
 	$(RUN) python -m leakwatch.stream.raw_ingest --reset
+	$(RUN) python -m leakwatch.stream.features_stream --reset
 	$(RUN) python -m leakwatch.ingest.topics --recreate
 
 YEAR ?= 2018
@@ -78,6 +80,19 @@ lake-stats: ## rows, files and bytes of the raw lake -> reports/metrics/lake_raw
 
 stream-latency: ## paced replay (360x) -> Spark: steady-state batch time and publish->lake latency
 	$(RUN) python -m leakwatch.stream.latency_bench
+
+features: ## Spark batch: cleaned layer, hour-of-week baselines, feature tables for 2018 + 2019
+	$(RUN) python -m leakwatch.features.build
+
+stream-features: ## Kafka -> live feature rows (same function as the batch job) until idle
+	$(RUN) python -m leakwatch.stream.features_stream --stop-when-idle 60 \
+		--metrics-name features_stream_battledim
+
+features-parity: ## compare live (stream) and batch feature tables window by window
+	$(RUN) python -m leakwatch.features.parity
+
+features-stream-reset: ## delete the live feature table, its carried state and checkpoint
+	$(RUN) python -m leakwatch.stream.features_stream --reset
 
 test-integration: ## end-to-end tests against the running Kafka (`make up` first)
 	$(RUN) pytest -m integration

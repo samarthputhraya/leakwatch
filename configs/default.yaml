@@ -13,9 +13,31 @@ battledim:
   download_timeout_s: 120
 
 cleaning:
-  # PRD §7.2 (used by the data-quality summary now, by the streaming job from Phase 1)
-  max_ffill_gap_steps: 2
-  stuck_min_steps: 12
+  # PRD §7.2, applied by leakwatch.features.clean (cleaned layer + features, batch and stream)
+  step_seconds: 300                # BattLeDIM / simulator sampling interval (5 minutes)
+  max_ffill_gap_steps: 2           # interior gaps of 1-2 missing steps get the last value
+  stuck_min_steps: 12              # flag a reading once its value has not changed for 12 steps
+  stuck_exempt_types: [flow, level, amr]   # constant values are normal operation there (D-016)
+
+normal:
+  # D-015: which timestamps count as "normal" (hour-of-week baselines now, K-Means training in P3)
+  baseline_year: 2018
+  background_max_peak_m3h: 10.0    # leaks that never exceed this are background leakage
+  onset_exclusion_days: 7          # every leak's first days are excluded (= PRD §7.4 horizon)
+
+features:
+  # PRD §7.2: one feature vector per 1 h window, sliding every 15 min
+  window_minutes: 60
+  slide_minutes: 15
+  stats: [mean, std, min, max, slope, residual]
+  sensor_types: [pressure, flow, level]   # one series per sensor; AMRs enter as a sum per area
+  exclude_out_of_range: true        # flagged values do not enter stats or AMR sums
+  stream:
+    lateness_minutes: 15            # emit a window once data 15 min past its last step has arrived
+    trigger_seconds: 5
+    max_offsets_per_trigger: 200000
+    starting_offsets: earliest
+    stop_when_idle_s: 60
 
 kafka:
   bootstrap_servers: localhost:9092

@@ -77,6 +77,7 @@ markers = [
     "slow: long-running tests (simulation, full-year data); skipped in CI",
     "needs_data: requires `make data` to have run",
     "needs_lake: requires the 2018 raw lake (`make ingest-year YEAR=2018`)",
+    "needs_features: requires the batch feature tables and baselines (`make features`)",
     "spark: starts a local SparkSession (needs Java 17)",
     "integration: requires Docker services (`make up`)",
 ]

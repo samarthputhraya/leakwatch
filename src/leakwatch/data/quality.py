@@ -54,6 +54,23 @@ def stuck_summary(wide: pd.DataFrame, min_steps: int = 12) -> pd.DataFrame:
     return pd.DataFrame(rows).set_index("column")
 
 
+def stuck_flags(series: pd.Series, min_steps: int = 12) -> pd.Series:
+    """Causal stuck flag: True once a value has repeated for ``min_steps`` consecutive steps.
+
+    A reading is flagged when it and the ``min_steps - 1`` readings before it are all present and
+    equal, i.e. from the ``min_steps``-th step of a constant run to its end. The first steps of a
+    run are not flagged because a streaming job cannot know yet that the run will get long. NaN
+    breaks a run (same rule as :func:`constant_runs`).
+    """
+    flags = np.zeros(len(series), dtype=bool)
+    positions = {ts: i for i, ts in enumerate(series.index)}
+    for run in constant_runs(series).itertuples(index=False):
+        if run.length >= min_steps:
+            first = positions[run.start] + min_steps - 1
+            flags[first : positions[run.end] + 1] = True
+    return pd.Series(flags, index=series.index, name=series.name)
+
+
 def forward_fill_short_gaps(wide: pd.DataFrame, max_gap: int = 2) -> pd.DataFrame:
     """Forward-fill NaN gaps of at most ``max_gap`` consecutive steps; longer gaps stay NaN."""
     filled = wide.copy()

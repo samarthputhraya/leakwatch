@@ -257,6 +257,37 @@ class RawIngestPaths:
             )
 
 
+def kafka_readings(
+    spark: SparkSession,
+    cfg: Mapping[str, Any],
+    topic: str,
+    source_cfg: Mapping[str, Any],
+) -> DataFrame:
+    """Streaming DataFrame of parsed, deduplicated readings from a Kafka topic.
+
+    Shared by the raw ingest and the feature stream so both see exactly the same readings.
+
+    Args:
+        spark: session with the Kafka connector.
+        cfg: merged config (``kafka``, ``stream.ranges``, ``stream.raw.watermark``).
+        topic: topic to subscribe to.
+        source_cfg: ``starting_offsets`` and ``max_offsets_per_trigger`` of this query.
+
+    """
+    source = (
+        spark.readStream.format("kafka")
+        .option("kafka.bootstrap.servers", cfg["kafka"]["bootstrap_servers"])
+        .option("subscribe", topic)
+        .option("startingOffsets", str(source_cfg["starting_offsets"]))
+        .option("maxOffsetsPerTrigger", int(source_cfg["max_offsets_per_trigger"]))
+        .option("failOnDataLoss", "false")
+        .load()
+    )
+    return deduplicate(
+        parse_readings(source, cfg["stream"]["ranges"]), str(cfg["stream"]["raw"]["watermark"])
+    )
+
+
 def start_query(
     spark: SparkSession,
     cfg: Mapping[str, Any],
@@ -266,18 +297,7 @@ def start_query(
 ):
     """Build and start the streaming query (returns ``StreamingQuery``)."""
     raw_cfg = cfg["stream"]["raw"]
-    source = (
-        spark.readStream.format("kafka")
-        .option("kafka.bootstrap.servers", cfg["kafka"]["bootstrap_servers"])
-        .option("subscribe", topic)
-        .option("startingOffsets", str(raw_cfg["starting_offsets"]))
-        .option("maxOffsetsPerTrigger", int(raw_cfg["max_offsets_per_trigger"]))
-        .option("failOnDataLoss", "false")
-        .load()
-    )
-    readings = deduplicate(
-        parse_readings(source, cfg["stream"]["ranges"]), str(raw_cfg["watermark"])
-    )
+    readings = kafka_readings(spark, cfg, topic, raw_cfg)
     raw_paths.layout.ensure()
     writer = (
         readings.writeStream.queryName("raw_ingest")

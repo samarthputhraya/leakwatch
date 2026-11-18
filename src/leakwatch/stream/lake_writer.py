@@ -107,6 +107,14 @@ def read_markers(layout: LakeLayout) -> list[dict[str, Any]]:
     ]
 
 
+def latest_marker(layout: LakeLayout) -> dict[str, Any] | None:
+    """Commit marker of the highest committed batch, or ``None`` if nothing is committed."""
+    if not layout.commits_dir.exists():
+        return None
+    markers = sorted(layout.commits_dir.glob("*.json"))
+    return json.loads(markers[-1].read_text(encoding="utf-8")) if markers else None
+
+
 def commit_batch(layout: LakeLayout, batch_id: int, info: dict[str, Any]) -> int:
     """Steps 3–4 of the protocol once the batch is staged. Returns files published."""
     removed = remove_partial(layout, batch_id)

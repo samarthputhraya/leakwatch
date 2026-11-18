@@ -3,7 +3,11 @@
 ``connect()`` returns an in-memory DuckDB connection with one view per lake layer that exists:
 
 - ``raw_readings``: ``lake/raw`` with its hive partition columns (``source``, ``year``, ``date``,
-  ``sensor_type``) typed explicitly.
+  ``sensor_type``) typed explicitly;
+- ``clean_readings``: ``lake/clean`` (same partitions, plus ``filled`` and ``stuck`` flags);
+- ``baselines``: ``lake/baselines/hour_of_week`` (one row per series and hour of week);
+- ``features`` / ``features_stream``: the batch and streaming feature tables (partitions
+  ``source``, ``window``, ``date``).
 """
 
 from __future__ import annotations
@@ -27,14 +31,22 @@ def _has_parquet(directory: Path) -> bool:
     return directory.exists() and next(directory.rglob("*.parquet"), None) is not None
 
 
-def raw_readings_sql(raw_dir: Path) -> str:
-    """``SELECT`` over the raw layer's Parquet files with typed partition columns."""
-    hive_types = ", ".join(f"'{k}': '{v}'" for k, v in RAW_HIVE_TYPES.items())
-    glob = (raw_dir / "**" / "*.parquet").as_posix().replace("'", "''")
+FEATURE_HIVE_TYPES = {"source": "VARCHAR", "window": "VARCHAR", "date": "VARCHAR"}
+
+
+def hive_parquet_sql(layer_dir: Path, hive_types: dict[str, str]) -> str:
+    """``SELECT`` over a partitioned layer's Parquet files with typed partition columns."""
+    types = ", ".join(f"'{k}': '{v}'" for k, v in hive_types.items())
+    glob = (layer_dir / "**" / "*.parquet").as_posix().replace("'", "''")
     return (
         f"SELECT * FROM read_parquet('{glob}', hive_partitioning = true, "
-        f"hive_types = {{{hive_types}}}, union_by_name = true)"
+        f"hive_types = {{{types}}}, union_by_name = true)"
     )
+
+
+def raw_readings_sql(raw_dir: Path) -> str:
+    """``SELECT`` over the raw layer's Parquet files with typed partition columns."""
+    return hive_parquet_sql(raw_dir, RAW_HIVE_TYPES)
 
 
 def query_df(con: duckdb.DuckDBPyConnection, sql: str) -> pd.DataFrame:
@@ -87,13 +99,50 @@ def main() -> int:
     return 0
 
 
-def connect(lake_raw_dir: Path | None = None) -> duckdb.DuckDBPyConnection:
-    """In-memory DuckDB connection with views over the lake (timestamps shown in UTC)."""
+def layer_dirs(lake_root: Path | None = None) -> dict[str, Path]:
+    """Directory of each lake view, under ``lake_root`` (default: the configured lake)."""
+    default = {
+        "raw_readings": paths.lake_raw_dir(),
+        "clean_readings": paths.lake_clean_dir(),
+        "baselines": paths.lake_baselines_dir(),
+        "features": paths.lake_features_dir(),
+        "features_stream": paths.lake_features_stream_dir(),
+    }
+    if lake_root is None:
+        return default
+    return {name: lake_root / d.relative_to(paths.lake_dir()) for name, d in default.items()}
+
+
+def connect(
+    lake_raw_dir: Path | None = None, lake_root: Path | None = None
+) -> duckdb.DuckDBPyConnection:
+    """In-memory DuckDB connection with views over the lake (timestamps shown in UTC).
+
+    Args:
+        lake_raw_dir: override the raw layer only (tests).
+        lake_root: read every layer under this directory instead of the configured lake.
+
+    """
     con = duckdb.connect(database=":memory:")
     con.execute("SET TimeZone = 'UTC'")
-    raw_dir = lake_raw_dir or paths.lake_raw_dir()
-    if _has_parquet(raw_dir):
-        con.execute(f"CREATE VIEW raw_readings AS {raw_readings_sql(raw_dir)}")
+    dirs = layer_dirs(lake_root)
+    if lake_raw_dir is not None:
+        dirs["raw_readings"] = lake_raw_dir
+    hive = {
+        "raw_readings": RAW_HIVE_TYPES,
+        "clean_readings": RAW_HIVE_TYPES,
+        "features": FEATURE_HIVE_TYPES,
+        "features_stream": FEATURE_HIVE_TYPES,
+    }
+    for view, layer_dir in dirs.items():
+        if not _has_parquet(layer_dir):
+            continue
+        if view in hive:
+            sql = hive_parquet_sql(layer_dir, hive[view])
+        else:
+            glob = (layer_dir / "**" / "*.parquet").as_posix().replace("'", "''")
+            sql = f"SELECT * FROM read_parquet('{glob}')"
+        con.execute(f"CREATE VIEW {view} AS {sql}")
     return con
 
 

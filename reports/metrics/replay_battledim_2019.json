@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T16:37:10+00:00",
+    "git_commit": "b467e7e+dirty",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "topic": "scada.readings",
+  "source": "battledim",
+  "scenario_id": null,
+  "range": {
+    "start": "2019-01-01T00:00:00Z",
+    "end": "2019-12-31T23:55:00Z"
+  },
+  "speed": "max",
+  "steps": 105120,
+  "sensors": 119,
+  "readings": 12509280,
+  "delivery_errors": 0,
+  "wall_s": 61.74,
+  "slept_s": 0.0,
+  "readings_per_s": 202601.4,
+  "target_readings_per_s": 10000,
+  "meets_target": true,
+  "producer": {
+    "linger_ms": 20,
+    "batch_size_bytes": 1048576,
+    "compression": "lz4",
+    "acks": "all",
+    "enable_idempotence": true
+  },
+  "partitions": 6
+}

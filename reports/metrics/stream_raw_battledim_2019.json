@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T16:42:54+00:00",
+    "git_commit": "b467e7e+dirty",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "topic": "scada.readings",
+  "wall_s": 395.1,
+  "batches_with_data": 63,
+  "kafka_records_read": 12509280,
+  "rows_written": 12509280,
+  "rejects": 0,
+  "out_of_range_flagged": 0,
+  "duplicates_dropped": 0,
+  "late_rows_dropped_by_watermark": 0,
+  "batch_duration_s": {
+    "p50": 4.618,
+    "p95": 6.529,
+    "max": 17.629,
+    "mean": 4.97084126984127
+  },
+  "target_batch_duration_s": 10,
+  "batches_over_target": 1,
+  "processing_span_s": 331.537,
+  "rows_per_s_over_span": 37731.173292875304,
+  "publish_to_lake_s": {
+    "newest_in_batch": {
+      "p50": 161.03543972969055,
+      "p95": 267.59933161735535
+    },
+    "oldest_in_batch": {
+      "p50": 162.12043976783752,
+      "p95": 268.9423315525055
+    }
+  },
+  "first_batch_duration_s": 17.629,
+  "steady_state_excluding_first_batch": {
+    "batches": 62,
+    "batch_duration_s": {
+      "p50": 4.585,
+      "p95": 6.487,
+      "max": 7.492
+    },
+    "batches_over_target": 0,
+    "publish_to_lake_s": {
+      "newest_in_batch": {
+        "p50": 161.03543972969055,
+        "p95": 267.59933161735535
+      },
+      "oldest_in_batch": {
+        "p50": 162.12043976783752,
+        "p95": 268.9423315525055
+      }
+    }
+  },
+  "spark": {
+    "master": "local[4]",
+    "driver_memory": "2g",
+    "shuffle_partitions": 8
+  },
+  "stream_raw": {
+    "trigger_seconds": 5,
+    "max_offsets_per_trigger": 200000,
+    "starting_offsets": "earliest",
+    "watermark": "1 hour",
+    "stop_when_idle_s": 60
+  }
+}

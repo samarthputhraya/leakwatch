@@ -76,6 +76,31 @@ def lake_raw_dir() -> Path:
     return lake_dir() / "raw"
 
 
+def lake_clean_dir() -> Path:
+    """Cleaned readings: ``clean/source=…/year=…/date=…/sensor_type=…/`` (built in batch, D-017)."""
+    return lake_dir() / "clean"
+
+
+def lake_baselines_dir() -> Path:
+    """Hour-of-week medians per feature series from normal 2018 data (PRD §6.2, D-015)."""
+    return lake_dir() / "baselines" / "hour_of_week"
+
+
+def lake_features_dir() -> Path:
+    """Batch feature tables: ``features/source=…/window=1h/date=…/`` (PRD §6.2)."""
+    return lake_dir() / "features"
+
+
+def lake_features_stream_dir() -> Path:
+    """Features computed live by the streaming job (same schema as the batch tables, D-018)."""
+    return lake_dir() / "features_stream"
+
+
+def lake_state_dir(job: str) -> Path:
+    """State a streaming job carries between micro-batches (committed with each batch)."""
+    return lake_dir() / "_state" / job
+
+
 def lake_commits_dir(layer: str) -> Path:
     """One marker file per committed micro-batch of a lake layer (exactly-once bookkeeping)."""
     return lake_dir() / "_commits" / layer

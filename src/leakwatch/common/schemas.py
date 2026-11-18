@@ -324,6 +324,104 @@ RAW_LAKE_SCHEMA = pa.DataFrameSchema(
 )
 
 
+#: Columns of the cleaned layer (``lake/clean``), in order. Same partitions as the raw layer.
+#: ``filled`` rows were created by forward-filling a short gap; ``stuck`` is the causal stuck flag
+#: (docs/DECISIONS.md D-016, D-017).
+CLEAN_LAKE_COLUMNS: tuple[str, ...] = (
+    "ts",
+    "sensor_id",
+    "sensor_type",
+    "value",
+    "unit",
+    "source",
+    "scenario_id",
+    "year",
+    "date",
+    "out_of_range",
+    "filled",
+    "stuck",
+)
+
+#: Cleaned rows as read back through ``common.lake`` (DuckDB → pandas).
+CLEAN_LAKE_SCHEMA = pa.DataFrameSchema(
+    {
+        "ts": pa.Column(_UTC),
+        "sensor_id": pa.Column(str),
+        "sensor_type": pa.Column(str, pa.Check.isin(SENSOR_TYPES)),
+        "value": pa.Column(float),
+        "unit": pa.Column(str, pa.Check.isin(sorted(set(UNITS.values())))),
+        "source": pa.Column(str, pa.Check.isin(SOURCES)),
+        "scenario_id": pa.Column(str, nullable=True),
+        "year": pa.Column("int32"),
+        "date": pa.Column(str, pa.Check.str_matches(r"^\d{4}-\d{2}-\d{2}$")),
+        "out_of_range": pa.Column(bool),
+        "filled": pa.Column(bool),
+        "stuck": pa.Column(bool),
+    },
+    checks=[
+        pa.Check(
+            lambda df: df["unit"] == df["sensor_type"].map(UNITS),
+            error="unit does not match sensor_type",
+        ),
+        pa.Check(
+            lambda df: df["date"] == df["ts"].dt.strftime("%Y-%m-%d"),
+            error="date partition does not match ts (UTC)",
+        ),
+        pa.Check(lambda df: ~(df["filled"] & df["stuck"]), error="filled rows are never stuck"),
+    ],
+    strict=True,
+    name="clean_lake",
+)
+
+#: Hour-of-week baselines (``lake/baselines/hour_of_week``, D-015).
+BASELINES_SCHEMA = pa.DataFrameSchema(
+    {
+        "series_id": pa.Column(str),
+        "hour_of_week": pa.Column("int32", pa.Check.in_range(0, 167)),
+        "baseline": pa.Column(float),
+        "n_readings": pa.Column("int64", pa.Check.gt(0)),
+    },
+    unique=["series_id", "hour_of_week"],
+    strict=True,
+    name="baselines",
+)
+
+
+def feature_table_schema(feature_columns: list[str]) -> pa.DataFrameSchema:
+    """Schema of a feature table (``lake/features``, ``lake/features_stream``) read via DuckDB.
+
+    Args:
+        feature_columns: ``FeatureSpec.feature_columns()``; every one is a nullable float.
+
+    """
+    counts = {
+        name: pa.Column("int64", pa.Check.ge(0))
+        for name in ("n_readings", "n_filled", "n_stuck", "n_out_of_range", "n_series_missing")
+    }
+    return pa.DataFrameSchema(
+        {
+            "source": pa.Column(str, pa.Check.isin(SOURCES)),
+            "scenario_id": pa.Column(str, nullable=True),
+            "window_start": pa.Column(_UTC),
+            "window_end": pa.Column(_UTC),
+            **counts,
+            **{name: pa.Column(float, nullable=True) for name in feature_columns},
+            "window": pa.Column(str),
+            "date": pa.Column(str, pa.Check.str_matches(r"^\d{4}-\d{2}-\d{2}$")),
+        },
+        checks=[
+            pa.Check(lambda df: df["window_end"] > df["window_start"], error="empty window"),
+            pa.Check(
+                lambda df: df["date"] == df["window_start"].dt.strftime("%Y-%m-%d"),
+                error="date partition does not match window_start (UTC)",
+            ),
+        ],
+        unique=["source", "scenario_id", "window_start"],
+        strict=True,
+        name="features",
+    )
+
+
 def readings_payload_spark_schema():  # -> pyspark.sql.types.StructType
     """Spark schema of a ``scada.readings`` JSON payload (``ts`` parsed separately, as text).
 

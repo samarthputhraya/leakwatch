@@ -35,6 +35,30 @@ def test_stuck_summary_flags_runs_at_threshold():
     assert quality.stuck_summary(df, min_steps=13).loc["stuck", "stuck_runs"] == 0
 
 
+def test_stuck_flags_are_causal():
+    values = [1.0] * 14 + [2.0] + [3.0] * 11 + [np.nan] + [3.0] * 12
+    s = frame({"a": values})["a"]
+    flags = quality.stuck_flags(s, min_steps=12)
+    # first run (14 long): flagged from its 12th step on
+    assert not flags.iloc[:11].any()
+    assert flags.iloc[11:14].all()
+    # 11 equal values, then NaN breaks the run; the 12 after it reach the threshold at the end
+    assert not flags.iloc[14:38].any()
+    assert flags.iloc[38]
+    assert flags.sum() == 3 + 1
+    assert flags.index.equals(s.index)
+
+
+def test_stuck_flags_agree_with_stuck_summary():
+    rng = np.random.default_rng(0)
+    values = np.repeat(rng.integers(0, 3, 40).astype(float), rng.integers(1, 20, 40))
+    s = pd.Series(values, index=pd.date_range("2019-01-01", periods=len(values), freq="5min"))
+    flags = quality.stuck_flags(s, min_steps=12)
+    runs = quality.constant_runs(s)
+    long_runs = runs[runs["length"] >= 12]
+    assert flags.sum() == int((long_runs["length"] - 11).sum())
+
+
 def test_forward_fill_only_short_gaps():
     df = frame({"a": [1, np.nan, np.nan, 4, np.nan, np.nan, np.nan, 8]})
     out = quality.forward_fill_short_gaps(df, max_gap=2)
