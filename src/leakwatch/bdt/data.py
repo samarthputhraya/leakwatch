@@ -62,9 +62,13 @@ def weekly_change(
         how="inner",
         suffixes=("", "__ref"),
     )
-    out = merged[keys].copy()
-    for c in columns:
-        out[c] = merged[c] - merged[f"{c}__ref"]
+    cols = list(columns)
+    diff = pd.DataFrame(
+        merged[cols].to_numpy() - merged[[f"{c}__ref" for c in cols]].to_numpy(),
+        columns=cols,
+        index=merged.index,
+    )
+    out = pd.concat([merged[keys], diff], axis=1)
     return out.sort_values(["source", "scenario_id", "window_start"]).reset_index(drop=True)
 
 
