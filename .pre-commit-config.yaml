@@ -1,0 +1,21 @@
+# Install once inside WSL: `uv run pre-commit install`. Hooks use the project's pinned ruff via uv.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --locked ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --locked ruff format
+        language: system
+        types: [python]
+  - repo: local
+    hooks:
+      - id: no-env-files
+        name: block .env files
+        entry: .env files must not be committed
+        language: fail
+        files: (^|/)\.env$

@@ -1,0 +1,10 @@
+# Full-scale overlay, merged over default.yaml: LEAKWATCH_CONFIG=configs/full.yaml make <target>
+# Phase 0 has no heavy jobs yet; full-scale settings for simulation volume (100M+ readings, PRD §4.2)
+# and GNN scenario counts (5,000) are added with Phases 4 and 5.
+
+battledim:
+  download_optional: true
+
+sim:
+  bench:
+    repeats: 3
