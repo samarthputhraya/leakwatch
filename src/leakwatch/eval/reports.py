@@ -396,42 +396,80 @@ def pe_report() -> str:
         "## Evaluation",
         "",
     ]
-    rows = []
-    for v in ("v1", "v2", "v3"):
-        m = load(f"pe_eval_{v}")
-        if m:
-            s = m.get("summary", m)
-            rows.append(
-                [
-                    v,
-                    *[
-                        num(s.get(k), 3)
-                        for k in (
-                            "sql_execution_accuracy",
-                            "answer_correctness",
-                            "hallucinated_number_rate_before",
-                            "hallucinated_number_rate_after",
-                            "refusal_accuracy",
-                            "citation_correctness",
-                        )
-                    ],
-                ]
-            )
-    if rows:
+
+    def rate(m: dict[str, Any], *keys: str) -> str:
+        """Format a nested ``{value, n}`` rate entry as ``value% (n)`` (n/a when missing)."""
+        node: Any = m
+        for k in keys:
+            node = (node or {}).get(k)
+        if not isinstance(node, dict) or node.get("value") is None:
+            return "n/a"
+        return f"{node['value'] * 100:.1f}% ({node['n']})"
+
+    evals = {v: m for v in ("v1", "v2", "v3") if (m := load(f"pe_eval_{v}"))}
+    if evals:
+        models = sorted(
+            {
+                f"{m['model'].get('model')} @ {m['model'].get('endpoint_host')}"
+                for m in evals.values()
+            }
+        )
         lines += [
+            f"Model: {', '.join(models)}. Questions: `evals/copilot_questions.jsonl`; expected answers "
+            "are computed by reference SQL on the lake at evaluation time. Rates are shown as "
+            "value (number of items the metric applies to).",
+            "",
             table(
                 [
                     "version",
                     "SQL exec acc.",
                     "answer correct",
-                    "halluc. numbers (before)",
-                    "halluc. numbers (after)",
+                    "tool calls",
+                    "halluc. numbers before guardrail",
+                    "after guardrail",
                     "refusal acc.",
                     "citations",
+                    "complaint match",
+                    "latency p50 (s)",
                 ],
-                rows,
-            )
+                [
+                    [
+                        v,
+                        rate(m, "sql_execution_accuracy"),
+                        rate(m, "answer_correctness", "overall"),
+                        rate(m, "tool_call_correctness"),
+                        rate(m, "hallucinated_number_rate", "before_guardrail"),
+                        rate(m, "hallucinated_number_rate", "after_guardrail"),
+                        rate(m, "refusal_accuracy"),
+                        rate(m, "citation_correctness"),
+                        rate(m, "complaint_match_accuracy"),
+                        num((m.get("latency_s") or {}).get("p50"), 1),
+                    ]
+                    for v, m in evals.items()
+                ],
+            ),
+            "",
+            "Answer correctness by category:",
+            "",
+            table(
+                ["version", "data", "procedure", "out of scope", "complaint"],
+                [
+                    [
+                        v,
+                        *[
+                            rate(m, "answer_correctness", "by_category", c)
+                            for c in ("data", "procedure", "out_of_scope", "complaint")
+                        ],
+                    ]
+                    for v, m in evals.items()
+                ],
+            ),
+            "",
+            "Sources: " + ", ".join(src(f"pe_eval_{v}", m) for v, m in evals.items()) + ".",
         ]
+        targets = next(iter(evals.values())).get("targets")
+        if targets:
+            lines += ["", f"PRD §10 targets: `{json.dumps(targets)}`."]
     else:
         lines += [
             "_Not run yet._ The evaluation needs an LLM endpoint (`LLM_BASE_URL`, `LLM_API_KEY`, "
@@ -479,12 +517,184 @@ def st_report() -> str:
         "- **Data contracts (pandera):** raw, cleaned, baseline and feature tables on the real lake.",
         "- **Batch/stream parity:** file stream with a restart, Kafka end to end, full two years "
         "(`features_parity_battledim.json`).",
-        "- **Metamorphic:** time shift by whole weeks, bigger leak never lowers the score, leak-free days add no alerts.",
+        "- **Metamorphic** (`tests/metamorphic/`): shifting a day by whole weeks leaves its features "
+        "unchanged; a bigger simulated leak never lowers the score; appending later data does not "
+        "change alerts that already started; the quiet day without a leak raises no alert.",
         "- **Simulator as oracle:** a large simulated leak on real background raises an alert and the "
         "localizer ranks nearby junctions.",
         "- **Integration:** replayer → Kafka → Spark → lake, and the Kafka feature stream vs batch.",
     ]
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------------- README
+
+README_START = "<!-- results:start (generated by `make reports`; do not edit by hand) -->"
+README_END = "<!-- results:end -->"
+
+
+def _get(d: Any, *keys: Any) -> Any:
+    """Nested lookup that returns None when any level is missing."""
+    for k in keys:
+        if isinstance(d, dict):
+            d = d.get(k)
+        elif isinstance(d, list) and isinstance(k, int) and -len(d) <= k < len(d):
+            d = d[k]
+        else:
+            return None
+    return d
+
+
+def readme_results() -> str:
+    """The README's results table: one row per headline fact, each with its metrics file."""
+    rows: list[list[str]] = []
+
+    def add(fact: str, value: str | None, name: str, m: dict[str, Any] | None) -> None:
+        if m is not None and value is not None:
+            rows.append([fact, value, f"`{name}.json`"])
+
+    m = load("data_summary")
+    add(
+        "BattLeDIM SCADA",
+        f"{num(_get(m, 'scada', 0, 'readings'), 0)} readings per year (119 sensors, 5 min); "
+        f"{_get(m, 'ground_truth', 'leaks_total')} leaks, {_get(m, 'ground_truth', 'active_in_2019', 'total')} "
+        "active in 2019",
+        "data_summary",
+        m,
+    )
+    m = load("replay_battledim_2018")
+    add(
+        "Kafka replay throughput (2018)",
+        f"{num(_get(m, 'readings_per_s'), 0)} readings/s (target 10,000), "
+        f"{_get(m, 'delivery_errors')} delivery errors",
+        "replay_battledim_2018",
+        m,
+    )
+    m = load("features_parity_battledim")
+    add(
+        "Batch = stream features",
+        f"{num(_get(m, 'mismatched_cells'), 0)} of {num(_get(m, 'cells_compared'), 0)} cells differ",
+        "features_parity_battledim",
+        m,
+    )
+    m = load("lake_layers_summary")
+    add(
+        "Raw lake",
+        f"{num(_get(m, 'raw_readings', 'rows'), 0)} readings, "
+        f"{num(_get(m, 'raw_readings', 'megabytes'), 1)} MB Parquet",
+        "lake_layers_summary",
+        m,
+    )
+    m = load("bdt_scaling")
+    if m:
+        top = m["scales"][-1]
+        add(
+            "Batch features + K-Means scoring, largest scale",
+            f"{num(top['readings'], 0)} readings in {num(top['wall_s'] / 60, 1)} min "
+            f"({num(top['readings_per_s'], 0)} readings/s, peak {num(top['peak_rss_gb'])} GB)",
+            "bdt_scaling",
+            m,
+        )
+    m = load("bdt_kmeans_2019")
+    for key, label in (("residual", "live model"), ("main", "all 228 features")):
+        e = _get(m, "models", key, "eval_2019")
+        if e:
+            add(
+                f"K-Means 2019 ({label})",
+                f"{e['detection']['overall']['detected']}/{e['detection']['overall']['leaks']} leaks "
+                f"alerted within 7 days (chance level {num(_get(e, 'chance_level', 'mean_rate'), 3, pct=True)}), "
+                f"precision {num(e['precision'], 3)}, {num(e['false_alarms_per_week'])} false alarms/week, "
+                f"median {num(_get(e, 'time_to_detection_h', 'median'), 1)} h to detection",
+                "bdt_kmeans_2019",
+                m,
+            )
+    m = load("bdt_live_replay_2019")
+    a = _get(m, "alerts_opened_live", 0)
+    if a:
+        add(
+            "Live alert (2019 replay at 360×)",
+            f"{num(a.get('leak_to_alert_wall_s'), 1)} s wall from leak start to alert; same alert as "
+            f"the batch run: {_get(m, 'live_alert_starts_match_batch')}",
+            "bdt_live_replay_2019",
+            m,
+        )
+    m = load("dl_lstm_ae")
+    comp = _get(m, "matched_false_alarm_comparison")
+    if comp:
+        key = next((k for k in next(iter(comp.values())) if k.startswith("detection_at_2_")), None)
+        if key:
+            add(
+                "Detection at 2 false alarms/week (2019)",
+                "; ".join(f"{name} {num(v.get(key), 3, pct=True)}" for name, v in comp.items()),
+                "dl_lstm_ae",
+                m,
+            )
+    m = load("dl_gnn")
+    if m:
+        best = _get(m, "models", m.get("chosen_model"), "test")
+        add(
+            f"Localizer on held-out simulated leaks ({m.get('chosen_model')})",
+            f"top-1 {num(_get(best, 'top1'), 3, pct=True)}, top-5 {num(_get(best, 'top5'), 3, pct=True)}, "
+            f"best of top 5 within 300 m {num(_get(best, 'within_m_best_of_top5'), 3, pct=True)}",
+            "dl_gnn",
+            m,
+        )
+        b = _get(m, "battledim_2019")
+        add(
+            "Localizer on BattLeDIM 2019 leaks",
+            f"median {num(_get(b, 'median_distance_best_of_top5_m'), 0)} m from the nearest of the top 5 "
+            f"to the leaking pipe ({_get(b, 'leaks_localized')} leaks)",
+            "dl_gnn",
+            m,
+        )
+    m = load("pe_eval_v3")
+    if m:
+        add(
+            f"Copilot v3 ({_get(m, 'model', 'model')})",
+            f"SQL execution {num(_get(m, 'sql_execution_accuracy', 'value'), 3, pct=True)}, "
+            f"answers {num(_get(m, 'answer_correctness', 'overall', 'value'), 3, pct=True)}, "
+            "hallucinated numbers after guardrail "
+            f"{num(_get(m, 'hallucinated_number_rate', 'after_guardrail', 'value'), 3, pct=True)}, "
+            f"refusals {num(_get(m, 'refusal_accuracy', 'value'), 3, pct=True)}",
+            "pe_eval_v3",
+            m,
+        )
+    m = load("demo_runs")
+    if m:
+        ok = sum(1 for r in m["runs"] if r.get("ok"))
+        secs = [r["seconds_to_work_order"] for r in m["runs"] if r.get("seconds_to_work_order")]
+        add(
+            "Demo rehearsal (inject → alert → top 5 → work order)",
+            f"{ok} of {len(m['runs'])} runs within {num(m['budget_s'], 0)} s"
+            + (f"; slowest {num(max(secs), 1)} s" if secs else ""),
+            "demo_runs",
+            m,
+        )
+    m = load("test_summary")
+    add(
+        "Tests",
+        f"{num(_get(m, 'passed'), 0)} passed, {num(_get(m, 'failed'), 0)} failed; line coverage "
+        f"{num(_get(m, 'coverage_percent'), 1)}%",
+        "test_summary",
+        m,
+    )
+    return table(["Result", "Value", "Source (`reports/metrics/`)"], rows)
+
+
+def update_readme(readme: Any = None) -> bool:
+    """Replace the generated block in README.md; False if the markers are missing."""
+    from leakwatch.common.paths import REPO_ROOT
+
+    path = readme or REPO_ROOT / "README.md"
+    text = path.read_text(encoding="utf-8")
+    if README_START not in text or README_END not in text:
+        return False
+    head, rest = text.split(README_START, 1)
+    _, tail = rest.split(README_END, 1)
+    path.write_text(
+        f"{head}{README_START}\n{readme_results()}\n{README_END}{tail}", encoding="utf-8"
+    )
+    return True
 
 
 REPORTS: dict[str, Callable[[], str]] = {
@@ -496,12 +706,16 @@ REPORTS: dict[str, Callable[[], str]] = {
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Write all report drafts."""
+    """Write all report drafts and the README results table."""
     for name, fn in REPORTS.items():
         out = REPORTS_DIR / name / "REPORT.md"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(fn(), encoding="utf-8")
         print(f"wrote {out}")  # noqa: T201 - CLI output
+    if update_readme():
+        print("updated the results table in README.md")  # noqa: T201 - CLI output
+    else:
+        print("README.md has no results markers; table not written")  # noqa: T201
     return 0
 
 
