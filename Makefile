@@ -9,7 +9,8 @@ export UV_PROJECT_ENVIRONMENT ?= $(HOME)/.venvs/leakwatch
 RUN := uv run --locked
 PY_DIRS := src tests scripts notebooks
 
-.PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo
+.PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
+	lake-reset replay stream ingest-year test-integration
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -25,8 +26,8 @@ data: ## download BattLeDIM (MD5-checked), convert to Parquet, build + cross-che
 test: ## unit + contract tests (data tests skip if `make data` has not run)
 	$(RUN) pytest -m "not slow and not integration"
 
-test-all: ## every test, including slow ones
-	$(RUN) pytest
+test-all: ## every test except integration (those need `make up`)
+	$(RUN) pytest -m "not integration"
 
 cov: ## tests with coverage report
 	$(RUN) pytest -m "not slow and not integration" --cov --cov-report=term-missing
@@ -47,11 +48,33 @@ sim-bench: ## time 48 h + 7-day leak simulations (WNTR vs epyt-flow) -> reports/
 
 check: lint test ## what CI runs
 
-up: ## start Docker services (Kafka arrives in Phase 1)
-	@echo "make up: no Docker services yet. Kafka (KRaft) is added in Phase 1; see PROGRESS.md."; exit 1
+up: ## start Kafka (KRaft, Docker) and create the topics
+	docker compose up -d --wait
+	$(RUN) python -m leakwatch.ingest.topics
 
-down: ## stop Docker services
-	@echo "make down: no Docker services yet (Phase 1)."; exit 1
+down: ## stop Kafka (its messages are dropped; the lake is kept)
+	docker compose down
+
+kafka-reset: ## delete and recreate the Kafka topics (drops queued messages)
+	$(RUN) python -m leakwatch.ingest.topics --recreate
+
+lake-reset: ## delete the raw lake layer + streaming checkpoint, and empty the topics
+	$(RUN) python -m leakwatch.stream.raw_ingest --reset
+	$(RUN) python -m leakwatch.ingest.topics --recreate
+
+YEAR ?= 2018
+SPEED ?= max
+replay: ## publish a BattLeDIM year to Kafka: make replay YEAR=2019 SPEED=360
+	$(RUN) python -m leakwatch.ingest.replayer --year $(YEAR) --speed $(SPEED)
+
+stream: ## run the Spark raw-ingest stream until Ctrl+C (Spark UI: http://localhost:4040)
+	$(RUN) python -m leakwatch.stream.raw_ingest
+
+ingest-year: ## replay YEAR through Kafka into the raw lake with Spark running alongside
+	bash scripts/ingest_year.sh $(YEAR) $(SPEED)
+
+test-integration: ## end-to-end tests against the running Kafka (`make up` first)
+	$(RUN) pytest -m integration
 
 demo: ## run the live demo (Phase 7)
 	@echo "make demo: the dashboard demo is built in Phase 7; see PROGRESS.md."; exit 1

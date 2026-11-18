@@ -17,6 +17,44 @@ cleaning:
   max_ffill_gap_steps: 2
   stuck_min_steps: 12
 
+kafka:
+  bootstrap_servers: localhost:9092
+  topics:                          # created by `make up` (leakwatch.ingest.topics)
+    readings: {name: scada.readings, partitions: 6, retention_hours: 168}
+    alerts: {name: alerts, partitions: 1, retention_hours: 720}
+    demo_commands: {name: demo.commands, partitions: 1, retention_hours: 24}
+  producer:
+    linger_ms: 20
+    batch_size_bytes: 1048576
+    compression: lz4
+    acks: all
+    enable_idempotence: true       # broker drops producer retries -> no duplicate readings
+
+replay:
+  speed: max                       # simulated seconds per wall second, e.g. 60, 360; "max" = no pacing
+  progress_every_steps: 8640       # log once per simulated month (30 days x 288 steps)
+
+spark:
+  master: local[4]
+  driver_memory: 2g
+  shuffle_partitions: 8            # also the number of state-store partitions (fixed per checkpoint)
+  kafka_package: org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.9   # must match pyspark version
+  ui_enabled: true                 # http://localhost:4040 while a job runs
+  log_level: WARN
+
+stream:
+  raw:
+    trigger_seconds: 5
+    max_offsets_per_trigger: 300000
+    starting_offsets: earliest
+    watermark: 1 hour              # event-time tolerance for late / duplicate readings
+    stop_when_idle_s: 60           # batch-style runs stop after this long without new data
+  ranges:                          # PRD §7.2 out-of-range flags; readings are kept and flagged
+    pressure: [0.0, 100.0]         # m
+    flow: [0.0, 1000.0]            # m3/h
+    level: [0.0, 10.0]             # m
+    amr: [0.0, 100000.0]           # L/h
+
 network:
   # Zones you get by cutting L-Town at its pump and PRVs are named by one node inside each
   # (verified in tests: A has 29 pressure sensors, B is the zone behind PRV-3, C holds tank T1 + AMRs).

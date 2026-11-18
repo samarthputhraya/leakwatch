@@ -6,16 +6,20 @@ readme = "README.md"
 requires-python = "==3.11.*"
 # Direct dependencies are pinned exactly; uv.lock pins the full tree. See docs/DECISIONS.md D-004, D-006.
 dependencies = [
+    "confluent-kafka==2.16.2",
+    "duckdb==1.5.6",
     "epyt-flow==0.17.3",
     "matplotlib==3.11.2",
     "networkx==3.6.1",
     "numpy==1.26.4",
     "openpyxl==3.1.5",
+    "orjson==3.13.0",
     "pandas==2.2.3",
     "pandera==0.36.0",
     "psutil==7.2.2",
     "pyarrow==25.0.0",
     "pydantic==2.14.3",
+    "pyspark==3.5.9",
     "python-dotenv==1.2.4",
     "pyyaml==6.0.3",
     "requests==2.34.2",
@@ -54,7 +58,8 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF", "T20", "D"]
-ignore = ["D100", "D104", "D105", "D107", "RUF001", "RUF002", "RUF003"]
+# N812: `from pyspark.sql import functions as F` is the PySpark convention.
+ignore = ["D100", "D104", "D105", "D107", "N812", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -71,6 +76,8 @@ addopts = "-ra --strict-markers"
 markers = [
     "slow: long-running tests (simulation, full-year data); skipped in CI",
     "needs_data: requires `make data` to have run",
+    "needs_lake: requires the 2018 raw lake (`make ingest-year YEAR=2018`)",
+    "spark: starts a local SparkSession (needs Java 17)",
     "integration: requires Docker services (`make up`)",
 ]
 

@@ -17,14 +17,20 @@ def _have_data() -> bool:
     )
 
 
+def _have_raw_lake_2018() -> bool:
+    return (paths.lake_raw_dir() / "source=battledim" / "year=2018").exists()
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Skip ``needs_data`` tests when `make data` has not been run (e.g. in CI)."""
-    if _have_data():
-        return
-    skip = pytest.mark.skip(reason="needs `make data` (BattLeDIM files not on this machine)")
+    """Skip tests whose inputs are missing on this machine (e.g. in CI)."""
+    have_data, have_lake = _have_data(), _have_raw_lake_2018()
+    skip_data = pytest.mark.skip(reason="needs `make data` (BattLeDIM files not on this machine)")
+    skip_lake = pytest.mark.skip(reason="needs the 2018 raw lake (`make ingest-year YEAR=2018`)")
     for item in items:
-        if "needs_data" in item.keywords:
-            item.add_marker(skip)
+        if "needs_data" in item.keywords and not have_data:
+            item.add_marker(skip_data)
+        if "needs_lake" in item.keywords and not have_lake:
+            item.add_marker(skip_lake)
 
 
 @pytest.fixture
@@ -40,3 +46,19 @@ def official_config() -> Path:
 @pytest.fixture(scope="session")
 def fixed_report() -> Path:
     return FIXTURES / "2018_Fixed_Leakages_Report.txt"
+
+
+@pytest.fixture(scope="session")
+def spark():
+    """Small local SparkSession shared by all Spark tests (no Kafka connector)."""
+    from leakwatch.common.config import load_config
+    from leakwatch.stream.spark import get_spark
+
+    cfg = load_config(environ={})["spark"]
+    session = get_spark(
+        {**cfg, "shuffle_partitions": 2, "ui_enabled": False, "driver_memory": "1g"},
+        "leakwatch-tests",
+        master="local[2]",
+    )
+    yield session
+    session.stop()

@@ -271,6 +271,88 @@ GROUND_TRUTH_SCHEMA = pa.DataFrameSchema(
 )
 
 
+#: Columns of the raw lake layer (``lake/raw``), in order. Partition columns are ``source``,
+#: ``year``, ``date`` and ``sensor_type`` (stored in directory names, PRD §6.2).
+RAW_LAKE_COLUMNS: tuple[str, ...] = (
+    "ts",
+    "sensor_id",
+    "sensor_type",
+    "value",
+    "unit",
+    "source",
+    "scenario_id",
+    "year",
+    "date",
+    "out_of_range",
+    "kafka_partition",
+    "kafka_offset",
+    "kafka_ts",
+    "ingest_ts",
+)
+
+#: Raw lake rows as read back through ``common.lake`` (DuckDB → pandas, timestamps as ns UTC).
+RAW_LAKE_SCHEMA = pa.DataFrameSchema(
+    {
+        "ts": pa.Column(_UTC),
+        "sensor_id": pa.Column(str),
+        "sensor_type": pa.Column(str, pa.Check.isin(SENSOR_TYPES)),
+        "value": pa.Column(float),
+        "unit": pa.Column(str, pa.Check.isin(sorted(set(UNITS.values())))),
+        "source": pa.Column(str, pa.Check.isin(SOURCES)),
+        "scenario_id": pa.Column(str, nullable=True),
+        "year": pa.Column("int32"),  # hive partition column, typed INTEGER (common.lake)
+        "date": pa.Column(str, pa.Check.str_matches(r"^\d{4}-\d{2}-\d{2}$")),
+        "out_of_range": pa.Column(bool),
+        "kafka_partition": pa.Column("int32", pa.Check.ge(0)),  # Kafka partitions are int32
+        "kafka_offset": pa.Column("int64", pa.Check.ge(0)),
+        "kafka_ts": pa.Column(_UTC),
+        "ingest_ts": pa.Column(_UTC),
+    },
+    checks=[
+        pa.Check(
+            lambda df: df["unit"] == df["sensor_type"].map(UNITS),
+            error="unit does not match sensor_type",
+        ),
+        pa.Check(
+            lambda df: df["date"] == df["ts"].dt.strftime("%Y-%m-%d"),
+            error="date partition does not match ts (UTC)",
+        ),
+        pa.Check(lambda df: df["year"] == df["ts"].dt.year, error="year does not match ts"),
+    ],
+    strict=True,
+    name="raw_lake",
+)
+
+
+def readings_payload_spark_schema():  # -> pyspark.sql.types.StructType
+    """Spark schema of a ``scada.readings`` JSON payload (``ts`` parsed separately, as text).
+
+    Built from the same field list as :class:`Reading`. Imported lazily so that modules which only
+    need pydantic/pandera do not import pyspark.
+    """
+    from pyspark.sql.types import (
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
+
+    spark_types = {
+        "ts": StringType(),
+        "sensor_id": StringType(),
+        "sensor_type": StringType(),
+        "value": DoubleType(),
+        "unit": StringType(),
+        "source": StringType(),
+        "scenario_id": StringType(),
+        "year": IntegerType(),
+    }
+    if list(spark_types) != list(Reading.model_fields):
+        raise RuntimeError("Spark payload schema is out of sync with schemas.Reading")
+    return StructType([StructField(name, t, nullable=True) for name, t in spark_types.items()])
+
+
 def wide_scada_schema(expected_rows: int | None = None) -> pa.DataFrameSchema:
     """Schema for a wide SCADA table: UTC index, regular 5-minute steps, sensor columns."""
     checks = [

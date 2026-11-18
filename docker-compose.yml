@@ -1,0 +1,39 @@
+# LeakWatch services. Start with `make up` (inside WSL), stop with `make down`.
+# Kafka keeps no volume: `make down` drops its messages (stop/restart keeps them). Kafka is the
+# transport; the Parquet lake is the source of truth (docs/DECISIONS.md D-012).
+name: leakwatch
+
+services:
+  kafka:
+    image: apache/kafka:4.3.2   # official Apache image, KRaft mode (no ZooKeeper)
+    container_name: leakwatch-kafka
+    hostname: kafka
+    # WSL stops the distro (and Docker) when no terminal is attached; when it comes back, Docker
+    # restarts this same container, so topics and queued messages survive. `make down` removes it.
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+    environment:
+      # Setting any KAFKA_* variable replaces the image's default config, so all are listed.
+      CLUSTER_ID: "4L6g3nShT-eMCtK--X86sw"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_HEAP_OPTS: "-Xmx768m -Xms768m"   # laptop-safe; raise for full-scale runs
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 15s
+      retries: 30
+      start_period: 15s
