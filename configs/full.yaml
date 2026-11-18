@@ -1,6 +1,7 @@
 # Full-scale overlay, merged over default.yaml: LEAKWATCH_CONFIG=configs/full.yaml make <target>
-# Use on a 16 GB machine with WSL memory raised (see PROGRESS.md). Full-scale simulation volume
-# (100M+ readings, PRD §4.2) and GNN scenario counts (5,000) are added with Phases 4 and 5.
+# Use on a 16 GB machine with WSL memory raised (%UserProfile%\.wslconfig: memory=10GB).
+# Full-scale simulation volume (100M+ readings, PRD §4.2) and GNN scenario counts (5,000) are
+# added with Phases 4 and 5.
 
 battledim:
   download_optional: true

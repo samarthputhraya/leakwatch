@@ -96,11 +96,11 @@ Every non-obvious technical decision, newest at the bottom. Format: date · deci
 - Flags are data-quality columns, not model inputs. Each feature row carries counts (`n_filled`, `n_stuck`, `n_out_of_range`, `n_series_missing`) for Phase 3 alert explanations.
 
 ### D-017 · 2026-11-18 · Cleaned layer, baselines and feature-table layout
-- **`lake/clean`** (not listed in PRD §6.2): cleaned readings with `filled`/`stuck` flags, same partitions as `lake/raw`, built in batch by `make features`. It feeds the baselines and makes the flags queryable (DuckDB view `clean_readings`). ~same size as raw.
+- **`lake/clean`** (not listed in PRD §6.2): cleaned readings with `filled`/`stuck` flags, same partitions as `lake/raw`, built in batch by `make features`. It feeds the baselines and makes the flags queryable (DuckDB view `clean_readings`). Layer sizes: `reports/metrics/lake_layers_summary.json`.
 - **Series:** one per pressure/flow/level sensor (37) plus the summed AMR consumption per area (PRD §7.2). All 82 AMRs are in area C, so there is one AMR series, `amr_sum__C` (L/h): 38 series.
 - **Baselines** (`lake/baselines/hour_of_week`): exact median (`F.median`) per series and hour of week (0 = Monday 00:00 UTC) over the normal 2018 timestamps of D-015. 38 × 168 rows.
 - **Statistics per series and window:** mean, population std, min, max, least-squares slope against time (units per hour), mean residual (value − baseline). 38 × 6 = 228 feature columns named `<series>__<stat>` (`pressure__n54__slope`), plus window keys and quality counts. One wide row per window (the "pivot" of PRD §7.2), built with conditional aggregation so the column set and order are fixed by `FeatureSpec` even when a series is missing.
-- **Windows:** `F.window` 1 h, sliding 15 min, aligned to the epoch. A window belongs to the date/year of its start. The batch job keeps only windows fully covered by data: 35,040 for 2018 (the last three need 2019 readings) and 35,037 for 2019 (its last three would need 2020).
+- **Windows:** `F.window` 1 h, sliding 15 min, aligned to the epoch. A window belongs to the date/year of its start. The batch job keeps only windows fully covered by data: 35,040 for 2018 (the last three use 2019 readings) and 35,037 for 2019 (its last three would need 2020) — `features_battledim_<year>.json`.
 - **Same function:** `features.windows.window_features(readings, baselines, spec)` (cleaning included) is what the batch job applies to raw lake rows and what the streaming job applies to each micro-batch plus carried history. Batch reads the raw layer (not `lake/clean`) so both paths make literally the same call.
 
 ### D-018 · 2026-11-18 · Streaming features: foreachBatch with carried history, separate live table

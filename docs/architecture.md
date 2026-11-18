@@ -1,6 +1,7 @@
 # Architecture
 
-Spec: [PRD §5–6](PRD.md#5-system-architecture). This page tracks what exists and where it lives.
+This page tracks what exists and where it lives (section numbers like "PRD §7.2" in code
+comments refer to the project brief).
 Status markers: **built** (code + tests in the repo), **planned** (phase number).
 
 ## Data flow
@@ -17,7 +18,9 @@ Status markers: **built** (code + tests in the repo), **planned** (phase number)
  replayer ──► Kafka `scada.readings` ──► Spark Structured Streaming ──► data/lake/raw/...  [built]
               (parse + validate → watermark dedup → range flag → exactly-once commit; rejects → lake/_rejects)
                                                   │
-                         hour-of-week baselines + 1 h windows (batch == stream)               [P2]
+      ├─ Spark batch (make features): lake/clean → lake/baselines/hour_of_week → lake/features  [built]
+      └─ Spark stream (make stream-features): Kafka → same window_features() → lake/features_stream [built]
+         (1 h windows every 15 min, 38 series × 6 stats = 228 features; parity checked)
                                                   │
                      K-Means (MLlib) score ──► alerts table + Kafka `alerts`                  [P3]
                                                   │
@@ -40,6 +43,9 @@ All in [`src/leakwatch/common/schemas.py`](../src/leakwatch/common/schemas.py):
 |---|---|---|---|
 | `scada.readings` message | `Reading` | `READINGS_SCHEMA` | `readings_payload_spark_schema()` |
 | raw lake rows | – | `RAW_LAKE_SCHEMA` (`RAW_LAKE_COLUMNS`) | written by `stream.raw_ingest` |
+| cleaned rows | – | `CLEAN_LAKE_SCHEMA` (`CLEAN_LAKE_COLUMNS`) | written by `features.build` |
+| hour-of-week baselines | – | `BASELINES_SCHEMA` | written by `features.build` |
+| feature rows (batch + live) | – | `feature_table_schema(spec.feature_columns())` | `features.windows.window_features` |
 | `demo.commands` message | `DemoCommand` | – | – |
 | alerts table / `alerts` topic | `Alert` (+ `TopSensor`, `GnnCandidate`) | Phase 3 | Phase 3 |
 | work order | `WorkOrder` (+ `ManualCitation`) | – | – |
@@ -59,6 +65,21 @@ carry both a pressure sensor and an AMR.
 - **Order:** event time must move forward; years are streamed oldest first.
 - **Reading the lake:** `leakwatch.common.lake.connect()` gives a DuckDB view `raw_readings` with
   typed partition columns.
+
+## Features (Phase 2)
+
+- **One function, two engines:** `features.windows.window_features(readings, baselines, spec)`
+  (cleaning → series → residual → 1 h / 15 min aggregates → one wide row per window) is called by
+  the batch job on raw lake rows and by the streaming job on every micro-batch plus carried
+  history (D-017, D-018). `features.spec.FeatureSpec` fixes series, stats and column order.
+- **Series:** 33 pressure + 3 flow + 1 level sensors and the AMR sum of area C (all 82 AMRs are
+  in C) = 38 series; stats mean, std, min, max, slope (per hour), residual (vs baseline).
+- **Normal (D-015):** background leaks (incipient, peak ≤ 10 m³/h) count as normal after their
+  first 7 days; every other leak is excluded while active. Baselines use normal 2018 only.
+- **Live path guarantees:** each window once, in order, emitted when data 15 min past its last
+  step has arrived; state (tail of readings) committed with the batch's files (D-013 protocol).
+- **Parity:** `tests/contract/test_feature_parity.py` (file stream, restart mid-way),
+  `tests/integration/test_kafka_features.py` (Kafka), and `make features-parity` (full years).
 
 ## Network areas
 

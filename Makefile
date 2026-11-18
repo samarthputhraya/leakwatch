@@ -75,7 +75,7 @@ stream: ## run the Spark raw-ingest stream until Ctrl+C (Spark UI: http://localh
 ingest-year: ## replay YEAR through Kafka into the raw lake with Spark running alongside
 	bash scripts/ingest_year.sh $(YEAR) $(SPEED)
 
-lake-stats: ## rows, files and bytes of the raw lake -> reports/metrics/lake_raw_summary.json
+lake-stats: ## rows, files and bytes per lake layer -> reports/metrics/lake_*_summary.json
 	$(RUN) python -m leakwatch.common.lake
 
 stream-latency: ## paced replay (360x) -> Spark: steady-state batch time and publish->lake latency
@@ -98,4 +98,4 @@ test-integration: ## end-to-end tests against the running Kafka (`make up` first
 	$(RUN) pytest -m integration
 
 demo: ## run the live demo (Phase 7)
-	@echo "make demo: the dashboard demo is built in Phase 7; see PROGRESS.md."; exit 1
+	@echo "make demo: the dashboard demo is built in Phase 7; see README.md."; exit 1

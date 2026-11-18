@@ -82,13 +82,36 @@ def raw_layer_stats(lake_raw_dir: Path | None = None) -> dict:
     }
 
 
+def layer_size(layer_dir: Path) -> dict:
+    """Parquet files, bytes and rows of one lake layer directory (0 if it does not exist)."""
+    files = list(layer_dir.rglob("*.parquet")) if layer_dir.exists() else []
+    total_bytes = sum(f.stat().st_size for f in files)
+    rows = 0
+    if files:
+        glob = (layer_dir / "**" / "*.parquet").as_posix().replace("'", "''")
+        row = duckdb.sql(f"SELECT count(*) FROM read_parquet('{glob}')").fetchone()
+        rows = int(row[0]) if row else 0
+    return {
+        "parquet_files": len(files),
+        "bytes": total_bytes,
+        "megabytes": round(total_bytes / 1e6, 1),
+        "rows": rows,
+    }
+
+
+def lake_layers_summary(lake_root: Path | None = None) -> dict:
+    """Size of every lake layer (raw, clean, baselines, features, features_stream)."""
+    return {view: layer_size(d) for view, d in layer_dirs(lake_root).items()}
+
+
 def main() -> int:
-    """``make lake-stats``: write ``reports/metrics/lake_raw_summary.json``."""
+    """``make lake-stats``: write ``lake_raw_summary.json`` and ``lake_layers_summary.json``."""
     from leakwatch.common.logging import get_logger
     from leakwatch.common.metrics import write_metrics
 
     stats = raw_layer_stats()
     path = write_metrics("lake_raw_summary", stats)
+    layers_path = write_metrics("lake_layers_summary", lake_layers_summary())
     get_logger("leakwatch.common.lake").info(
         "raw layer: %d rows in %d files (%.1f MB) -> %s",
         stats["rows"],
@@ -96,6 +119,7 @@ def main() -> int:
         stats["megabytes"],
         path,
     )
+    get_logger("leakwatch.common.lake").info("per-layer sizes -> %s", layers_path)
     return 0
 
 
