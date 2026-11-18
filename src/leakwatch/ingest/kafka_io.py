@@ -120,10 +120,15 @@ def create_topic(
 
 
 def delete_topic(kafka_cfg: Mapping[str, Any], name: str) -> None:
-    """Delete one topic if present."""
+    """Delete one topic if present and wait until the broker no longer lists it.
+
+    Deletion is asynchronous; without the wait, a ``create_topic`` right after it can see the
+    old topic, do nothing, and leave no topic once the deletion completes.
+    """
     client = admin(kafka_cfg)
     if name in client.list_topics(timeout=10).topics:
         client.delete_topics([name], operation_timeout=30)[name].result()
+        _wait_until_gone(client, [name])
 
 
 def _wait_until_gone(client: AdminClient, names: list[str], timeout_s: float = 30.0) -> None:

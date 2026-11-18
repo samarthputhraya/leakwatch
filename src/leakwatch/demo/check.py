@@ -86,33 +86,31 @@ def main(argv: list[str] | None = None) -> int:
             quiet = current_alerts(pd.Timestamp("1970-01-01", tz="UTC")).empty
             t_click = time.perf_counter()
             send_command("inject_leak", node_id=node, diameter_m=diameter)
-            alert_s = wait_for(lambda t=sim_before: not current_alerts(t).empty, args.budget_s * 3)
-            gnn_s = wait_for(
+
+            def since_click(predicate: Any) -> float | None:
+                """Wall seconds from the click until ``predicate`` holds (None on timeout)."""
+                if wait_for(predicate, args.budget_s * 3) is None:
+                    return None
+                return round(time.perf_counter() - t_click, 1)
+
+            alert_s = since_click(lambda t=sim_before: not current_alerts(t).empty)
+            gnn_s = since_click(
                 lambda t=sim_before: (
                     current_alerts(t)["gnn_top5"].map(lambda v: v is not None and len(v) > 0).any()
-                ),
-                args.budget_s * 3,
+                )
             )
-            wo_s = wait_for(
-                lambda t=sim_before: current_alerts(t)["work_order_json"].notna().any(),
-                args.budget_s * 3,
+            wo_s = since_click(
+                lambda t=sim_before: current_alerts(t)["work_order_json"].notna().any()
             )
-            total = time.perf_counter() - t_click
             row: dict[str, Any] = {
                 "run": k + 1,
                 "node": node,
                 "diameter_m": diameter,
                 "quiet_before_inject": bool(quiet),
-                "seconds_to_alert": None if alert_s is None else round(alert_s, 1),
-                "seconds_to_localizer": None
-                if gnn_s is None
-                else round(alert_s + gnn_s, 1)
-                if alert_s
-                else None,
-                "seconds_to_work_order": None
-                if wo_s is None or alert_s is None
-                else round(alert_s + (gnn_s or 0) + wo_s, 1),
-                "wall_s": round(total, 1),
+                "seconds_to_alert": alert_s,
+                "seconds_to_localizer": gnn_s,
+                "seconds_to_work_order": wo_s,
+                "wall_s": round(time.perf_counter() - t_click, 1),
                 "speed": read_state().get("speed"),
             }
             df = current_alerts(sim_before)
