@@ -15,6 +15,7 @@ def get_spark(
     app_name: str,
     with_kafka: bool = False,
     master: str | None = None,
+    extra: Mapping[str, str] | None = None,
 ) -> SparkSession:
     """Create (or reuse) a local SparkSession.
 
@@ -52,6 +53,8 @@ def get_spark(
     )
     if with_kafka:
         builder = builder.config("spark.jars.packages", package)
+    for key, value in (extra or {}).items():
+        builder = builder.config(key, value)
     spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel(str(spark_cfg["log_level"]))
     return spark

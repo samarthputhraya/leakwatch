@@ -121,7 +121,14 @@ def main(argv: list[str] | None = None) -> int:
     leaks = leak_table(configs)
     leaks.to_parquet(conf_dir / "leaks.parquet")
 
-    spark = get_spark(cfg["spark"], "leakwatch-sim-scale", master=f"local[{workers}]")
+    # A fresh Python worker per task: EPANET runs leave memory behind, and reused workers grew to
+    # ~1.5 GB each, which this 7.6 GB machine cannot hold (D-023).
+    spark = get_spark(
+        cfg["spark"],
+        "leakwatch-sim-scale",
+        master=f"local[{workers}]",
+        extra={"spark.python.worker.reuse": "false"},
+    )
     sc = spark.sparkContext
     rdd = sc.parallelize([(c.scenario_id, c.to_json()) for c in configs], numSlices=len(configs))
     t0 = time.perf_counter()
