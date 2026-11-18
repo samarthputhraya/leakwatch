@@ -355,6 +355,21 @@ def summarise_run(progress: list[dict[str, Any]], markers: list[dict[str, Any]])
         t0 = datetime.fromisoformat(first.replace("Z", "+00:00"))
         t1 = datetime.fromisoformat(last.replace("Z", "+00:00"))
         span_s = (t1 - t0).total_seconds() + (durations[-1] if durations else 0)
+    # The first batch pays one-off costs (JVM warm-up, code generation, Kafka connector start), so
+    # steady-state numbers exclude it; it is reported on its own.
+    first_id = busy[0]["batchId"] if busy else None
+    steady_durations = durations[1:]
+    steady = [m for m in markers if m.get("batch_id") != first_id]
+    steady_newest = [
+        m["committed_epoch_s"] - m["newest_kafka_epoch_s"]
+        for m in steady
+        if m.get("newest_kafka_epoch_s") is not None
+    ]
+    steady_oldest = [
+        m["committed_epoch_s"] - m["oldest_kafka_epoch_s"]
+        for m in steady
+        if m.get("oldest_kafka_epoch_s") is not None
+    ]
     return {
         "batches_with_data": len(busy),
         "kafka_records_read": rows_in,
@@ -376,6 +391,26 @@ def summarise_run(progress: list[dict[str, Any]], markers: list[dict[str, Any]])
         "publish_to_lake_s": {
             "newest_in_batch": {"p50": _pct(lag_newest, 0.5), "p95": _pct(lag_newest, 0.95)},
             "oldest_in_batch": {"p50": _pct(lag_oldest, 0.5), "p95": _pct(lag_oldest, 0.95)},
+        },
+        "first_batch_duration_s": durations[0] if durations else None,
+        "steady_state_excluding_first_batch": {
+            "batches": len(steady_durations),
+            "batch_duration_s": {
+                "p50": _pct(steady_durations, 0.5),
+                "p95": _pct(steady_durations, 0.95),
+                "max": max(steady_durations) if steady_durations else None,
+            },
+            "batches_over_target": sum(d > 10 for d in steady_durations),
+            "publish_to_lake_s": {
+                "newest_in_batch": {
+                    "p50": _pct(steady_newest, 0.5),
+                    "p95": _pct(steady_newest, 0.95),
+                },
+                "oldest_in_batch": {
+                    "p50": _pct(steady_oldest, 0.5),
+                    "p95": _pct(steady_oldest, 0.95),
+                },
+            },
         },
     }
 

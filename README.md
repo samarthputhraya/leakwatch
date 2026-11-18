@@ -8,7 +8,7 @@ Software-only leak detection for water distribution networks, built and evaluate
 - **Where** is the leak? A graph neural network ranks the 5 most likely leak locations.
 - **What do we do?** An operator copilot turns alerts into work orders and answers questions with data.
 
-Status: **Phase 0 (environment and data) done; Phase 1 (streaming ingestion) next.** See
+Status: **Phases 0–1 done (data, streaming ingestion); Phase 2 (features and baselines) next.** See
 [PROGRESS.md](PROGRESS.md) for what works today, [docs/architecture.md](docs/architecture.md) for
 the design and [docs/PRD.md](docs/PRD.md) for the full specification. Every number we report comes
 from `reports/metrics/*.json`; so far these hold data, network and simulator facts, not model
@@ -25,6 +25,19 @@ wsl make test    # unit + contract tests
 wsl make eda     # run the EDA notebook headless; figures in reports/figures/
 wsl make help    # all targets
 ```
+
+Streaming (Phase 1). Open a WSL terminal (`wsl`) in the repo folder and keep it open — WSL stops
+Docker when no terminal is attached:
+
+```bash
+make up                         # Kafka 4.3.2 (KRaft) in Docker + topics
+make ingest-year YEAR=2018      # replay 2018 through Kafka; Spark streams it into the Parquet lake
+make test-integration           # end-to-end check: replayer -> Kafka -> Spark -> lake
+make down                       # stop Kafka
+```
+
+The lake lives under `$LEAKWATCH_DATA_DIR/lake/raw/source=…/year=…/date=…/sensor_type=…/`; query it
+read-only with DuckDB via `leakwatch.common.lake.connect()` (view `raw_readings`).
 
 One-time toolchain inside WSL (already done on the development machine): `apt install openjdk-17-jdk-headless
 make docker.io docker-compose-v2 build-essential`, then install `uv` from https://docs.astral.sh/uv/.

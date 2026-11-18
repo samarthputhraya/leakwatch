@@ -1,4 +1,4 @@
-"""``make stream-latency``: steady-state micro-batch time and publish→lake latency at demo speed.
+"""``make stream-latency``: micro-batch time and publish→lake latency at demo speed.
 
 A full-year replay at max speed measures throughput, but its latencies only show how far Spark is
 behind the replayer. This benchmark replays a few simulated hours at a paced speed (default 360×,
@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
     """Run the paced benchmark and write its metrics."""
     parser = argparse.ArgumentParser(description="Paced replay -> Spark latency benchmark.")
     parser.add_argument("--start", default="2019-01-15 18:00", help="first simulated timestamp")
-    parser.add_argument("--hours", type=float, default=6.0, help="simulated hours to replay")
+    parser.add_argument("--hours", type=float, default=12.0, help="simulated hours to replay")
     parser.add_argument("--speed", type=float, default=360.0, help="simulated s per wall s")
     args = parser.parse_args(argv)
 
@@ -96,12 +96,15 @@ def main(argv: list[str] | None = None) -> int:
             ),
         },
     )
+    steady = summary["steady_state_excluding_first_batch"]
     log.info(
-        "batches %d, batch p95 %.2f s, publish->lake p50 %.2f s / p95 %.2f s -> %s",
-        summary["batches_with_data"],
-        summary["batch_duration_s"]["p95"] or 0,
-        summary["publish_to_lake_s"]["oldest_in_batch"]["p50"] or 0,
-        summary["publish_to_lake_s"]["oldest_in_batch"]["p95"] or 0,
+        "first batch %.1f s; steady state (%d batches): batch p95 %.2f s, "
+        "publish->lake p50 %.2f s / p95 %.2f s -> %s",
+        summary["first_batch_duration_s"] or 0,
+        steady["batches"],
+        steady["batch_duration_s"]["p95"] or 0,
+        steady["publish_to_lake_s"]["oldest_in_batch"]["p50"] or 0,
+        steady["publish_to_lake_s"]["oldest_in_batch"]["p95"] or 0,
         path,
     )
     return 0 if summary["rows_written"] == stats.readings else 1
