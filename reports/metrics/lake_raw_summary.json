@@ -1,18 +1,25 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T18:46:30+00:00",
-    "git_commit": "bc09f55",
+    "generated_at": "2026-11-18T23:49:11+00:00",
+    "git_commit": "aeb3cbc",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "parquet_files": 3415,
-  "bytes": 231404374,
-  "megabytes": 231.4,
+  "parquet_files": 13688,
+  "bytes": 901107020,
+  "megabytes": 901.1,
   "rows_by_source_year": {
     "battledim/2018": 12509280,
-    "battledim/2019": 12509280
+    "battledim/2019": 12509280,
+    "sim/2020": 12372192,
+    "sim/2021": 12509280,
+    "sim/2022": 12509280,
+    "sim/2023": 12509280,
+    "sim/2024": 12543552,
+    "sim/2025": 12509280,
+    "sim/2026": 137088
   },
-  "rows": 25018560,
-  "bytes_per_reading": 9.25
+  "rows": 100108512,
+  "bytes_per_reading": 9.0
 }
