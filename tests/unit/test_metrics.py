@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import math
+import subprocess
 from pathlib import Path
 
 import numpy as np
+import pytest
 
-from leakwatch.common.metrics import read_metrics, write_metrics
+from leakwatch.common.metrics import git_commit, read_metrics, write_metrics
+from leakwatch.common.paths import REPO_ROOT
 
 
 def test_write_metrics_adds_provenance_and_cleans_values(tmp_path: Path):
@@ -30,3 +33,24 @@ def test_write_metrics_adds_provenance_and_cleans_values(tmp_path: Path):
     assert doc["nested"] == {"path": "/x/y", "list": [2.0, None]}
     assert set(doc["meta"]) >= {"generated_at", "git_commit", "leakwatch_version", "python"}
     assert read_metrics("demo", out_dir=tmp_path) == doc
+
+
+def test_git_commit_ignores_metrics_files():
+    """Rewriting a tracked metrics file must not mark the code as dirty."""
+    tracked = subprocess.run(
+        ["git", "ls-files", "reports/metrics/*.json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.split()
+    state = git_commit()
+    if not tracked or state == "unknown" or state.endswith("+dirty"):
+        pytest.skip("needs a clean git checkout with tracked metrics files")
+    path = REPO_ROOT / tracked[0]
+    original = path.read_bytes()
+    try:
+        path.write_bytes(original + b" ")
+        assert git_commit() == state
+    finally:
+        path.write_bytes(original)

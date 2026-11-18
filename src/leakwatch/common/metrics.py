@@ -15,7 +15,11 @@ from leakwatch.common.paths import METRICS_DIR, REPO_ROOT, ensure_dir
 
 
 def git_commit() -> str:
-    """Short hash of HEAD (``+dirty`` if the tree has changes), or ``unknown`` outside git."""
+    """Short hash of HEAD (``+dirty`` if code or docs changed), or ``unknown`` outside git.
+
+    Changes under ``reports/metrics/`` do not count: a job that writes several metrics files must
+    not stamp the later ones dirty because it just rewrote the earlier ones.
+    """
     try:
         head = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
@@ -26,7 +30,15 @@ def git_commit() -> str:
             timeout=10,
         ).stdout.strip()
         dirty = subprocess.run(
-            ["git", "status", "--porcelain", "--untracked-files=no"],
+            [
+                "git",
+                "status",
+                "--porcelain",
+                "--untracked-files=no",
+                "--",
+                ".",
+                f":(exclude){METRICS_DIR.relative_to(REPO_ROOT).as_posix()}",
+            ],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
