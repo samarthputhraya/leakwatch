@@ -344,7 +344,7 @@ def demo_controls(state: dict[str, Any], selected_node: str | None) -> None:
         send_command("set_speed", speed=speed)
     if c3.button("Reset"):
         send_command("reset")
-        st.session_state.pop("selected_alert", None)
+        st.session_state.pop("alert_pick", None)
 
 
 def main() -> None:
@@ -382,11 +382,12 @@ def main() -> None:
                 + ", ".join(sorted(open_alerts["area"].dropna().unique()))
             )
         left, right = st.columns([3, 2])
-        selected_id = st.session_state.get("selected_alert")
+        selected_id = st.session_state.get("alert_pick")
         row = None
         if not df.empty:
             ids = df["alert_id"].tolist()
             if selected_id not in ids:
+                st.session_state.pop("alert_pick", None)
                 selected_id = ids[0]
             row = df.set_index("alert_id").loc[selected_id].copy()
             row["alert_id"] = selected_id
@@ -405,6 +406,20 @@ def main() -> None:
             )
             if points:
                 st.session_state["selected_node"] = points[0].get("customdata")
+            clicked = st.session_state.get("selected_node")
+            if live and clicked in network_layout()["junctions"]:
+                from leakwatch.demo.runner import send_command
+
+                size_m = float(load_config()["demo"]["leak_diameter_m"])
+                if st.button(
+                    f"Inject a {size_m * 1000:.0f} mm leak at junction {clicked}",
+                    type="primary",
+                    key="inject-clicked",
+                ):
+                    send_command("inject_leak", node_id=clicked, diameter_m=size_m)
+                    st.toast(f"Leak injected at {clicked}")
+            elif live:
+                st.caption("Click a junction on the map to choose a leak site.")
         with right:
             st.subheader("Alerts")
             if df.empty:
@@ -413,13 +428,13 @@ def main() -> None:
                 view = df[["alert_id", "status", "start_ts", "area", "est_loss_m3h"]].copy()
                 view["alert_id"] = view["alert_id"].str[:8]
                 st.dataframe(view.head(10), hide_index=True, use_container_width=True)
-                choice = st.selectbox(
+                st.selectbox(
                     "Alert",
-                    df["alert_id"].tolist(),
-                    index=df["alert_id"].tolist().index(selected_id),
+                    ids,
+                    index=ids.index(selected_id),
                     format_func=lambda a: a[:8],
+                    key="alert_pick",
                 )
-                st.session_state["selected_alert"] = choice
                 alert_details(row, root, table)
         if live and state.get("leaks") and st.session_state.get("reveal"):
             st.caption(
