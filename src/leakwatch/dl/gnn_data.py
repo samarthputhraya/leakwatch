@@ -21,12 +21,9 @@ import argparse
 import copy
 import math
 import multiprocessing as mp
-import os
 import sys
-import tempfile
 import time
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -75,9 +72,7 @@ def run_pressures(seed: int, start_s: int, leak: tuple[str, float] | None = None
             float(cfg["discharge_coeff"]) * area * math.sqrt(2 * G)
         )
     # A unique scratch prefix per run: parallel workers must not share temp.inp/.bin/.rpt.
-    folder = Path(tempfile.gettempdir()) / "leakwatch-epanet"
-    folder.mkdir(exist_ok=True)
-    prefix = folder / f"gnn-{os.getpid()}-{seed}"
+    prefix = paths.private_scratch_dir() / f"gnn-{seed}"
     try:
         results = wntr.sim.EpanetSimulator(wn).run_sim(file_prefix=str(prefix))
     finally:

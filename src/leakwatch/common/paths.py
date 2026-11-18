@@ -161,6 +161,27 @@ def models_dir() -> Path:
     return data_dir() / "models"
 
 
+_SCRATCH: dict[int, Path] = {}
+
+
+def private_scratch_dir() -> Path:
+    """A private (mode 0700, unpredictable name) scratch directory for this process.
+
+    Used for tools that write fixed-name temporary files (EPANET's ``.inp/.bin/.rpt``); removed
+    when the process exits.
+    """
+    import atexit
+    import shutil
+    import tempfile
+
+    pid = os.getpid()
+    if pid not in _SCRATCH:
+        folder = Path(tempfile.mkdtemp(prefix="leakwatch-"))
+        _SCRATCH[pid] = folder
+        atexit.register(shutil.rmtree, folder, True)
+    return _SCRATCH[pid]
+
+
 def ensure_dir(path: Path) -> Path:
     """Create ``path`` (and parents) if missing and return it."""
     path.mkdir(parents=True, exist_ok=True)

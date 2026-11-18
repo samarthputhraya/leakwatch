@@ -28,13 +28,9 @@ PATTERN_ORIGIN = pd.Timestamp("2018-01-01", tz="UTC")  # L-Town demand patterns 
 
 def _prefix() -> str:
     """Unique EPANET scratch-file prefix (WNTR writes ``<prefix>.inp/.bin/.rpt``)."""
-    import os
-    import tempfile
     import uuid
 
-    folder = Path(tempfile.gettempdir()) / "leakwatch-epanet"
-    folder.mkdir(exist_ok=True)
-    return str(folder / f"sig-{os.getpid()}-{uuid.uuid4().hex[:8]}")
+    return str(paths.private_scratch_dir() / f"sig-{uuid.uuid4().hex[:8]}")
 
 
 @lru_cache(maxsize=1)
@@ -63,7 +59,12 @@ def _run(
         node, diameter = leak
         area = math.pi * (diameter / 2) ** 2
         wn.get_node(node).emitter_coefficient = discharge_coeff * area * math.sqrt(2 * G)
-    res = wntr.sim.EpanetSimulator(wn).run_sim(file_prefix=_prefix())
+    prefix = _prefix()
+    try:
+        res = wntr.sim.EpanetSimulator(wn).run_sim(file_prefix=prefix)
+    finally:
+        for ext in (".inp", ".bin", ".rpt"):
+            Path(prefix + ext).unlink(missing_ok=True)
     cols = {}
     for s in sensors.get("pressure", []):
         cols[sensor_column("pressure", s)] = res.node["pressure"][s]
