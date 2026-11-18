@@ -30,6 +30,19 @@ dependencies = [
     "wntr==1.3.2",
 ]
 
+[project.optional-dependencies]
+# Heavy stacks, installed locally by `make setup` (uv sync --all-extras); CI uses the base set and
+# the tests that need these skip (docs/DECISIONS.md D-004, D-019). Torch comes from the CPU index.
+dl = ["torch==2.7.1", "torch-geometric==2.6.1"]
+copilot = [
+    "torch==2.7.1",
+    "openai==1.109.1",
+    "sentence-transformers==3.4.1",
+    "pypdf==5.9.0",
+    "sqlglot==26.33.0",
+]
+dashboard = ["streamlit==1.45.1", "plotly==5.24.1"]
+
 [dependency-groups]
 dev = [
     "ipykernel==7.4.0",
@@ -50,6 +63,14 @@ packages = ["src/leakwatch"]
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.ruff]
 line-length = 100

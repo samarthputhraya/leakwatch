@@ -6,7 +6,7 @@ SHELL := /bin/bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 # Keep the venv on the WSL disk, not in OneDrive (docs/DECISIONS.md D-002).
 export UV_PROJECT_ENVIRONMENT ?= $(HOME)/.venvs/leakwatch
-RUN := uv run --locked
+RUN := uv run --locked --all-extras
 PY_DIRS := src tests scripts notebooks
 
 .PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
@@ -18,7 +18,7 @@ help: ## list targets
 
 setup: ## install pinned Python deps (uv.lock) into the WSL venv; create .env if missing
 	@command -v uv >/dev/null || { echo "uv not found: see README 'Quick start'"; exit 1; }
-	uv sync --locked
+	uv sync --locked --all-extras
 	@[ -f .env ] || { cp .env.example .env; echo "created .env from .env.example"; }
 
 data: ## download BattLeDIM (MD5-checked), convert to Parquet, build + cross-check ground truth
