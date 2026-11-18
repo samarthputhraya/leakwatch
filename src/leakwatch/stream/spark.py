@@ -24,6 +24,7 @@ def get_spark(
         app_name: shown in the Spark UI.
         with_kafka: add the ``spark-sql-kafka`` connector (downloaded once into ``~/.ivy2``).
         master: override ``spark_cfg["master"]`` (tests use ``local[2]``).
+        extra: further Spark settings for this session (e.g. worker reuse).
     """
     # Python workers must use this venv's interpreter, not whatever `python3` is on PATH.
     os.environ.setdefault("PYSPARK_PYTHON", sys.executable)

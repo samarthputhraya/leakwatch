@@ -77,3 +77,10 @@ def test_chance_level_grows_with_alert_count():
     assert 0.0 <= few["mean_rate"] < many["mean_rate"] <= 1.0
     assert many["mean_rate"] > 0.9  # 200 random alerts a year hit almost every 7-day window
     assert chance_detection(0, GT, START, END)["mean_rate"] == 0.0
+
+
+def test_time_to_detection_ignores_missed_leaks():
+    alerts = pd.DataFrame({"start_ts": [ts("2019-02-02 06:00")]})  # only the abrupt leak
+    ev = evaluate_detections(alerts, GT, START, END, horizon_days=7)
+    assert ev["time_to_detection_h"]["values"] == [30.0]
+    assert ev["time_to_detection_h"]["median"] == 30.0

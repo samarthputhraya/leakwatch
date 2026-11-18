@@ -570,7 +570,13 @@ def make_localizer(model_dir: Any = None) -> Any:
     if meta["model"] == "mlp":
         model: nn.Module = MLPLocalizer(len(g.sensor_idx) * 2, g.n, int(cfg["hidden"]))
     else:
-        model = GNNLocalizer(meta["model"], 2 + g.static.shape[1], int(cfg["hidden"]), int(cfg["layers"]), int(cfg["heads"]))
+        model = GNNLocalizer(
+            meta["model"],
+            2 + g.static.shape[1],
+            int(cfg["hidden"]),
+            int(cfg["layers"]),
+            int(cfg["heads"]),
+        )
     model.load_state_dict(torch.load(model_dir / "model.pt", map_location="cpu"))
     model.eval()
     sensors = network.parse_sensor_config()["pressure"]
@@ -580,7 +586,9 @@ def make_localizer(model_dir: Any = None) -> Any:
     def localize(alert: Mapping[str, Any], features: pd.DataFrame) -> list[dict[str, Any]] | None:
         if not set(cols) <= set(features.columns):
             return None
-        rows = features[pd.to_datetime(features["window_end"], utc=True) <= pd.Timestamp(alert["start_ts"])]
+        rows = features[
+            pd.to_datetime(features["window_end"], utc=True) <= pd.Timestamp(alert["start_ts"])
+        ]
         rows = rows.sort_values("window_end").tail(2)
         if rows.empty:
             return None

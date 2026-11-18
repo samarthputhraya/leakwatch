@@ -46,8 +46,12 @@ def _template(inp: str):  # -> wntr.network.WaterNetworkModel
 
 
 def _run(
-    inp: str, start: pd.Timestamp, hours: float, sensors: Mapping[str, Sequence[str]],
-    leak: tuple[str, float] | None, discharge_coeff: float,
+    inp: str,
+    start: pd.Timestamp,
+    hours: float,
+    sensors: Mapping[str, Sequence[str]],
+    leak: tuple[str, float] | None,
+    discharge_coeff: float,
 ) -> pd.DataFrame:
     import wntr
 
@@ -101,8 +105,10 @@ def leak_signature(
     return delta.astype("float64"), flow
 
 
-def apply_signature(values: np.ndarray, columns: Sequence[str], delta: pd.DataFrame, step: int) -> np.ndarray:
-    """Add the leak's delta at ``step`` (held at its last value afterwards) to one row of readings."""
+def apply_signature(
+    values: np.ndarray, columns: Sequence[str], delta: pd.DataFrame, step: int
+) -> np.ndarray:
+    """Add the leak's delta at ``step`` (last value held afterwards) to one row of readings."""
     if step < 0:
         return values
     row = delta.iloc[min(step, len(delta) - 1)]

@@ -196,7 +196,9 @@ def evaluate_detections(
         hit = int(sub["detected"].sum()) if n else 0
         return {"leaks": n, "detected": hit, "rate": round(hit / n, 4) if n else None}
 
-    ttds = [x for x in (leaks["time_to_detection_h"] if len(leaks) else []) if x is not None]
+    ttds = [  # missed leaks are NaN in the frame
+        float(x) for x in (leaks["time_to_detection_h"] if len(leaks) else []) if pd.notna(x)
+    ]
     return {
         "period": {"start": period_start.isoformat(), "end": period_end.isoformat()},
         "horizon_days": horizon_days,

@@ -138,6 +138,20 @@ dl:
     size_buckets_m: [0.010, 0.020]     # small < 10 mm <= medium < 20 mm <= large
     within_m: 300
 
+demo:
+  # PRD §16 live demo (Phase 7): BattLeDIM background + simulated leak signatures (D-025).
+  topic: demo.readings
+  partitions: 3
+  shuffle_partitions: 2            # small micro-batches: fewer shuffle tasks = lower latency
+  trigger_seconds: 2
+  speed: 720                       # simulated seconds per wall second (1 h of data = 5 s)
+  background_start: "2018-11-12 00:00"   # a Monday inside the Nov 8 - Dec 31 2018 normal stretch
+  background_hours: 168
+  signature_hours: 6               # EPANET leak-minus-no-leak deltas; held constant afterwards
+  leak_diameter_m: 0.03            # default demo leak (~30 m3/h at L-Town pressures)
+  check_nodes: [n100, n300, n470]  # junctions `make demo-check` injects at (areas A)
+  quiet_before_inject_s: 10
+
 network:
   # Zones you get by cutting L-Town at its pump and PRVs are named by one node inside each
   # (verified in tests: A has 29 pressure sensors, B is the zone behind PRV-3, C holds tank T1 + AMRs).

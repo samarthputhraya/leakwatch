@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T20:32:47+00:00",
-    "git_commit": "9c79eba",
+    "generated_at": "2026-11-18T22:44:59+00:00",
+    "git_commit": "f68e3ab",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -18,6 +18,8 @@
     "main": {
       "rule": "main",
       "feature_view": "absolute",
+      "features": 228,
+      "pca_variance": 0.95,
       "model_dir": "/root/leakwatch-data/models/kmeans",
       "normal_windows": 14539,
       "windows_by_role": {
@@ -31,109 +33,109 @@
       "k_curve": [
         {
           "k": 2,
-          "sse": 1167388.9281973678,
+          "sse": 1167388.9281973676,
           "silhouette": 0.5520811823239927
         },
         {
           "k": 3,
-          "sse": 979650.0599438469,
+          "sse": 979650.0599438467,
           "silhouette": 0.39944416835723745
         },
         {
           "k": 4,
-          "sse": 805119.0634282957,
+          "sse": 805119.0634282955,
           "silhouette": 0.45421003342985
         },
         {
           "k": 5,
-          "sse": 743020.4176008716,
-          "silhouette": 0.38036690419111513
+          "sse": 743020.4176008715,
+          "silhouette": 0.3803669041911152
         },
         {
           "k": 6,
-          "sse": 647306.0507108076,
-          "silhouette": 0.38670215694602894
+          "sse": 647306.0507108074,
+          "silhouette": 0.3867021569460289
         },
         {
           "k": 7,
-          "sse": 563177.1072203193,
-          "silhouette": 0.41537314406035575
+          "sse": 563177.1072203192,
+          "silhouette": 0.41537314406035564
         },
         {
           "k": 8,
-          "sse": 511403.83680882875,
-          "silhouette": 0.4117811227165506
+          "sse": 511403.8368088287,
+          "silhouette": 0.41178112271655065
         },
         {
           "k": 9,
-          "sse": 478017.1312836011,
-          "silhouette": 0.42084960406498023
+          "sse": 478017.13128360093,
+          "silhouette": 0.42084960406498007
         },
         {
           "k": 10,
-          "sse": 446924.6063681982,
+          "sse": 446924.60636819806,
           "silhouette": 0.4300699169489911
         },
         {
           "k": 11,
-          "sse": 424946.5310651305,
-          "silhouette": 0.42085934828408356
+          "sse": 424946.5310651304,
+          "silhouette": 0.42085934828408367
         },
         {
           "k": 12,
-          "sse": 399224.85630739585,
-          "silhouette": 0.4318704635863211
+          "sse": 399224.85630739573,
+          "silhouette": 0.4318704635863209
         },
         {
           "k": 13,
-          "sse": 385594.53274346434,
-          "silhouette": 0.40876166523953655
+          "sse": 385594.5327434642,
+          "silhouette": 0.4087616652395366
         },
         {
           "k": 14,
           "sse": 370444.94855842995,
-          "silhouette": 0.3974312131384087
+          "silhouette": 0.39743121313840873
         },
         {
           "k": 15,
-          "sse": 339628.5271455049,
+          "sse": 339628.52714550484,
           "silhouette": 0.41800169525668923
         },
         {
           "k": 16,
-          "sse": 329166.623020563,
+          "sse": 329166.6230205629,
           "silhouette": 0.4193429721718192
         },
         {
           "k": 17,
-          "sse": 314738.0540827828,
-          "silhouette": 0.4048519254262209
+          "sse": 314738.05408278276,
+          "silhouette": 0.4048519254262208
         },
         {
           "k": 18,
-          "sse": 311951.3158714014,
-          "silhouette": 0.4066143473156212
+          "sse": 311951.31587140134,
+          "silhouette": 0.40661434731562124
         },
         {
           "k": 19,
-          "sse": 305385.32088300365,
-          "silhouette": 0.42413966680908943
+          "sse": 305385.32088300353,
+          "silhouette": 0.4241396668090895
         },
         {
           "k": 20,
-          "sse": 297678.9754476452,
-          "silhouette": 0.3889021935347567
+          "sse": 297678.97544764506,
+          "silhouette": 0.3889021935347568
         }
       ],
-      "silhouette_at_k": 0.4117811227165506,
+      "silhouette_at_k": 0.41178112271655065,
       "best_silhouette_k": 2,
-      "threshold": 14.760243385577096,
+      "threshold": 14.760243385577086,
       "threshold_quantile": 0.99,
       "validation_windows_above_threshold": 0.0106,
       "score_quantiles": {
-        "normal_train_p50": 6.530933220273965,
-        "normal_validation_p99": 14.831184061035527,
-        "not_normal_p50": 9.522992791701077
+        "normal_train_p50": 6.530933220273967,
+        "normal_validation_p99": 14.831184061035522,
+        "not_normal_p50": 9.522992791701075
       },
       "persistence_windows": 2,
       "persistence_tuning": [
@@ -226,11 +228,13 @@
         "bdt_k_selection_main.png",
         "bdt_score_hist_2018_main.png"
       ],
-      "wall_s": 310.5
+      "wall_s": 217.5
     },
     "strict": {
       "rule": "strict",
       "feature_view": "absolute",
+      "features": 228,
+      "pca_variance": 0.95,
       "model_dir": "/root/leakwatch-data/models/kmeans_strict",
       "normal_windows": 723,
       "windows_by_role": {
@@ -244,7 +248,7 @@
       "k_curve": [
         {
           "k": 2,
-          "sse": 75365.48205350296,
+          "sse": 75365.48205350293,
           "silhouette": 0.5235480622004648
         },
         {
@@ -254,73 +258,73 @@
         },
         {
           "k": 4,
-          "sse": 55993.72473567652,
+          "sse": 55993.724735676515,
           "silhouette": 0.4590719062972671
         },
         {
           "k": 5,
-          "sse": 42729.16359206191,
-          "silhouette": 0.46984264256024577
+          "sse": 42729.1635920619,
+          "silhouette": 0.46984264256024566
         },
         {
           "k": 6,
-          "sse": 38467.937590782094,
-          "silhouette": 0.5024365399774283
+          "sse": 38467.93759078209,
+          "silhouette": 0.5024365399774282
         },
         {
           "k": 7,
-          "sse": 37082.82381137845,
-          "silhouette": 0.5062661616406327
+          "sse": 37082.82381137844,
+          "silhouette": 0.5062661616406325
         },
         {
           "k": 8,
-          "sse": 30417.41402044915,
-          "silhouette": 0.5073042238743796
+          "sse": 30417.41402044914,
+          "silhouette": 0.5073042238743793
         },
         {
           "k": 9,
-          "sse": 27153.05067997466,
+          "sse": 27153.050679974658,
           "silhouette": 0.553181177703279
         },
         {
           "k": 10,
-          "sse": 24450.07474291375,
-          "silhouette": 0.5297505838287213
+          "sse": 24450.07474291374,
+          "silhouette": 0.5297505838287211
         },
         {
           "k": 11,
-          "sse": 26099.20543180242,
+          "sse": 26099.205431802413,
           "silhouette": 0.5247340255585339
         },
         {
           "k": 12,
-          "sse": 21080.368646556606,
-          "silhouette": 0.5448200054726217
+          "sse": 21080.368646556602,
+          "silhouette": 0.5448200054726218
         },
         {
           "k": 13,
           "sse": 21260.392092420607,
-          "silhouette": 0.4612740381084272
+          "silhouette": 0.46127403810842704
         },
         {
           "k": 14,
-          "sse": 19691.596886347135,
-          "silhouette": 0.47119296821258455
+          "sse": 19691.596886347128,
+          "silhouette": 0.4711929682125845
         },
         {
           "k": 15,
           "sse": 17144.073076590605,
-          "silhouette": 0.521832870868672
+          "silhouette": 0.5218328708686721
         },
         {
           "k": 16,
-          "sse": 16786.216914582536,
-          "silhouette": 0.5170753769941593
+          "sse": 16786.216914582532,
+          "silhouette": 0.5170753769941595
         },
         {
           "k": 17,
-          "sse": 15704.54526488213,
-          "silhouette": 0.5347080019639452
+          "sse": 15704.545264882128,
+          "silhouette": 0.5347080019639451
         },
         {
           "k": 18,
@@ -329,24 +333,24 @@
         },
         {
           "k": 19,
-          "sse": 14200.932579795506,
-          "silhouette": 0.5358586941033654
+          "sse": 14200.932579795504,
+          "silhouette": 0.5358586941033653
         },
         {
           "k": 20,
-          "sse": 14374.94311922451,
-          "silhouette": 0.48821144590197757
+          "sse": 14374.943119224507,
+          "silhouette": 0.4882114459019777
         }
       ],
-      "silhouette_at_k": 0.5073042238743796,
+      "silhouette_at_k": 0.5073042238743793,
       "best_silhouette_k": 9,
       "threshold": 23.14308251284846,
       "threshold_quantile": 0.99,
       "validation_windows_above_threshold": 0.0,
       "score_quantiles": {
-        "normal_train_p50": 5.921825339059436,
-        "normal_validation_p99": 18.048216276342753,
-        "not_normal_p50": 13.671627343464456
+        "normal_train_p50": 5.921825339059434,
+        "normal_validation_p99": 18.04821627634275,
+        "not_normal_p50": 13.671627343464458
       },
       "persistence_windows": 1,
       "persistence_tuning": [
@@ -439,11 +443,13 @@
         "bdt_k_selection_strict.png",
         "bdt_score_hist_2018_strict.png"
       ],
-      "wall_s": 369.2
+      "wall_s": 67.4
     },
     "delta": {
       "rule": "main",
       "feature_view": "weekly_change",
+      "features": 228,
+      "pca_variance": 0.95,
       "model_dir": "/root/leakwatch-data/models/kmeans_delta",
       "normal_windows": 10269,
       "windows_by_role": {
@@ -457,109 +463,109 @@
       "k_curve": [
         {
           "k": 2,
-          "sse": 1102491.2530402527,
-          "silhouette": 0.7953648802277458
+          "sse": 1102491.2530402537,
+          "silhouette": 0.7953648802277455
         },
         {
           "k": 3,
-          "sse": 938671.0184104404,
-          "silhouette": 0.3870223450444237
+          "sse": 938671.0184104416,
+          "silhouette": 0.38702234504442345
         },
         {
           "k": 4,
-          "sse": 862857.9895472236,
-          "silhouette": 0.18683901206670653
+          "sse": 862857.9895472245,
+          "silhouette": 0.1868390120667065
         },
         {
           "k": 5,
-          "sse": 782891.9778834807,
-          "silhouette": 0.28009505879923696
+          "sse": 782891.9778834815,
+          "silhouette": 0.28009505879923685
         },
         {
           "k": 6,
-          "sse": 727780.876946774,
-          "silhouette": 0.26185661153076517
+          "sse": 727780.8769467747,
+          "silhouette": 0.26185661153076495
         },
         {
           "k": 7,
-          "sse": 696152.0103688812,
-          "silhouette": 0.24733101025984086
+          "sse": 696152.010368882,
+          "silhouette": 0.24733101025984072
         },
         {
           "k": 8,
-          "sse": 692673.8277755028,
-          "silhouette": 0.24342779009186163
+          "sse": 692673.8277755037,
+          "silhouette": 0.24342779009186166
         },
         {
           "k": 9,
-          "sse": 619488.161696656,
-          "silhouette": 0.1294607272576828
+          "sse": 619488.1616966566,
+          "silhouette": 0.12946072725768265
         },
         {
           "k": 10,
-          "sse": 565758.7135322593,
-          "silhouette": 0.24814317363748054
+          "sse": 565758.7135322603,
+          "silhouette": 0.2481431736374803
         },
         {
           "k": 11,
-          "sse": 559138.4445958751,
-          "silhouette": 0.16382688035695955
+          "sse": 559138.4445958757,
+          "silhouette": 0.1638268803569595
         },
         {
           "k": 12,
-          "sse": 529483.3739597368,
+          "sse": 529483.3739597374,
           "silhouette": 0.23882832137003698
         },
         {
           "k": 13,
-          "sse": 513198.9770511897,
-          "silhouette": 0.16311385484341456
+          "sse": 513198.9770511903,
+          "silhouette": 0.1631138548434144
         },
         {
           "k": 14,
-          "sse": 498994.67565779923,
-          "silhouette": 0.1817818793680794
+          "sse": 498994.6756577998,
+          "silhouette": 0.18178187936807935
         },
         {
           "k": 15,
-          "sse": 493783.009546328,
-          "silhouette": 0.17497515669051072
+          "sse": 493783.0095463286,
+          "silhouette": 0.1749751566905107
         },
         {
           "k": 16,
-          "sse": 460755.8962771942,
+          "sse": 460755.8962771946,
           "silhouette": 0.18623373786412062
         },
         {
           "k": 17,
-          "sse": 476127.5717631242,
-          "silhouette": 0.17244057169543778
+          "sse": 476127.57176312467,
+          "silhouette": 0.1724405716954376
         },
         {
           "k": 18,
-          "sse": 454744.30189075746,
+          "sse": 454744.3018907579,
           "silhouette": 0.18427820476375975
         },
         {
           "k": 19,
-          "sse": 425248.1815211943,
+          "sse": 425248.18152119475,
           "silhouette": 0.20090612646030984
         },
         {
           "k": 20,
-          "sse": 426613.6081614514,
-          "silhouette": 0.21170717709175632
+          "sse": 426613.6081614518,
+          "silhouette": 0.2117071770917562
         }
       ],
-      "silhouette_at_k": 0.24814317363748054,
+      "silhouette_at_k": 0.2481431736374803,
       "best_silhouette_k": 2,
-      "threshold": 23.963490059832118,
+      "threshold": 23.963490059832143,
       "threshold_quantile": 0.99,
       "validation_windows_above_threshold": 0.0157,
       "score_quantiles": {
-        "normal_train_p50": 7.2358785773952405,
-        "normal_validation_p99": 25.095448555209483,
-        "not_normal_p50": 14.418823123573508
+        "normal_train_p50": 7.235878577395245,
+        "normal_validation_p99": 25.095448555209504,
+        "not_normal_p50": 14.418823123573517
       },
       "persistence_windows": 2,
       "persistence_tuning": [
@@ -652,7 +658,222 @@
         "bdt_k_selection_delta.png",
         "bdt_score_hist_2018_delta.png"
       ],
-      "wall_s": 616.0
+      "wall_s": 150.6
+    },
+    "residual": {
+      "rule": "main",
+      "feature_view": "residual",
+      "features": 38,
+      "pca_variance": 0.99,
+      "model_dir": "/root/leakwatch-data/models/kmeans_residual",
+      "normal_windows": 14539,
+      "windows_by_role": {
+        "train": 8948,
+        "threshold": 2766,
+        "validation": 2825
+      },
+      "pca_components": 6,
+      "pca_explained_variance": 0.9934,
+      "k": 6,
+      "k_curve": [
+        {
+          "k": 2,
+          "sse": 181651.09937173227,
+          "silhouette": 0.5952540429525766
+        },
+        {
+          "k": 3,
+          "sse": 118003.27181622962,
+          "silhouette": 0.5960726749583896
+        },
+        {
+          "k": 4,
+          "sse": 97074.68730313545,
+          "silhouette": 0.5902413994599884
+        },
+        {
+          "k": 5,
+          "sse": 79022.27387655048,
+          "silhouette": 0.5250185778319417
+        },
+        {
+          "k": 6,
+          "sse": 67335.89481928978,
+          "silhouette": 0.4710885634789415
+        },
+        {
+          "k": 7,
+          "sse": 65653.45633878987,
+          "silhouette": 0.47605458117656324
+        },
+        {
+          "k": 8,
+          "sse": 58737.286288805815,
+          "silhouette": 0.49039033921767217
+        },
+        {
+          "k": 9,
+          "sse": 54534.21634297262,
+          "silhouette": 0.40403201514877757
+        },
+        {
+          "k": 10,
+          "sse": 51648.04043673472,
+          "silhouette": 0.4180695709845167
+        },
+        {
+          "k": 11,
+          "sse": 48681.85510618756,
+          "silhouette": 0.3780548547764455
+        },
+        {
+          "k": 12,
+          "sse": 43270.51499602581,
+          "silhouette": 0.3847967898911729
+        },
+        {
+          "k": 13,
+          "sse": 40978.09354081763,
+          "silhouette": 0.3902493682604155
+        },
+        {
+          "k": 14,
+          "sse": 39815.341133778566,
+          "silhouette": 0.38831393004357184
+        },
+        {
+          "k": 15,
+          "sse": 38332.70289577546,
+          "silhouette": 0.34557270437563536
+        },
+        {
+          "k": 16,
+          "sse": 37257.53080963639,
+          "silhouette": 0.39891718179570373
+        },
+        {
+          "k": 17,
+          "sse": 35055.42540951943,
+          "silhouette": 0.35306641440820413
+        },
+        {
+          "k": 18,
+          "sse": 34076.21293646102,
+          "silhouette": 0.353945925149268
+        },
+        {
+          "k": 19,
+          "sse": 32304.872786180556,
+          "silhouette": 0.3552236041111545
+        },
+        {
+          "k": 20,
+          "sse": 34310.44556642376,
+          "silhouette": 0.3413413263676401
+        }
+      ],
+      "silhouette_at_k": 0.4710885634789415,
+      "best_silhouette_k": 3,
+      "threshold": 6.40430941103249,
+      "threshold_quantile": 0.99,
+      "validation_windows_above_threshold": 0.0081,
+      "score_quantiles": {
+        "normal_train_p50": 1.9159195241765703,
+        "normal_validation_p99": 6.027613142084122,
+        "not_normal_p50": 4.73239385323166
+      },
+      "persistence_windows": 1,
+      "persistence_tuning": [
+        {
+          "m": 1,
+          "alerts_2018": 296,
+          "validation_false_alarms": 7,
+          "validation_false_alarms_per_week": 1.665,
+          "detection_2018": {
+            "leaks": 14,
+            "detected": 14,
+            "rate": 1.0
+          },
+          "median_ttd_h_2018": 10.415
+        },
+        {
+          "m": 2,
+          "alerts_2018": 209,
+          "validation_false_alarms": 4,
+          "validation_false_alarms_per_week": 0.952,
+          "detection_2018": {
+            "leaks": 14,
+            "detected": 13,
+            "rate": 0.9286
+          },
+          "median_ttd_h_2018": null
+        },
+        {
+          "m": 3,
+          "alerts_2018": 158,
+          "validation_false_alarms": 3,
+          "validation_false_alarms_per_week": 0.714,
+          "detection_2018": {
+            "leaks": 14,
+            "detected": 13,
+            "rate": 0.9286
+          },
+          "median_ttd_h_2018": null
+        },
+        {
+          "m": 4,
+          "alerts_2018": 127,
+          "validation_false_alarms": 2,
+          "validation_false_alarms_per_week": 0.476,
+          "detection_2018": {
+            "leaks": 14,
+            "detected": 13,
+            "rate": 0.9286
+          },
+          "median_ttd_h_2018": null
+        },
+        {
+          "m": 6,
+          "alerts_2018": 87,
+          "validation_false_alarms": 1,
+          "validation_false_alarms_per_week": 0.238,
+          "detection_2018": {
+            "leaks": 14,
+            "detected": 12,
+            "rate": 0.8571
+          },
+          "median_ttd_h_2018": null
+        },
+        {
+          "m": 8,
+          "alerts_2018": 73,
+          "validation_false_alarms": 1,
+          "validation_false_alarms_per_week": 0.238,
+          "detection_2018": {
+            "leaks": 14,
+            "detected": 11,
+            "rate": 0.7857
+          },
+          "median_ttd_h_2018": null
+        },
+        {
+          "m": 12,
+          "alerts_2018": 54,
+          "validation_false_alarms": 0,
+          "validation_false_alarms_per_week": 0.0,
+          "detection_2018": {
+            "leaks": 14,
+            "detected": 8,
+            "rate": 0.5714
+          },
+          "median_ttd_h_2018": null
+        }
+      ],
+      "figures": [
+        "bdt_k_selection_residual.png",
+        "bdt_score_hist_2018_residual.png"
+      ],
+      "wall_s": 132.8
     }
   }
 }

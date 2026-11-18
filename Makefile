@@ -12,7 +12,8 @@ PY_DIRS := src tests scripts notebooks
 .PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
-	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval
+	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
+	demo-check
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -132,5 +133,14 @@ features-stream-reset: ## delete the live feature table, its carried state and c
 test-integration: ## end-to-end tests against the running Kafka (`make up` first)
 	$(RUN) pytest -m integration
 
-demo: ## run the live demo (Phase 7)
-	@echo "make demo: the dashboard demo is built in Phase 7; see README.md."; exit 1
+demo: ## live demo: runner (replay + Spark + leak injection) + dashboard on :8501 (needs `make up`)
+	bash scripts/demo.sh
+
+demo-runner: ## only the demo backend (replay + streams + leak injection + work orders)
+	$(RUN) python -m leakwatch.demo.runner
+
+dashboard: ## only the Streamlit dashboard (http://localhost:8501)
+	$(RUN) streamlit run src/leakwatch/dashboard/app.py --server.headless true
+
+demo-check: ## headless demo rehearsal: inject, alert, top 5, work order x3 -> demo_runs.json
+	$(RUN) python -m leakwatch.demo.check
