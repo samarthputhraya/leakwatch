@@ -13,7 +13,7 @@ PY_DIRS := src tests scripts notebooks
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
-	demo-check bdt-scaling reports test-report
+	demo-check bdt-scaling reports test-report prepare
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -141,6 +141,17 @@ features-stream-reset: ## delete the live feature table, its carried state and c
 
 test-integration: ## end-to-end tests against the running Kafka (`make up` first)
 	$(RUN) pytest -m integration
+
+prepare: ## fresh data dir -> lake, features, models, alerts, localizer, RAG index (needs `make up`)
+	$(MAKE) ingest-year YEAR=2018
+	$(MAKE) ingest-year YEAR=2019
+	$(MAKE) features
+	$(MAKE) bdt-train
+	$(MAKE) bdt-eval
+	$(MAKE) gnn-data
+	$(MAKE) gnn
+	$(MAKE) dispatch
+	$(MAKE) index
 
 demo: ## live demo: runner (replay + Spark + leak injection) + dashboard on :8501 (needs `make up`)
 	bash scripts/demo.sh
