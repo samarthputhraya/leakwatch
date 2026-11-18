@@ -82,10 +82,15 @@ def download_file(
     remote: RemoteFile,
     dest_dir: Path,
     session: requests.Session | None = None,
-    retries: int = 3,
-    timeout_s: float = 60.0,
+    retries: int = 5,
+    timeout_s: float = 120.0,
+    max_backoff_s: float = 60.0,
 ) -> Path:
-    """Download one file into ``dest_dir`` unless a copy with the right MD5 is already there."""
+    """Download one file into ``dest_dir`` unless a copy with the right MD5 is already there.
+
+    Zenodo regularly answers with 502s and read timeouts, so failed attempts are retried with
+    exponential backoff (2, 4, 8, ... seconds, capped at ``max_backoff_s``).
+    """
     dest = dest_dir / remote.name
     if dest.exists() and md5sum(dest) == remote.md5:
         log.info("ok (cached)  %s", remote.name)
@@ -110,17 +115,25 @@ def download_file(
         except (requests.RequestException, ChecksumError) as exc:
             last_error = exc
             log.warning("attempt %d/%d failed for %s: %s", attempt, retries, remote.name, exc)
-            time.sleep(2 * attempt)
+            if attempt < retries:
+                time.sleep(min(2.0**attempt, max_backoff_s))
     part.unlink(missing_ok=True)
     raise RuntimeError(f"could not download {remote.name}") from last_error
 
 
-def download_all(dest_dir: Path | None = None, include_optional: bool = False) -> list[Path]:
+def download_all(
+    dest_dir: Path | None = None,
+    include_optional: bool = False,
+    retries: int = 5,
+    timeout_s: float = 120.0,
+) -> list[Path]:
     """Download every required BattLeDIM file (and optional ones if asked)."""
     target_dir: Path = paths.ensure_dir(dest_dir or paths.battledim_raw_dir())
     with requests.Session() as session:
         return [
-            download_file(f, target_dir, session) for f in FILES if f.required or include_optional
+            download_file(f, target_dir, session, retries=retries, timeout_s=timeout_s)
+            for f in FILES
+            if f.required or include_optional
         ]
 
 

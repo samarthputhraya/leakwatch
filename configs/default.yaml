@@ -9,6 +9,8 @@ project:
 battledim:
   years: [2018, 2019]
   download_optional: false         # true also fetches L-TOWN_Real.inp (177 MB, not used by the pipeline)
+  download_retries: 5              # Zenodo often answers 502 / read timeouts; retried with backoff
+  download_timeout_s: 120
 
 cleaning:
   # PRD §7.2 (used by the data-quality summary now, by the streaming job from Phase 1)

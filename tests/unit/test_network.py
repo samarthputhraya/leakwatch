@@ -37,7 +37,9 @@ def test_area_sizes_and_sensors(wn, areas):
     sensors = network.parse_sensor_config()
     junctions = set(wn.junction_name_list)
     sizes = {a: len(set(areas.index[areas.eq(a)]) & junctions) for a in "ABC"}
-    assert sizes == {"A": 657, "B": 31, "C": 92}
+    # A = 657 junctions in the main zone + reservoir inlet nodes n303 and n336 (fed via PRV-1/2)
+    assert sizes == {"A": 659, "B": 31, "C": 92}
+    assert areas["n303"] == areas["n336"] == "A"
     pressure_by_area = areas.loc[sensors["pressure"]].value_counts().to_dict()
     assert pressure_by_area == {"A": 29, "B": 1, "C": 3}
     assert set(areas.loc[sensors["amr"]]) == {"C"}  # all 82 AMRs are in area C

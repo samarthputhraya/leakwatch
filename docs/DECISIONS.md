@@ -47,7 +47,7 @@ Every non-obvious technical decision, newest at the bottom. Format: date · deci
 
 ### D-008 · 2026-11-18 · Network areas = zones between the pump and PRVs
 - **Decision:** area A/B/C of each node is computed (not hard-coded per node): cut L-Town at PUMP_1 and PRV-1/2/3, take connected zones, name each by an anchor node in config (`A: n54`, `B: n215`, `C: T1`); reservoir stubs inherit the zone their PRV feeds.
-- **Measured** (`reports/metrics/network_stats.json`): A has 657 junctions and 29 pressure sensors, B has 31 junctions and 1 sensor (n215), C has 92 junctions, tank T1, 3 sensors and all 82 AMRs. The PRD quotes 655 junctions for A (from a paper); we report our measured 657.
+- **Measured** (`reports/metrics/network_stats.json`): A has 659 junctions (657 in the main zone plus the reservoir inlet nodes n303 and n336) and 29 pressure sensors, B has 31 junctions and 1 sensor (n215), C has 92 junctions, tank T1, 3 sensors and all 82 AMRs; 659 + 31 + 92 = 782. The PRD quotes 655 junctions for A (from a paper); we report our measured numbers.
 - **Also measured:** total pipe length 43.16 km (PRD quotes ~42.6 km); mean pipe length 47.7 m.
 
 ### D-009 · 2026-11-18 · Notebooks are percent-format `.py` files

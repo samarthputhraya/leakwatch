@@ -105,7 +105,7 @@ ax.autoscale()
 ax.set_aspect("equal")
 ax.set_xticks([])
 ax.set_yticks([])
-ax.legend(loc="lower left", fontsize=8)
+ax.legend(loc="center left", bbox_to_anchor=(1.01, 0.5), fontsize=8, frameon=False)
 ax.set_title("L-Town: areas, sensors and the 33 BattLeDIM leaks")
 fig.savefig(FIGURES_DIR / "eda_network_map.png", bbox_inches="tight")
 pd.DataFrame(stats["areas"]).T[
@@ -269,6 +269,7 @@ stuck18.sort_values("stuck_steps", ascending=False).head(10)
 
 # %%
 la18 = summary["leak_activity"]["2018"]
+equal = summary["share_of_readings_equal_across_years"]["2018_vs_2019"]
 missing = sum(s["missing"] for s in summary["scada"])
 findings = [
     f"Missing values in 2018+2019 SCADA: {missing}. Gap filling (PRD §7.2) is still built for "
@@ -280,6 +281,8 @@ findings = [
     "DECISIONS.md when chosen).",
     f"Leaks are {la18['leak_share_of_inflow']:.1%} of 2018 inflow volume "
     f"(mean inflow {la18['mean_inflow_m3h']} m³/h).",
+    f"AMR readings: {equal['amr']:.1%} of 2019 values equal 2018 at the same position "
+    f"(pressure: {equal['pressure']:.1%}), so AMR consumption is largely replayed between years.",
     f"Network: {stats['counts']['junctions']} junctions, {stats['counts']['pipes']} pipes, "
     f"{stats['total_pipe_length_km']} km of pipe, mean pipe {stats['pipe_length_m']['mean']} m.",
     f"Top-5 search area: {stats['search_area']['pipe_length_to_inspect_m']} m of pipe, "

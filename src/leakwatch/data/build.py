@@ -80,6 +80,19 @@ def leak_activity(wide: pd.DataFrame, flows: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+def cross_year_equality(first: pd.DataFrame, second: pd.DataFrame) -> dict[str, float]:
+    """Share of readings equal at the same position of two years, per sensor type.
+
+    BattLeDIM's AMR series turn out to be almost the same in 2018 and 2019, unlike pressure/flow.
+    """
+    out = {}
+    for sensor_type in SENSOR_TYPES:
+        cols = [c for c in first.columns if split_sensor_column(c)[0] == sensor_type]
+        a, b = first[cols].to_numpy(), second[cols].to_numpy()
+        out[sensor_type] = round(float((a == b).mean()), 4)
+    return out
+
+
 def ground_truth_summary(gt: pd.DataFrame) -> dict[str, Any]:
     """Leak counts used by the pitch and by the Phase 0 Definition of Done."""
     out: dict[str, Any] = {
@@ -116,7 +129,12 @@ def main(argv: list[str] | None = None) -> int:
     log.info("data dir: %s", paths.data_dir())
 
     if not args.skip_download:
-        battledim.download_all(include_optional=bool(cfg["battledim"]["download_optional"]))
+        bd = cfg["battledim"]
+        battledim.download_all(
+            include_optional=bool(bd["download_optional"]),
+            retries=int(bd["download_retries"]),
+            timeout_s=float(bd["download_timeout_s"]),
+        )
     battledim.convert_to_parquet(years)
 
     raw = paths.battledim_raw_dir()
@@ -133,17 +151,24 @@ def main(argv: list[str] | None = None) -> int:
     log.info("ground truth: %d leaks -> %s", len(gt), paths.ground_truth_path())
 
     stuck_min = int(cfg["cleaning"]["stuck_min_steps"])
-    per_year, activity = [], {}
+    per_year, activity, wides = [], {}, {}
     for year in years:
         wide = battledim.load_scada(year)
         wide_scada_schema(expected_rows=battledim.STEPS_PER_YEAR).validate(wide)
         per_year.append(scada_quality(year, wide, stuck_min))
         activity[str(year)] = leak_activity(wide, leak_flows[year])
+        wides[year] = wide
+    equality = (
+        {f"{years[0]}_vs_{years[1]}": cross_year_equality(wides[years[0]], wides[years[1]])}
+        if len(years) == 2
+        else {}
+    )
     summary_path = write_metrics(
         "data_summary",
         {
             "source": f"Zenodo record {battledim.ZENODO_RECORD} (doi:10.5281/zenodo.4017659)",
             "scada": per_year,
+            "share_of_readings_equal_across_years": equality,
             "leak_activity": activity,
             "ground_truth": ground_truth_summary(gt),
             "cross_checks": {
