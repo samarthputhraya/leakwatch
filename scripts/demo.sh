@@ -5,6 +5,7 @@
 set -euo pipefail
 RUN="uv run --locked --all-extras"
 
+$RUN python -m leakwatch.demo.preflight
 $RUN python -m leakwatch.demo.runner &
 RUNNER_PID=$!
 trap 'kill "$RUNNER_PID" 2>/dev/null || true' EXIT INT TERM

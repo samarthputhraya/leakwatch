@@ -66,6 +66,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--budget-s", type=float, default=60.0)
     args = parser.parse_args(argv)
+    from leakwatch.demo import preflight
+
+    if preflight.main() != 0:
+        return 1
     cfg = load_config()
     nodes = list(cfg["demo"]["check_nodes"])
     diameter = float(cfg["demo"]["leak_diameter_m"])
