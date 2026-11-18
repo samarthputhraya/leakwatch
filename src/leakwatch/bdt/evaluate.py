@@ -37,7 +37,7 @@ from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
 from leakwatch.common.metrics import write_metrics
 from leakwatch.data.ground_truth import load_ground_truth
-from leakwatch.eval.detection import chance_detection, evaluate_detections
+from leakwatch.eval.detection import chance_detection, evaluate_detections, onset_contrast
 from leakwatch.features.spec import load_feature_spec
 from leakwatch.stream.spark import get_spark
 
@@ -185,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         scored, alerts = score_and_alert(params, rows, cfg, areas, now)
         ev = evaluate_detections(alerts, gt, *year_bounds(eval_year), horizon)
         ev_train = evaluate_detections(alerts, gt, *year_bounds(train_year), horizon)
+        ev["onset_contrast_24h"] = onset_contrast(scored, gt, *year_bounds(eval_year))
         ev["chance_level"] = chance_detection(
             ev["alerts"]["total"], gt, *year_bounds(eval_year), horizon
         )

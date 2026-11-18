@@ -11,7 +11,8 @@ PY_DIRS := src tests scripts notebooks
 
 .PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
-	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay sim-scale sim-ingest
+	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
+	sim-scale sim-ingest lstm-ae gnn-data gnn
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -102,6 +103,15 @@ sim-scale: ## Spark-parallel scenario simulation (epyt-flow) -> lake/sim/scenari
 
 sim-ingest: ## replay generated scenarios through Kafka into lake/raw (source=sim), Spark alongside
 	bash scripts/sim_ingest.sh
+
+lstm-ae: ## LSTM autoencoder detector + K-Means comparison at matched false alarms -> dl_lstm_ae.json
+	$(RUN) python -m leakwatch.dl.lstm_ae
+
+gnn-data: ## single-leak scenarios for the localizer (EPANET emitters) -> data/sim/gnn
+	$(RUN) python -m leakwatch.dl.gnn_data
+
+gnn: ## nearest-sensor / MLP / GCN / GAT localizers, 2019 test, gnn_top5 into alerts -> dl_gnn.json
+	$(RUN) python -m leakwatch.dl.gnn
 
 live-replay: ## replay part of 2019 at 360x with live K-Means alerts (needs `make up`)
 	$(RUN) python -m leakwatch.stream.live_replay

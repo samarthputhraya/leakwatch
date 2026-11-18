@@ -90,6 +90,59 @@ def chance_detection(
     }
 
 
+def onset_contrast(
+    scored: pd.DataFrame,
+    gt: pd.DataFrame,
+    period_start: pd.Timestamp,
+    period_end: pd.Timestamp,
+    hours: float = 24.0,
+) -> dict[str, Any]:
+    """Does the score rise when a leak starts? Independent of the alert rate.
+
+    For each new leak: mean score in the ``hours`` after the start vs the ``hours`` before it, and
+    whether the after-mean exceeds the 95th percentile of the before-window.
+    """
+    s = scored.set_index("window_end")["score"].sort_index()
+    span = pd.Timedelta(hours=hours)
+    rows = []
+    for leak in gt[(gt["start_ts"] >= period_start) & (gt["start_ts"] <= period_end)].itertuples(
+        index=False
+    ):
+        before = s[(s.index > leak.start_ts - span) & (s.index <= leak.start_ts)]
+        after = s[
+            (s.index > leak.start_ts + pd.Timedelta(hours=1)) & (s.index <= leak.start_ts + span)
+        ]
+        if before.empty or after.empty:
+            continue
+        rows.append(
+            {
+                "leak_id": leak.leak_id,
+                "type": leak.type,
+                "before_mean": round(float(before.mean()), 3),
+                "after_mean": round(float(after.mean()), 3),
+                "ratio": round(float(after.mean() / before.mean()), 3) if before.mean() else None,
+                "after_above_before_p95": bool(after.mean() > before.quantile(0.95)),
+            }
+        )
+    df = pd.DataFrame(rows)
+
+    def share(kind: str | None) -> float | None:
+        sub = df if kind is None else df[df["type"] == kind] if len(df) else df
+        return round(float(sub["after_above_before_p95"].mean()), 4) if len(sub) else None
+
+    return {
+        "hours": hours,
+        "leaks": len(df),
+        "share_rising_overall": share(None),
+        "share_rising_abrupt": share("abrupt"),
+        "share_rising_incipient": share("incipient"),
+        "median_ratio_abrupt": float(df.loc[df["type"] == "abrupt", "ratio"].median())
+        if len(df) and (df["type"] == "abrupt").any()
+        else None,
+        "per_leak": rows,
+    }
+
+
 def evaluate_detections(
     alerts: pd.DataFrame,
     gt: pd.DataFrame,

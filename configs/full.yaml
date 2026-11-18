@@ -10,8 +10,12 @@ sim:
   bench:
     repeats: 3
   scale:
-    scenarios: 73                  # 73 x 30 days x 288 x 119 = 75.0M simulated readings
-    workers: 8
+    scenarios: 313                 # 313 x 7 days x 288 x 119 = 75.1M simulated readings
+    workers: 6
+
+dl:
+  gnn_data:
+    scenarios: 5000                # PRD §4.2 full scale
 
 spark:
   master: local[*]
