@@ -45,7 +45,7 @@ spark:
 stream:
   raw:
     trigger_seconds: 5
-    max_offsets_per_trigger: 300000
+    max_offsets_per_trigger: 200000  # 300k gave p95 13 s per catch-up batch (target <= 10 s)
     starting_offsets: earliest
     watermark: 1 hour              # event-time tolerance for late / duplicate readings
     stop_when_idle_s: 60           # batch-style runs stop after this long without new data

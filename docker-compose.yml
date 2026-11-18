@@ -12,7 +12,9 @@ services:
     # restarts this same container, so topics and queued messages survive. `make down` removes it.
     restart: unless-stopped
     ports:
-      - "9092:9092"
+      # Loopback only: the broker has no authentication (PLAINTEXT), and every client runs on
+      # this machine. Exposing it on the LAN would need SASL/TLS + ACLs first.
+      - "127.0.0.1:9092:9092"
     environment:
       # Setting any KAFKA_* variable replaces the image's default config, so all are listed.
       CLUSTER_ID: "4L6g3nShT-eMCtK--X86sw"

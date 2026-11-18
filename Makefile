@@ -10,7 +10,7 @@ RUN := uv run --locked
 PY_DIRS := src tests scripts notebooks
 
 .PHONY: help setup data test test-all cov lint fmt eda sim-bench check up down demo kafka-reset \
-	lake-reset replay stream ingest-year test-integration
+	lake-reset replay stream ingest-year stream-latency test-integration
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -72,6 +72,9 @@ stream: ## run the Spark raw-ingest stream until Ctrl+C (Spark UI: http://localh
 
 ingest-year: ## replay YEAR through Kafka into the raw lake with Spark running alongside
 	bash scripts/ingest_year.sh $(YEAR) $(SPEED)
+
+stream-latency: ## paced replay (360x) -> Spark: steady-state batch time and publish->lake latency
+	$(RUN) python -m leakwatch.stream.latency_bench
 
 test-integration: ## end-to-end tests against the running Kafka (`make up` first)
 	$(RUN) pytest -m integration
