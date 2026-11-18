@@ -21,6 +21,7 @@ import argparse
 import copy
 import math
 import multiprocessing as mp
+import os
 import sys
 import time
 from collections.abc import Mapping, Sequence
@@ -43,6 +44,9 @@ _STATE: dict[str, Any] = {}  # per worker process: network template, config, bas
 def _init(inp: str, cfg: dict[str, Any], baselines: dict[int, np.ndarray] | None = None) -> None:
     import wntr
 
+    # The EPANET toolkit writes its own temp files ("en" + 6 chars) into the working directory;
+    # each worker process works inside its private scratch directory, never the repository.
+    os.chdir(paths.private_scratch_dir())
     wn = wntr.network.WaterNetworkModel(inp)
     wn.options.hydraulic.demand_model = "PDD"
     wn.options.hydraulic.emitter_exponent = 0.5

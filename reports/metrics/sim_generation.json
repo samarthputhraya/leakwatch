@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T22:51:07+00:00",
+    "git_commit": "545367a",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "engine": "epyt-flow (EPANET)",
+  "scenarios": 313,
+  "scenarios_simulated_now": 132,
+  "scenario_days": 7,
+  "first_start": "2020-01-06T00:00:00+00:00",
+  "last_end": "2026-01-05T00:00:00+00:00",
+  "readings": 75089952,
+  "readings_simulated_now": 31667328,
+  "leaks": 317,
+  "workers": 4,
+  "wall_s": 969.1,
+  "readings_per_s": 32678.6,
+  "task_wall_s": {
+    "mean": 18.2,
+    "max": 33.41
+  },
+  "peak_rss_mb_per_worker_max": 404.5,
+  "config": {
+    "start": "2020-01-06",
+    "scenario_days": 7,
+    "scenarios": 313,
+    "workers": 6,
+    "leaks_per_scenario": [
+      0,
+      2
+    ],
+    "leak_diameter_m": [
+      0.008,
+      0.025
+    ],
+    "incipient_share": 0.5,
+    "demand_uncertainty": 0.1,
+    "noise": {
+      "pressure_m": 0.02,
+      "level_m": 0.005,
+      "flow_rel": 0.01,
+      "amr_rel": 0.02
+    }
+  }
+}

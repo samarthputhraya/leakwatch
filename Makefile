@@ -13,7 +13,7 @@ PY_DIRS := src tests scripts notebooks
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
-	demo-check
+	demo-check bdt-scaling reports test-report
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -113,6 +113,15 @@ gnn-data: ## single-leak scenarios for the localizer (EPANET emitters) -> data/s
 
 gnn: ## nearest-sensor / MLP / GCN / GAT localizers, 2019 test, gnn_top5 into alerts -> dl_gnn.json
 	$(RUN) python -m leakwatch.dl.gnn
+
+bdt-scaling: ## batch features + K-Means scoring at 12.5M / 50M / 100M+ readings -> bdt_scaling.json
+	$(RUN) python -m leakwatch.bdt.scaling
+
+reports: ## subject report drafts reports/{bdt,dl,pe,st}/REPORT.md from the metrics files
+	$(RUN) python -m leakwatch.eval.reports
+
+test-report: ## run the tests with coverage -> reports/metrics/test_summary.json
+	$(RUN) python -m leakwatch.eval.test_summary
 
 live-replay: ## replay part of 2019 at 360x with live K-Means alerts (needs `make up`)
 	$(RUN) python -m leakwatch.stream.live_replay
