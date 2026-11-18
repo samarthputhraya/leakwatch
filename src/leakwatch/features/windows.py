@@ -99,12 +99,21 @@ def with_residual(series: DataFrame, baselines: DataFrame) -> DataFrame:
 
 
 def window_aggregates(series: DataFrame, spec: FeatureSpec) -> DataFrame:
-    """Per (source, scenario, window, series): the statistics and counts, in long format."""
-    hours = F.when(F.col("value").isNotNull(), F.col("ts").cast("double") / 3600.0)
+    """Per (source, scenario, window, series): the statistics and counts, in long format.
+
+    Time for the slope is measured in hours from the window's own start (0 … 11/12 h), not from
+    the epoch: with epoch hours (~4e5) the covariance loses ~1e-10 of each time step, which large
+    series such as the AMR area sum (~3e4 L/h) turn into slope noise of ~1e-6 that depends on the
+    order Spark aggregates rows in (docs/DECISIONS.md D-018, first full-year parity run).
+    """
     win = F.window("ts", f"{spec.window_s} seconds", f"{spec.slide_s} seconds")
+    # A sliding window() in a projection expands each row into every window that contains it.
+    windowed = series.withColumn("_w", win)
+    offset_s = F.col("ts").cast("long") - F.col("_w.start").cast("long")
+    hours = F.when(F.col("value").isNotNull(), offset_s / 3600.0)
     agg = (
-        series.withColumn("_x", hours)
-        .groupBy(*GROUP_KEY, win.alias("_w"), "series_id")
+        windowed.withColumn("_x", hours)
+        .groupBy(*GROUP_KEY, "_w", "series_id")
         .agg(
             F.avg("value").alias("mean"),
             F.stddev_pop("value").alias("std"),

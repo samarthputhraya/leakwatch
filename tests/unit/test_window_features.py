@@ -116,6 +116,27 @@ def test_toy_data_quality_counts(spark, small_spec, toy_pdf, to_spark, toy_base)
     assert not any(c.startswith("pressure__n9") for c in out.columns)
 
 
+def test_slope_is_exact_for_large_values(small_spec, to_spark, toy_base):
+    """Large values with big swings around a small trend (like the AMR area sum, ~30,000 L/h):
+    the slope must match numpy to ~1e-9 absolute, so batch and stream agree whatever the order
+    in which Spark aggregates the rows (first full-year parity run: 1e-6 differences)."""
+    spec = dataclasses.replace(small_spec, sensor_series=("pressure__n1",), amr_areas={})
+    t0 = pd.Timestamp("2029-06-01 00:00", tz="UTC")  # large epoch values
+    i = np.arange(12)
+    values = 30000.0 + 450.0 * (-1.0) ** i + 3.0 * i
+    df = pd.DataFrame(
+        {
+            "sensor_type": "pressure",
+            "sensor_id": "n1",
+            "ts": pd.date_range(t0, periods=12, freq="5min"),
+            "value": values,
+        }
+    )
+    r = rows_by_start(window_features(to_spark(df), toy_base, spec))[int(t0.timestamp())]
+    expected = np.polyfit(i / 12.0, values, 1)[0]
+    assert abs(r["pressure__n1__slope"] - expected) < 1e-9
+
+
 def test_missing_series_counted(spark, small_spec, to_spark, toy_base):
     df = pd.DataFrame(
         {

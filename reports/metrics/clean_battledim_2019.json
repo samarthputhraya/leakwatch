@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T17:07:19+00:00",
+    "git_commit": "5a5afce",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "source": "battledim",
+  "year": 2019,
+  "raw_rows": 12509280,
+  "clean_rows": 12509280,
+  "filled_rows": 0,
+  "stuck_rows": 10510,
+  "out_of_range_rows": 0,
+  "by_sensor_type": {
+    "flow": {
+      "sensors": 3,
+      "rows": 315360,
+      "filled": 0,
+      "stuck": 0,
+      "out_of_range": 0
+    },
+    "amr": {
+      "sensors": 82,
+      "rows": 8619840,
+      "filled": 0,
+      "stuck": 0,
+      "out_of_range": 0
+    },
+    "level": {
+      "sensors": 1,
+      "rows": 105120,
+      "filled": 0,
+      "stuck": 0,
+      "out_of_range": 0
+    },
+    "pressure": {
+      "sensors": 33,
+      "rows": 3468960,
+      "filled": 0,
+      "stuck": 10510,
+      "out_of_range": 0
+    }
+  },
+  "stuck_by_sensor": {
+    "pressure__n215": 10476,
+    "pressure__n740": 34
+  },
+  "rules": {
+    "max_ffill_gap_steps": 2,
+    "stuck_min_steps": 12,
+    "stuck_exempt_types": [
+      "flow",
+      "level",
+      "amr"
+    ]
+  },
+  "wall_s": 93.4
+}

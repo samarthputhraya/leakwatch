@@ -1,0 +1,40 @@
+{
+  "meta": {
+    "generated_at": "2026-11-18T18:00:48+00:00",
+    "git_commit": "5a5afce",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "source": "battledim",
+  "window": "1h",
+  "tolerance": {
+    "rtol": 1e-09,
+    "rule": "|a-b| <= rtol * max(1, |a|, |b|); null == null"
+  },
+  "windows": {
+    "batch": 70077,
+    "stream": 70076,
+    "matched": 70076,
+    "batch_only": 1,
+    "stream_only": 0,
+    "stream_duplicates": 0,
+    "matched_by_year": {
+      "2018": 35040,
+      "2019": 35036
+    }
+  },
+  "batch_only_windows": [
+    "2019-12-31T23:00:00Z"
+  ],
+  "stream_only_windows": [],
+  "columns_compared": 233,
+  "cells_compared": 16327708,
+  "mismatched_cells": 1539,
+  "mismatches_by_column": {
+    "amr_sum__C__slope": 1539
+  },
+  "max_abs_diff": 3.391298378119245e-06,
+  "max_abs_diff_column": "amr_sum__C__slope",
+  "parity": false
+}
