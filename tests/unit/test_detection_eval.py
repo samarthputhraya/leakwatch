@@ -67,3 +67,13 @@ def test_missed_leak():
     assert ev["detection"]["overall"]["rate"] == 0.0
     assert ev["precision"] is None
     assert all(not p["detected"] for p in ev["per_leak"])
+
+
+def test_chance_level_grows_with_alert_count():
+    from leakwatch.eval.detection import chance_detection
+
+    few = chance_detection(2, GT, START, END, n_iter=200)
+    many = chance_detection(200, GT, START, END, n_iter=200)
+    assert 0.0 <= few["mean_rate"] < many["mean_rate"] <= 1.0
+    assert many["mean_rate"] > 0.9  # 200 random alerts a year hit almost every 7-day window
+    assert chance_detection(0, GT, START, END)["mean_rate"] == 0.0

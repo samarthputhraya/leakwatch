@@ -28,7 +28,13 @@ import numpy as np
 import pandas as pd
 
 from leakwatch.bdt.alerts import AlertRule, run_alerts
-from leakwatch.bdt.data import load_features, normal_mask, series_area_map, split_roles
+from leakwatch.bdt.data import (
+    load_features,
+    normal_mask,
+    series_area_map,
+    split_roles,
+    weekly_change,
+)
 from leakwatch.bdt.model import fit_kmeans
 from leakwatch.bdt.scorer import KMeansScorer
 from leakwatch.common import paths
@@ -42,7 +48,15 @@ from leakwatch.stream.spark import get_spark
 
 log = get_logger("leakwatch.bdt.train")
 
-MODELS = {"main": "kmeans", "strict": "kmeans_strict"}
+#: Detector variants: model directory, D-015 rule for "normal", feature view.
+#: ``absolute`` = the PRD §7.2 features; ``weekly_change`` = each window minus the same window
+#: 7 days earlier (an improvement experiment, D-020): accumulated leakage cancels out.
+MODELS = {"main": "kmeans", "strict": "kmeans_strict", "delta": "kmeans_delta"}
+VARIANTS: dict[str, tuple[str, str]] = {
+    "main": ("main", "absolute"),
+    "strict": ("strict", "absolute"),
+    "delta": ("main", "weekly_change"),
+}
 
 
 def model_dir(name: str):  # -> Path
@@ -126,6 +140,15 @@ def tune_persistence(
     return int(chosen["m"]), rows
 
 
+def feature_view(features: pd.DataFrame, spec: FeatureSpec, view: str) -> pd.DataFrame:
+    """The feature rows a variant sees: as stored (absolute) or week-over-week change."""
+    if view == "absolute":
+        return features
+    if view == "weekly_change":
+        return weekly_change(features, spec.feature_columns())
+    raise ValueError(f"unknown feature view {view!r}")
+
+
 def plot_k_curve(curve: list[dict[str, Any]], k: int, name: str) -> str:
     """Elbow (SSE) and silhouette against k."""
     fig, ax1 = plt.subplots(figsize=(7, 3.6))
@@ -186,10 +209,16 @@ def train_one(
     gt: pd.DataFrame,
     areas: Mapping[str, str],
 ) -> dict[str, Any]:
-    """Train, threshold, tune and save one detector (``rule`` = main or strict)."""
+    """Train, threshold, tune and save one detector variant (see ``VARIANTS``)."""
     t0 = time.perf_counter()
     bdt = cfg["bdt"]
+    variant = rule
+    rule, view = VARIANTS[variant]
+    features = feature_view(features, spec, view)
     normal = normal_mask(features, spec, gt, cfg, rule)
+    if view == "weekly_change":  # the reference window a week earlier must be normal too
+        earlier = features.assign(window_start=features["window_start"] - pd.Timedelta(days=7))
+        normal &= normal_mask(earlier, spec, gt, cfg, rule)
     roles = split_roles(features["window_start"], bdt)
     train = features[normal & (roles == "train")]
     log.info("%s: %d normal windows (%d train)", rule, normal.sum(), len(train))
@@ -205,13 +234,21 @@ def train_one(
         scorer, features, scored, shares, validation_normal, spec, cfg, gt, areas
     )
     params = trained.params.with_threshold(tau, m)
-    params.meta.update({"rule": rule, "threshold_quantile": float(bdt["threshold_quantile"])})
-    out_dir = model_dir(MODELS[rule])
+    params.meta.update(
+        {
+            "variant": variant,
+            "rule": rule,
+            "feature_view": view,
+            "threshold_quantile": float(bdt["threshold_quantile"]),
+        }
+    )
+    out_dir = model_dir(MODELS[variant])
     params.save(out_dir)
     trained.spark_model.write().overwrite().save(str(out_dir / "spark_pipeline"))
     val = scored.loc[validation_normal, "score"]
     return {
         "rule": rule,
+        "feature_view": view,
         "model_dir": str(out_dir),
         "normal_windows": int(normal.sum()),
         "windows_by_role": {
@@ -238,8 +275,8 @@ def train_one(
         "persistence_windows": m,
         "persistence_tuning": table,
         "figures": [
-            plot_k_curve(trained.curve, trained.k, rule),
-            plot_scores(scored, roles, normal, tau, rule),
+            plot_k_curve(trained.curve, trained.k, variant),
+            plot_scores(scored, roles, normal, tau, variant),
         ],
         "wall_s": round(time.perf_counter() - t0, 1),
     }
@@ -248,7 +285,7 @@ def train_one(
 def main(argv: list[str] | None = None) -> int:
     """Train the main detector and the strict-normal ablation."""
     parser = argparse.ArgumentParser(description="Train the K-Means detector (Spark MLlib).")
-    parser.add_argument("--rules", nargs="+", default=["main", "strict"], choices=list(MODELS))
+    parser.add_argument("--rules", nargs="+", default=list(MODELS), choices=list(MODELS))
     args = parser.parse_args(argv)
     cfg = load_config()
     spec = load_feature_spec(cfg)

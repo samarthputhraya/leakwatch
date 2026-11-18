@@ -53,6 +53,43 @@ def label_alerts(
     return pd.DataFrame({"label": labels, "matched_leaks": matched}, index=alert_starts.index)
 
 
+def chance_detection(
+    n_alerts: int,
+    gt: pd.DataFrame,
+    period_start: pd.Timestamp,
+    period_end: pd.Timestamp,
+    horizon_days: float = 7.0,
+    n_iter: int = 500,
+    seed: int = 42,
+) -> dict[str, Any]:
+    """Detection rate of ``n_alerts`` alerts placed uniformly at random in the period.
+
+    A detector that alerts often detects many leaks within 7 days by chance; this is the level a
+    real detector must beat (mean and 95th percentile over ``n_iter`` random draws).
+    """
+    rng = np.random.default_rng(seed)
+    new = gt[(gt["start_ts"] >= period_start) & (gt["start_ts"] <= period_end)]
+    if new.empty or n_alerts == 0:
+        return {"n_alerts": n_alerts, "mean_rate": 0.0, "p95_rate": 0.0, "iterations": n_iter}
+    span = (period_end - period_start).total_seconds()
+    starts = new["start_ts"].to_numpy(dtype="datetime64[s]").astype("int64")
+    horizon = horizon_days * 86400
+    t0 = int(period_start.timestamp())
+    rates = np.empty(n_iter)
+    for i in range(n_iter):
+        t = np.sort(t0 + rng.uniform(0, span, n_alerts))
+        # a leak is detected if some alert lies in [start, start + horizon]
+        lo = np.searchsorted(t, starts, side="left")
+        hi = np.searchsorted(t, starts + horizon, side="right")
+        rates[i] = float((hi > lo).mean())
+    return {
+        "n_alerts": n_alerts,
+        "mean_rate": round(float(rates.mean()), 4),
+        "p95_rate": round(float(np.quantile(rates, 0.95)), 4),
+        "iterations": n_iter,
+    }
+
+
 def evaluate_detections(
     alerts: pd.DataFrame,
     gt: pd.DataFrame,

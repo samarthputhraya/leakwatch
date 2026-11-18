@@ -38,6 +38,36 @@ def load_features(year: int, source: str = "battledim", table: str = "features")
     return df
 
 
+WEEK = pd.Timedelta(days=7)
+
+
+def weekly_change(
+    features: pd.DataFrame, columns: list[str], lag: pd.Timedelta = WEEK
+) -> pd.DataFrame:
+    """Week-over-week change features: each window minus the same window ``lag`` earlier.
+
+    Rows without a reference window (the first week, gaps) are dropped. Key columns are kept and
+    the feature columns keep their names (values are differences), so the scorer and the
+    explanations work unchanged; the inflow residual columns become the change in excess inflow.
+    """
+    keys = ["source", "scenario_id", "window_start", "window_end"]
+    base = features[keys + list(columns)].copy()
+    ref = base[["source", "scenario_id", "window_start", *columns]].copy()
+    ref["window_start"] = ref["window_start"] + lag
+    ref["scenario_id"] = ref["scenario_id"].fillna("")
+    base["_sc"] = base["scenario_id"].fillna("")
+    merged = base.merge(
+        ref.rename(columns={"scenario_id": "_sc"}),
+        on=["source", "_sc", "window_start"],
+        how="inner",
+        suffixes=("", "__ref"),
+    )
+    out = merged[keys].copy()
+    for c in columns:
+        out[c] = merged[c] - merged[f"{c}__ref"]
+    return out.sort_values(["source", "scenario_id", "window_start"]).reset_index(drop=True)
+
+
 def split_roles(
     window_start: pd.Series, cfg: Mapping[str, Any], origin: pd.Timestamp | None = None
 ) -> np.ndarray:

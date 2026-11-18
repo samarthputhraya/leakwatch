@@ -31,13 +31,13 @@ import pandas as pd
 from leakwatch.bdt.alerts import AlertRule, run_alerts
 from leakwatch.bdt.data import load_features, series_area_map, write_alerts, write_scores
 from leakwatch.bdt.scorer import KMeansParams, KMeansScorer
-from leakwatch.bdt.train import MODELS, inflow_residual_columns, model_dir
+from leakwatch.bdt.train import MODELS, feature_view, inflow_residual_columns, model_dir
 from leakwatch.common import paths
 from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
 from leakwatch.common.metrics import write_metrics
 from leakwatch.data.ground_truth import load_ground_truth
-from leakwatch.eval.detection import evaluate_detections
+from leakwatch.eval.detection import chance_detection, evaluate_detections
 from leakwatch.features.spec import load_feature_spec
 from leakwatch.stream.spark import get_spark
 
@@ -80,7 +80,12 @@ def score_and_alert(
 
 
 def plot_timeline(
-    scored: pd.DataFrame, alerts: pd.DataFrame, gt: pd.DataFrame, tau: float, year: int
+    scored: pd.DataFrame,
+    alerts: pd.DataFrame,
+    gt: pd.DataFrame,
+    tau: float,
+    year: int,
+    suffix: str = "",
 ) -> str:
     """Daily max score with leak bands (new leaks in colour, carried-over in grey) and alerts."""
     start, end = year_bounds(year)
@@ -123,13 +128,13 @@ def plot_timeline(
     )
     ax.legend(loc="upper left", fontsize=8)
     fig.tight_layout()
-    out = paths.FIGURES_DIR / f"bdt_score_timeline_{year}.png"
+    out = paths.FIGURES_DIR / f"bdt_score_timeline_{year}{suffix}.png"
     fig.savefig(out, dpi=130)
     plt.close(fig)
     return out.name
 
 
-def plot_per_leak(per_leak: list[dict[str, Any]], year: int) -> str:
+def plot_per_leak(per_leak: list[dict[str, Any]], year: int, suffix: str = "") -> str:
     """Time to detection per new leak (missed leaks marked)."""
     df = pd.DataFrame(per_leak).sort_values("start")
     fig, ax = plt.subplots(figsize=(9, 4))
@@ -147,7 +152,7 @@ def plot_per_leak(per_leak: list[dict[str, Any]], year: int) -> str:
         f"{year} leaks: hours to first alert (red abrupt, orange incipient; grey: peak m³/h)"
     )
     fig.tight_layout()
-    out = paths.FIGURES_DIR / f"bdt_detection_per_leak_{year}.png"
+    out = paths.FIGURES_DIR / f"bdt_detection_per_leak_{year}{suffix}.png"
     fig.savefig(out, dpi=130)
     plt.close(fig)
     return out.name
@@ -175,11 +180,19 @@ def main(argv: list[str] | None = None) -> int:
             log.warning("no trained model in %s (run `make bdt-train`)", directory)
             continue
         params = KMeansParams.load(directory)
-        scored, alerts = score_and_alert(params, features, cfg, areas, now)
+        view = str(params.meta.get("feature_view", "absolute"))
+        rows = feature_view(features, spec, view)
+        scored, alerts = score_and_alert(params, rows, cfg, areas, now)
         ev = evaluate_detections(alerts, gt, *year_bounds(eval_year), horizon)
         ev_train = evaluate_detections(alerts, gt, *year_bounds(train_year), horizon)
+        ev["chance_level"] = chance_detection(
+            ev["alerts"]["total"], gt, *year_bounds(eval_year), horizon
+        )
+        monthly = scored.assign(m=scored["window_start"].dt.strftime("%Y-%m"))
+        monthly = monthly[monthly["window_start"].dt.year == eval_year]
         results[rule] = {
             "model_dir": str(directory),
+            "feature_view": view,
             "k": params.k,
             "threshold": params.threshold,
             "persistence_windows": params.persistence_windows,
@@ -197,18 +210,22 @@ def main(argv: list[str] | None = None) -> int:
             "windows_above_threshold_2019": round(
                 float(scored.loc[scored["window_start"].dt.year == eval_year, "above"].mean()), 4
             ),
+            "windows_above_threshold_by_month": {
+                k: round(float(v), 4) for k, v in monthly.groupby("m")["above"].mean().items()
+            },
         }
-        if rule == "main":
+        if rule in ("main", "delta"):
+            suffix = "" if rule == "main" else f"_{rule}"
             figures += [
-                plot_timeline(scored, alerts, gt, float(params.threshold), eval_year),
-                plot_per_leak(ev["per_leak"], eval_year),
+                plot_timeline(scored, alerts, gt, float(params.threshold), eval_year, suffix),
+                plot_per_leak(ev["per_leak"], eval_year, suffix),
             ]
-            if not args.no_write:
-                spark = get_spark(cfg["spark"], "leakwatch-bdt-eval")
-                n_scores = write_scores(spark, scored, "kmeans", "batch")
-                n_alerts = write_alerts(spark, alerts, "batch", mode="overwrite")
-                log.info("wrote %d scores and %d alerts (origin=batch)", n_scores, n_alerts)
-                results[rule]["lake"] = {"scores_written": n_scores, "alerts_written": n_alerts}
+        if rule == "main" and not args.no_write:
+            spark = get_spark(cfg["spark"], "leakwatch-bdt-eval")
+            n_scores = write_scores(spark, scored, "kmeans", "batch")
+            n_alerts = write_alerts(spark, alerts, "batch", mode="overwrite")
+            log.info("wrote %d scores and %d alerts (origin=batch)", n_scores, n_alerts)
+            results[rule]["lake"] = {"scores_written": n_scores, "alerts_written": n_alerts}
     payload = {
         "train_year": train_year,
         "eval_year": eval_year,
