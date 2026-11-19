@@ -25,7 +25,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import pandas as pd
 import psutil
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
@@ -90,6 +89,24 @@ class PeakMemory:
         self._thread.join()
 
 
+def partition_scorer(params: KMeansParams) -> Any:
+    """A ``mapInPandas`` function: feature batches -> ``SCORE_SCHEMA`` rows (numpy scorer)."""
+
+    def score_partitions(batches: Any) -> Any:
+        scorer = KMeansScorer(params)
+        for pdf in batches:
+            if pdf.empty:
+                continue
+            scored, _ = scorer.score_frame(pdf)
+            out = pdf[["source", "scenario_id", "window_start"]].reset_index(drop=True)
+            out["score"] = scored["score"].to_numpy()
+            out["cluster"] = scored["cluster"].astype("int32").to_numpy()
+            out["above"] = scored["above"].to_numpy()
+            yield out
+
+    return score_partitions
+
+
 def scale_filters(spark: Any) -> list[tuple[str, Any, int]]:
     """(label, raw-lake filter, readings) for the three scales, from the lake's actual content."""
     raw = spark.read.parquet(str(paths.lake_raw_dir()))
@@ -142,24 +159,7 @@ def main(argv: list[str] | None = None) -> int:
     baselines = read_baselines(spark, paths.lake_baselines_dir()).cache()
     out_root = paths.data_dir() / "bench" / "scaling"
     cols = list(params.feature_columns)
-
-    def score_partitions(batches: Any) -> Any:
-        scorer = KMeansScorer(params)
-        for pdf in batches:
-            if pdf.empty:
-                continue
-            scored, _ = scorer.score_frame(pdf)
-            yield pd.DataFrame(
-                {
-                    "source": pdf["source"].to_numpy(),
-                    "scenario_id": pdf["scenario_id"].to_numpy(),
-                    "window_start": pdf["window_start"].to_numpy(),
-                    "score": scored["score"].to_numpy(),
-                    "cluster": scored["cluster"].astype("int32").to_numpy(),
-                    "above": scored["above"].to_numpy(),
-                }
-            )
-
+    score_partitions = partition_scorer(params)
     results = []
     for label, cond, readings in scale_filters(spark):
         shutil.rmtree(out_root, ignore_errors=True)
