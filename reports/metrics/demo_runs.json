@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-19T05:51:04+00:00",
-    "git_commit": "e75880a",
+    "generated_at": "2026-11-19T07:31:59+00:00",
+    "git_commit": "48b3dc7",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -12,24 +12,36 @@
       "node": "n100",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 29.4,
-      "seconds_to_localizer": 29.5,
-      "seconds_to_work_order": 38.2,
-      "wall_s": 38.2,
+      "seconds_to_alert": 34.9,
+      "seconds_to_localizer": 35.0,
+      "seconds_to_work_order": 53.3,
+      "wall_s": 53.3,
       "speed": 720.0,
-      "localizer_top5": [
-        "n113",
-        "n120",
-        "n491",
-        "n105",
-        "n492"
+      "localizer_top5_at_alert": [
+        "n482",
+        "n103",
+        "n100",
+        "n483",
+        "n474"
       ],
-      "distance": {
-        "top1_m": 139.7027,
-        "best_of_top5_m": 87.5501
+      "distance_at_alert": {
+        "top1_m": 43.7858,
+        "best_of_top5_m": 0.0
       },
       "alert_start_sim": "2018-11-19T05:30:00+00:00",
       "sim_hours_inject_to_alert": 1.75,
+      "seconds_to_refined_localizer": 64.0,
+      "localizer_top5": [
+        "n482",
+        "n103",
+        "n100",
+        "n483",
+        "n474"
+      ],
+      "distance": {
+        "top1_m": 43.7858,
+        "best_of_top5_m": 0.0
+      },
       "ok": true
     },
     {
@@ -37,24 +49,36 @@
       "node": "n300",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 18.2,
-      "seconds_to_localizer": 18.3,
-      "seconds_to_work_order": 19.5,
-      "wall_s": 19.5,
+      "seconds_to_alert": 14.5,
+      "seconds_to_localizer": 14.5,
+      "seconds_to_work_order": 15.6,
+      "wall_s": 15.6,
       "speed": 720.0,
+      "localizer_top5_at_alert": [
+        "n445",
+        "n153",
+        "n84",
+        "n444",
+        "n150"
+      ],
+      "distance_at_alert": {
+        "top1_m": 2165.7454000000002,
+        "best_of_top5_m": 2165.7454000000002
+      },
+      "alert_start_sim": "2018-11-19T05:00:00+00:00",
+      "sim_hours_inject_to_alert": 1.25,
+      "seconds_to_refined_localizer": 27.3,
       "localizer_top5": [
-        "n226",
-        "n205",
-        "n208",
-        "n206",
-        "n623"
+        "n755",
+        "n331",
+        "n328",
+        "n318",
+        "n327"
       ],
       "distance": {
-        "top1_m": 1438.1491999999998,
-        "best_of_top5_m": 1438.1491999999998
+        "top1_m": 568.8426000000001,
+        "best_of_top5_m": 568.8426000000001
       },
-      "alert_start_sim": "2018-11-19T05:15:00+00:00",
-      "sim_hours_inject_to_alert": 1.5,
       "ok": true
     },
     {
@@ -62,24 +86,36 @@
       "node": "n470",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 14.1,
-      "seconds_to_localizer": 14.1,
-      "seconds_to_work_order": 14.2,
-      "wall_s": 14.2,
+      "seconds_to_alert": 18.7,
+      "seconds_to_localizer": 18.8,
+      "seconds_to_work_order": 18.8,
+      "wall_s": 18.8,
       "speed": 720.0,
-      "localizer_top5": [
-        "n94",
-        "n469",
-        "n470",
+      "localizer_top5_at_alert": [
+        "n97",
         "n468",
-        "n97"
+        "n98",
+        "n475",
+        "n94"
+      ],
+      "distance_at_alert": {
+        "top1_m": 159.7938,
+        "best_of_top5_m": 108.0107
+      },
+      "alert_start_sim": "2018-11-19T05:00:00+00:00",
+      "sim_hours_inject_to_alert": 1.25,
+      "seconds_to_refined_localizer": 25.0,
+      "localizer_top5": [
+        "n97",
+        "n468",
+        "n98",
+        "n475",
+        "n94"
       ],
       "distance": {
-        "top1_m": 108.0107,
-        "best_of_top5_m": 0.0
+        "top1_m": 159.7938,
+        "best_of_top5_m": 108.0107
       },
-      "alert_start_sim": "2018-11-19T04:45:00+00:00",
-      "sim_hours_inject_to_alert": 1.0,
       "ok": true
     }
   ],
