@@ -1,8 +1,9 @@
 """``make test-report``: run the test suite and record counts and coverage (ST module, PRD §11).
 
-Runs pytest (unit + contract + metamorphic; slow and integration tests excluded unless
-``--all``) with JUnit XML and JSON coverage, and writes ``reports/metrics/test_summary.json``:
-passed / failed / skipped, duration, tests per folder, and line coverage of ``src/leakwatch``.
+Runs pytest (unit + contract by default; ``--all`` adds the slow metamorphic/oracle tests,
+``--all --integration`` also the Kafka tests) with JUnit XML and JSON coverage, and writes
+``reports/metrics/test_summary.json``: passed / failed / skipped, duration, tests per folder,
+line coverage of ``src/leakwatch`` (dashboard UI excluded) overall and per module.
 """
 
 from __future__ import annotations
@@ -41,9 +42,16 @@ def summarise(junit: Path, coverage: Path | None) -> dict:
                 skipped += 1
             else:
                 passed += 1
-    cov = None
+    cov, per_module = None, {}
     if coverage and coverage.exists():
-        cov = json.loads(coverage.read_text(encoding="utf-8"))["totals"]["percent_covered"]
+        doc = json.loads(coverage.read_text(encoding="utf-8"))
+        cov = doc["totals"]["percent_covered"]
+        for name, f in doc.get("files", {}).items():
+            module = name.replace("\\", "/").split("src/leakwatch/")[-1]
+            per_module[module] = {
+                "statements": f["summary"]["num_statements"],
+                "percent": round(float(f["summary"]["percent_covered"]), 1),
+            }
     return {
         "passed": passed,
         "failed": failed,
@@ -51,6 +59,7 @@ def summarise(junit: Path, coverage: Path | None) -> dict:
         "duration_s": round(duration, 1),
         "by_folder": dict(folders),
         "coverage_percent": None if cov is None else round(float(cov), 1),
+        "coverage_by_module": dict(sorted(per_module.items())),
     }
 
 
@@ -58,8 +67,16 @@ def main(argv: list[str] | None = None) -> int:
     """Run pytest and write the summary."""
     parser = argparse.ArgumentParser(description="Run tests, record counts and coverage.")
     parser.add_argument("--all", action="store_true", help="include slow tests (not integration)")
+    parser.add_argument(
+        "--integration", action="store_true", help="with --all: also the Kafka tests (`make up`)"
+    )
     args = parser.parse_args(argv)
-    marker = "not integration" if args.all else "not slow and not integration"
+    if args.all and args.integration:
+        marker = "slow or not slow"  # every test
+    elif args.all:
+        marker = "not integration"
+    else:
+        marker = "not slow and not integration"
     with tempfile.TemporaryDirectory() as tmp:
         junit, cov = Path(tmp) / "junit.xml", Path(tmp) / "coverage.json"
         cmd = [

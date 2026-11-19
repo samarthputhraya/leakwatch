@@ -126,8 +126,9 @@ bdt-scaling: ## batch features + K-Means scoring at 12.5M / 50M / 100M+ readings
 reports: ## subject report drafts reports/{bdt,dl,pe,st}/REPORT.md from the metrics files
 	$(RUN) python -m leakwatch.eval.reports
 
-test-report: ## run the tests with coverage -> reports/metrics/test_summary.json
-	$(RUN) python -m leakwatch.eval.test_summary
+TEST_SCOPE ?=
+test-report: ## tests + coverage -> test_summary.json (TEST_SCOPE="--all --integration" for every test)
+	$(RUN) python -m leakwatch.eval.test_summary $(TEST_SCOPE)
 
 live-replay: ## replay part of 2019 at 360x with live K-Means alerts (needs `make up`)
 	$(RUN) python -m leakwatch.stream.live_replay

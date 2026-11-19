@@ -579,6 +579,23 @@ def st_report() -> str:
             "",
             table(["test folder", "tests"], [[k, v] for k, v in sorted(t["by_folder"].items())]),
         ]
+        mods = t.get("coverage_by_module") or {}
+        if mods:
+            missed = sorted(
+                mods.items(),
+                key=lambda kv: kv[1]["statements"] * (100 - kv[1]["percent"]),
+                reverse=True,
+            )[:10]
+            lines += [
+                "",
+                f"Tests run: `{t.get('marker')}`. Modules with the most uncovered lines (most are "
+                "job entry points exercised by `make` targets rather than by unit tests):",
+                "",
+                table(
+                    ["module", "statements", "covered"],
+                    [[f"`{k}`", v["statements"], f"{v['percent']}%"] for k, v in missed],
+                ),
+            ]
     else:
         lines.append(MISSING.format(cmd="make test-report"))
     lines += [

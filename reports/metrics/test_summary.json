@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "generated_at": "2026-11-19T02:47:09+00:00",
+    "git_commit": "fe9da9b",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "passed": 423,
+  "failed": 0,
+  "skipped": 0,
+  "duration_s": 1111.4,
+  "by_folder": {
+    "contract": 39,
+    "unit": 384
+  },
+  "coverage_percent": 62.4,
+  "marker": "not slow and not integration",
+  "pytest_exit_code": 0
+}
