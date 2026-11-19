@@ -96,7 +96,11 @@ carry both a pressure sensor and an AMR.
   τ = p99 of held-out threshold days, persistence m tuned on 2018 validation days (D-020).
 - `bdt.scorer`: the fitted scaler/PCA/centroids as numpy; tested equal to Spark's `transform`.
   The same scorer runs in `bdt.evaluate` (batch), in the live stream (`bdt.live.LiveScoring`) and
-  inside Spark tasks in the scaling benchmark (`bdt.scaling`, `mapInPandas`).
+  inside Spark tasks in the scaling benchmark (`bdt.scaling`, `mapInPandas`). Score: distance to
+  the nearest centre in PCA space, or the combined index that adds the PCA reconstruction error
+  (live model, D-030).
+- `bdt.synthetic`: EPANET leak signatures added to normal 2018 windows; detection and false alarms
+  per variant (how the live model was chosen without touching 2019).
 - `bdt.alerts`: alert rule (m windows above τ; closes after 4 below), per-series contribution,
   area of the top series, estimated loss from excess inflow. Alert IDs are deterministic (uuid5).
 - `eval.detection`: event-based labels (tp / pre-existing / fp), detection by leak type, chance
