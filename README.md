@@ -44,7 +44,7 @@ file records the git commit of the code that produced it. Subject report drafts:
 | Localizer on held-out simulated leaks (gat) | top-5 33.9% (MLP 22.9%); medium + large leaks 40.2% (target 60%, MLP 28.1%); best of top 5 within 300 m 91.5% | `dl_gnn.json` |
 | Localizer on BattLeDIM 2019 leaks | median 1,682 m from the top-1 junction to the leaking pipe vs 750 m for the nearest-sensor heuristic (7 leaks) | `dl_gnn.json` |
 | Demo rehearsal (inject → alert → top 5 → work order) | 3 of 3 runs within 60 s; slowest 38.2 s | `demo_runs.json` |
-| Tests | 423 passed, 0 failed; line coverage 62.4% | `test_summary.json` |
+| Tests | 465 passed, 0 failed; line coverage 70.9% | `test_summary.json` |
 <!-- results:end -->
 
 What the numbers say, briefly (details and figures in the report drafts):

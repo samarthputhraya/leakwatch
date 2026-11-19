@@ -761,7 +761,9 @@ def st_report() -> str:
         "## Test kinds (PRD §11)",
         "",
         "- **Unit:** loaders, ground truth, cleaning (Spark vs pandas reference), features (hand-computed "
-        "values), scorer (numpy vs Spark model), alert rule, evaluation labels, copilot SQL guard and guardrails (mocked LLM).",
+        "values), scorer (numpy vs Spark model), alert rule, live scoring (the same alerts however the windows are split into "
+        "micro-batches), evaluation labels, scenario draws, a one-day epyt-flow simulation with and without a leak, copilot SQL "
+        "guard, guardrails and chat CLI (scripted model).",
         "- **Data contracts (pandera):** raw, cleaned, baseline and feature tables on the real lake.",
         "- **Batch/stream parity:** file stream with a restart, Kafka end to end, full two years "
         "(`features_parity_battledim.json`).",
