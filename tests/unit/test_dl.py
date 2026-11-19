@@ -160,3 +160,64 @@ def test_ablation_variants_build_and_run(closeness, context):
     assert (model.context is not None) == context and model.closeness == closeness
     out = forward(model, g, np.ones((3, 3, 2), dtype="float32"), scale=1.0)
     assert out.shape == (3, g.n) and torch.isfinite(out).all()
+
+
+def _seqs(seed: int, steps: int = 400):
+    """Smooth periodic residuals (easy to reconstruct) as 12-step sequences."""
+    idx = pd.date_range("2018-01-01", periods=steps, freq="5min", tz="UTC")
+    t = np.arange(steps)
+    rng = np.random.default_rng(seed)
+    data = np.stack([np.sin(t / 6 + k) for k in range(3)], axis=1) + rng.normal(0, 0.05, (steps, 3))
+    frame = pd.DataFrame(data, index=idx, columns=list("abc"))
+    return make_sequences(frame, np.zeros(3), np.ones(3), 12, 3, 300, 3600)
+
+
+def test_training_lowers_the_validation_error_and_keeps_the_best_epoch():
+    from leakwatch.dl.lstm_ae import train_model
+
+    train, val = _seqs(1), _seqs(2)
+    cfg = {
+        "hidden": 16,
+        "latent": 8,
+        "learning_rate": 0.01,
+        "batch_size": 16,
+        "epochs": 15,
+        "patience": 15,
+    }
+    model, history = train_model(train, val, 3, cfg, seed=0)
+    assert len(history) == 15
+    assert history[-1]["train_loss"] < history[0]["train_loss"]
+    best = min(h["val_loss"] for h in history)
+    # the returned model is the best epoch's, not the last one's
+    assert float(reconstruction(model, val)[0].mean()) == pytest.approx(best, rel=1e-5)
+    assert best < history[0]["val_loss"]
+
+
+def test_training_stops_after_patience_epochs_without_improvement():
+    from leakwatch.dl.lstm_ae import train_model
+
+    cfg = {
+        "hidden": 4,
+        "latent": 2,
+        "learning_rate": 0.0,
+        "batch_size": 64,
+        "epochs": 50,
+        "patience": 3,
+    }
+    _, history = train_model(_seqs(1), _seqs(2), 3, cfg, seed=0)
+    assert len(history) == 4  # epoch 1 sets the best; a zero learning rate never improves it
+
+
+def test_comparison_plot_is_written(tmp_path, monkeypatch):
+    from leakwatch.common import paths
+    from leakwatch.dl import lstm_ae
+
+    monkeypatch.setattr(paths, "FIGURES_DIR", tmp_path)
+    pts = [
+        {"false_alarms_per_week": 0.5, "detection_rate": 0.3, "chance_level": 0.6},
+        {"false_alarms_per_week": None, "detection_rate": 0.0, "chance_level": 0.0},
+        {"false_alarms_per_week": 2.5, "detection_rate": 0.9, "chance_level": 0.95},
+    ]
+    name = lstm_ae.plot_comparison({"LSTM-AE": pts, "K-Means": pts[:1]}, 2019)
+    assert name == "dl_detector_comparison_2019.png"
+    assert (tmp_path / name).stat().st_size > 0

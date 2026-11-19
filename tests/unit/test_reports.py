@@ -144,3 +144,15 @@ def test_kmeans_target_names_the_variants_that_meet_it():
     assert "met by a" in text and "the live model (a) meets it" in text
     ev["models"]["a"] = variant(3, 1.9, live=True)
     assert "not met by any variant" in reports.kmeans_target_line(ev)
+
+
+def test_reports_render_from_the_committed_metrics():
+    """Regression: every draft and the README table build from the metrics files in the repo."""
+    if not any(reports.METRICS_DIR.glob("*.json")):
+        pytest.skip("no metrics files")
+    for name, fn in reports.REPORTS.items():
+        text = fn()
+        assert text.startswith("# "), name
+        assert "(code " in text, name  # numbers carry their source
+    table = reports.readme_results()
+    assert table.count("\n") >= 5 and "`data_summary.json`" in table

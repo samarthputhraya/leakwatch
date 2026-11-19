@@ -19,7 +19,9 @@ pytestmark = [
     pytest.mark.slow,
 ]
 
-QUIET_START = pd.Timestamp("2018-11-14 00:00", tz="UTC")  # normal under D-015 (Nov 8 - Dec 31)
+# Normal under D-015 and free of batch alerts of the live model (Nov 18 - Dec 6 2018, D-025);
+# Nov 14 has a background alert at 04:45 under the combined index.
+QUIET_START = pd.Timestamp("2018-11-21 00:00", tz="UTC")
 LEAK_AT = QUIET_START + pd.Timedelta(hours=6)
 NODE = "n100"
 
