@@ -11,5 +11,7 @@ $RUN python -m leakwatch.demo.runner &
 RUNNER_PID=$!
 trap 'kill "$RUNNER_PID" 2>/dev/null || true' EXIT INT TERM
 
-$RUN streamlit run src/leakwatch/dashboard/app.py \
+# The launcher warms up pyarrow in the main thread first; plain `streamlit run` crashes on the
+# second table render (D-032).
+$RUN python -m leakwatch.dashboard.serve \
   --server.headless true --server.port "${DASHBOARD_PORT:-8501}" --browser.gatherUsageStats false

@@ -153,6 +153,7 @@ dl:
     within_m: 300
     threads: 12                        # torch CPU threads while training
     sensor_distance_scale_m: 500       # node feature exp(-pipe distance to each sensor / this)
+    live_refine_hours: 2               # live: re-localize an open alert during its first 2 h (D-033)
     variants:                          # D-029; the MLP baseline is always trained
       gcn: {kind: gcn, closeness: true, context: true}
       gat: {kind: gat, closeness: true, context: true}

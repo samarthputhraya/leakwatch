@@ -74,6 +74,11 @@ class LiveScoring:
     publish: Callable[[list[dict[str, Any]]], None] | None = None
     localize: Localizer | None = None
     stats: dict[str, int] = field(default_factory=lambda: {"windows": 0, "alerts": 0})
+    # Re-localize an open alert until its windows reach this long after its start (hours; 0 =
+    # localize once). A fast alert opens while its first hour is still mostly pre-leak (D-033).
+    refine_hours: float = 0.0
+    history_windows: int = 16  # feature rows kept per stream for the localizer (4 h at 15 min)
+    recent: dict[str, pd.DataFrame] = field(default_factory=dict)
 
     @classmethod
     def from_model_dir(
@@ -99,7 +104,28 @@ class LiveScoring:
             model=str(bdt["model"]),
         )
         inflow = [f"{s}__residual" for s in bdt["inflow_series"]]
-        return cls(KMeansScorer(params), rule, inflow, str(bdt["model"]), publish)
+        live = cls(KMeansScorer(params), rule, inflow, str(bdt["model"]), publish)
+        gnn = cfg.get("dl", {}).get("gnn", {})
+        if "live_refine_hours" in gnn:
+            live.refine_hours = float(gnn["live_refine_hours"])
+        return live
+
+    def _history(self, key: str, part: pd.DataFrame) -> pd.DataFrame:
+        """This stream's latest feature rows including ``part`` (in memory, for the localizer)."""
+        old = self.recent.get(key)
+        rows = part if old is None else pd.concat([old, part], ignore_index=True)
+        rows = rows.drop_duplicates("window_end", keep="last").sort_values("window_end")
+        self.recent[key] = rows.tail(self.history_windows).reset_index(drop=True)
+        return self.recent[key]
+
+    def _wants_location(self, row: Mapping[str, Any]) -> bool:
+        """Localize a new alert, and refine an open one during its first ``refine_hours``."""
+        if row["gnn_top5"] is None:
+            return True
+        if row["status"] != "open" or self.refine_hours <= 0:
+            return False
+        age = pd.Timestamp(row["last_window_end"]) - pd.Timestamp(row["start_ts"])
+        return age <= pd.Timedelta(hours=self.refine_hours)
 
     def process(
         self, features: pd.DataFrame, state: Mapping[str, Any] | None
@@ -132,10 +158,13 @@ class LiveScoring:
                 [None if pd.isna(v) else float(v) for v in excess_all.loc[pos]],
             )
             if self.localize is not None:
-                part = features.loc[pos]
+                recent = self._history(key, features.loc[pos])
                 for row in changed:
-                    if row["gnn_top5"] is None:
-                        row["gnn_top5"] = self.localize(row, part)
+                    if self._wants_location(row):
+                        cands = self.localize(row, recent)
+                        if cands:
+                            row["gnn_top5"] = cands
+                            tracker.keep_candidates(row["alert_id"], cands)
             rows.extend(changed)
             new_state[key] = tracker.state()
         self.stats["windows"] += len(scored)

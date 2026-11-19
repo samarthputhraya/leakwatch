@@ -161,6 +161,19 @@ class AlertTracker:
             rows.append(self.to_row(alert))
         return rows
 
+    def keep_candidates(
+        self, alert_id: str, candidates: Sequence[Mapping[str, Any]] | None
+    ) -> None:
+        """Remember the localizer's candidates on the open alert, so later versions carry them.
+
+        The live localizer needs the windows just before the alert start, which only the
+        opening micro-batch has; without this, every update of the alert dropped them.
+        """
+        if candidates and self.alert is not None and self.alert["alert_id"] == alert_id:
+            self.alert["gnn_top5"] = [
+                {"node_id": str(c["node_id"]), "prob": float(c["prob"])} for c in candidates
+            ]
+
     def _open(self, now: datetime) -> None:
         first = self.run[-1]  # the m-th window: the alert fires at its end
         alert = {
@@ -225,7 +238,7 @@ class AlertTracker:
             "top_sensors": top,
             "area": area,
             "lstm_score_max": None,
-            "gnn_top5": None,
+            "gnn_top5": alert.get("gnn_top5"),
             "est_loss_m3h": None if loss is None else round(float(loss), 3),
             "windows_above": int(alert["windows_above"]),
             "last_window_end": _ts(alert["last_window_end_s"]),

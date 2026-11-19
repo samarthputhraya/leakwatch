@@ -171,7 +171,7 @@ demo-runner: ## only the demo backend (replay + streams + leak injection + work 
 	$(RUN) python -m leakwatch.demo.runner
 
 dashboard: ## only the Streamlit dashboard (http://localhost:8501)
-	$(RUN) streamlit run src/leakwatch/dashboard/app.py --server.headless true
+	$(RUN) python -m leakwatch.dashboard.serve --server.headless true
 
 demo-check: ## headless demo rehearsal: inject, alert, top 5, work order x3 -> demo_runs.json
 	$(RUN) python -m leakwatch.demo.check

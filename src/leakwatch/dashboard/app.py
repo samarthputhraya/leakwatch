@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -28,6 +29,13 @@ from leakwatch.common.config import load_config
 
 AREA_COLORS = {"A": "#4C78A8", "B": "#F58518", "C": "#54A24B"}
 st.set_page_config(page_title="LeakWatch control room", page_icon="💧", layout="wide")
+
+
+def as_list(value: Any) -> list[Any]:
+    """A list column (``top_sensors``, ``gnn_top5``) as a list; DuckDB returns numpy arrays."""
+    if isinstance(value, list | tuple | np.ndarray):
+        return list(value)
+    return []
 
 
 # ------------------------------------------------------------------------------- data access
@@ -165,14 +173,12 @@ def network_map(alert: pd.Series | None, leaks: list[dict[str, Any]], reveal: bo
         hovertemplate="pressure sensor %{customdata}<extra></extra>",
         name="pressure sensors",
     )
-    if (
-        alert is not None
-        and isinstance(alert.get("gnn_top5"), list | tuple)
-        and len(alert["gnn_top5"])
-    ):
-        cands = [c["node_id"] for c in alert["gnn_top5"] if c["node_id"] in coords.index]
+    top5 = [] if alert is None else as_list(alert.get("gnn_top5"))
+    if top5:
+        cands = [c["node_id"] for c in top5 if c["node_id"] in coords.index]
         c = coords.loc[cands]
-        fig.add_scattergl(
+        # SVG, not WebGL: text labels in a scattergl trace left the whole map blank in Chromium.
+        fig.add_scatter(
             x=c["x"],
             y=c["y"],
             mode="markers+text",
@@ -220,23 +226,27 @@ def alert_details(row: pd.Series, root: Path | None, table: str) -> None:
         f"**Alert** `{row['alert_id'][:8]}` · status **{row['status']}** · area **{row['area']}**"
     )
     c1, c2, c3 = st.columns(3)
-    c1.metric("score / threshold", f"{row['kmeans_score_max']:.1f} / {row['threshold']:.1f}")
+    c1.metric(
+        f"peak score (τ {row['threshold']:.2f})",
+        f"{row['kmeans_score_max']:.1f}",
+        help="Highest K-Means anomaly score while the alert was open; τ is the alert threshold",
+    )
     loss = row.get("est_loss_m3h")
     c2.metric(
-        "estimated loss",
-        "n/a" if pd.isna(loss) else f"{loss:.1f} m³/h",
+        "est. loss (m³/h)",
+        "n/a" if pd.isna(loss) else f"{loss:.1f}",
         help="Excess inflow vs the hour-of-week baseline (estimate)",
     )
     c3.metric("windows above τ", int(row["windows_above"]))
     st.caption(f"Fired at {pd.Timestamp(row['start_ts']):%Y-%m-%d %H:%M} UTC (simulated time)")
-    tops = row.get("top_sensors")
-    if isinstance(tops, list | tuple) and len(tops):
+    tops = as_list(row.get("top_sensors"))
+    if tops:
         st.write(
             "Sensors that moved most: "
             + ", ".join(f"{t['sensor_id']} ({t['contribution']:.0%})" for t in tops)
         )
-    gnn = row.get("gnn_top5")
-    if isinstance(gnn, list | tuple) and len(gnn):
+    gnn = as_list(row.get("gnn_top5"))
+    if gnn:
         st.write("Localizer top 5: " + ", ".join(f"{c['node_id']} ({c['prob']:.0%})" for c in gnn))
     wo = row.get("work_order_json")
     if isinstance(wo, str) and wo:
@@ -266,7 +276,7 @@ def alert_details(row: pd.Series, root: Path | None, table: str) -> None:
 
         res = estimate_loss(ToolContext(lake_root=root), {"alert_id": row["alert_id"]})
         st.json(res)
-    if isinstance(tops, list | tuple) and len(tops):
+    if tops:
         fig = series_chart(root, table, tops[0]["sensor_id"], pd.Timestamp(row["start_ts"]))
         if fig is not None:
             st.plotly_chart(fig, use_container_width=True)

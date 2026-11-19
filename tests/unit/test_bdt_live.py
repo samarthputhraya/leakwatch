@@ -139,3 +139,56 @@ def test_model_without_threshold_is_refused(tmp_path):
     ).save(tmp_path / "untrained")
     with pytest.raises(ValueError, match="no threshold"):
         LiveScoring.from_model_dir(tmp_path / "untrained", CFG, AREAS)
+
+
+def test_later_versions_keep_the_localizer_candidates(scoring):
+    """The live localizer only has its input in the opening batch; updates must carry its result."""
+    import json
+
+    calls = []
+
+    def localize(row, part):
+        calls.append(row["version"])
+        return [{"node_id": "n1", "prob": np.float32(0.5)}] if len(calls) == 1 else None
+
+    scoring.localize = localize
+    df, state, rows = windows(SERIES), None, []
+    for i in range(len(SERIES)):  # one window per micro-batch, as in the live demo
+        _, changed, state = scoring.process(df.iloc[i : i + 1], state)
+        rows += changed
+    assert calls == [1]  # localized once, when the alert opened
+    assert len(rows) > 1 and all(r["gnn_top5"] == [{"node_id": "n1", "prob": 0.5}] for r in rows)
+    json.dumps(state)  # the carried state stays JSON (it is stored in the commit marker)
+
+
+def test_open_alert_is_refined_during_its_first_hours_then_kept(tmp_path):
+    """D-033: a fast alert's first windows are mostly pre-leak; later windows refine the top 5."""
+    KMeansParams(
+        feature_columns=COLUMNS,
+        mean=np.zeros(3),
+        std=np.ones(3),
+        pc=np.eye(3),
+        centers=np.zeros((1, 3)),
+        threshold=1.0,
+        persistence_windows=2,
+    ).save(tmp_path / "model")
+    cfg = {**CFG, "dl": {"gnn": {"live_refine_hours": 1.0}}}
+    live = LiveScoring.from_model_dir(tmp_path / "model", cfg, AREAS)
+    assert live.refine_hours == 1.0
+    seen = []
+
+    def localize(row, recent):
+        seen.append((row["version"], len(recent)))
+        return [{"node_id": f"n{len(seen)}", "prob": 0.5}]
+
+    live.localize = localize
+    series = [QUIET] * 3 + [LEAK] * 12
+    df, state, rows = windows(series), None, []
+    for i in range(len(series)):
+        _, changed, state = live.process(df.iloc[i : i + 1], state)
+        rows += changed
+    # opened at the 5th window (m = 2); refined while its last window is <= 1 h after the start
+    versions = [v for v, _ in seen]
+    assert versions == list(range(1, len(versions) + 1)) and len(versions) == 5
+    assert [n for _, n in seen][-1] == 9  # the localizer sees the stream's recent windows
+    assert rows[-1]["gnn_top5"] == [{"node_id": "n5", "prob": 0.5}]  # last refinement is kept

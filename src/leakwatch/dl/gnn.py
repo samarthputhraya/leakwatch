@@ -682,9 +682,11 @@ if __name__ == "__main__":
 def make_localizer(model_dir: Any = None) -> Any:
     """Live localizer for ``bdt.live.LiveScoring.localize`` (None if no model is trained).
 
-    Input at alert time: each pressure sensor's ``residual`` feature (metres, against the
-    hour-of-week baseline) in the last two 1 h windows up to the alert — the quantity the model
-    was trained on (``dl.gnn_data``).
+    Input: each pressure sensor's ``residual`` feature (metres, against the hour-of-week
+    baseline) in two consecutive 1 h windows, ending one hour apart at the alert's latest window
+    (``last_window_end``, else its start) — the quantity the model was trained on: the mean
+    residual of the first and the second hour of a leak (``dl.gnn_data``). Falls back to the
+    latest two windows when the earlier one is not in ``features`` (D-033).
     """
     from leakwatch.data import network
 
@@ -709,10 +711,13 @@ def make_localizer(model_dir: Any = None) -> Any:
     def localize(alert: Mapping[str, Any], features: pd.DataFrame) -> list[dict[str, Any]] | None:
         if not set(cols) <= set(features.columns):
             return None
-        rows = features[
-            pd.to_datetime(features["window_end"], utc=True) <= pd.Timestamp(alert["start_ts"])
-        ]
-        rows = rows.sort_values("window_end").tail(2)
+        ref = pd.Timestamp(alert.get("last_window_end") or alert["start_ts"])
+        ends = pd.to_datetime(features["window_end"], utc=True)
+        hourly = [features[ends == ref - pd.Timedelta(hours=1)], features[ends == ref]]
+        if all(len(h) for h in hourly):
+            rows = pd.concat([h.tail(1) for h in hourly])
+        else:
+            rows = features[ends <= ref].sort_values("window_end").tail(2)
         if rows.empty:
             return None
         x = rows[cols].to_numpy(dtype="float32").T  # (sensors, windows)
