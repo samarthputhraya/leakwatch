@@ -1,14 +1,14 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T23:17:40+00:00",
-    "git_commit": "b024cfc",
+    "generated_at": "2026-11-19T17:03:03+00:00",
+    "git_commit": "ae45577",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
   "embedder": "sentence-transformers/all-MiniLM-L6-v2",
   "dim": 384,
-  "passages": 1407,
+  "passages": 3275,
   "documents": [
     {
       "doc_id": "kb_detection_methodology",
@@ -44,7 +44,20 @@
       "source_type": "pdf",
       "file": "cpheeo_om_water_supply_2005.pdf",
       "url": "https://prod-qt-images.s3.amazonaws.com/indiawaterportal/import/sites/default/files/iwp2/Manual__Operation_and_maintenance_of_water_supply_systems_CPHEEO_MoUD_2005.pdf",
-      "chunks": 1378
+      "chunks": 1378,
+      "pages": 501,
+      "text_source": "text layer"
+    },
+    {
+      "doc_id": "cpheeo_ws_manual",
+      "title": "CPHEEO Manual on Water Supply and Treatment (1999)",
+      "short": "CPHEEO Water Supply Manual 1999",
+      "source_type": "pdf",
+      "file": "cpheeo_water_supply_treatment_1999.pdf",
+      "url": "https://prod-qt-images.s3.amazonaws.com/indiawaterportal/import/sites/default/files/iwp2/manual_on_water_supply_and_treatment_cpheeo_moud_1999.pdf",
+      "chunks": 1868,
+      "pages": 777,
+      "text_source": "ocr"
     }
   ],
   "status": {
@@ -52,7 +65,7 @@
     "kb_l_town_network": "indexed (knowledge base)",
     "kb_leak_response_sop": "indexed (knowledge base)",
     "cpheeo_om_2005": "indexed",
-    "cpheeo_ws_manual": "missing: no download URL (place the PDF in data/docs by hand)"
+    "cpheeo_ws_manual": "indexed"
   },
-  "build_seconds": 256.1
+  "build_seconds": 142.0
 }

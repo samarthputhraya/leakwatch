@@ -11,6 +11,6 @@ Draft generated from the metrics files.
 
 ## Evaluation
 
-_Not run yet._ The evaluation needs an LLM endpoint (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` in `.env`, or the local CPU model from `make llm-local`, D-027); none was configured on the build machine. `make pe-eval` writes `reports/metrics/pe_eval_v1|v2|v3.json` and `make reports` regenerates this section. The harness itself is tested with a scripted model (`make pe-eval` refuses to produce numbers without a real one).
+_Not run yet._ The evaluation needs an LLM endpoint (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` in `.env`: a free endpoint from `.env.example`, D-035, or the local CPU model from `make llm-local`, D-027); none was configured on the build machine. `make llm-check` tests an endpoint in a minute; `make pe-eval` writes `reports/metrics/pe_eval_v1|v2|v3.json` (a run stopped by a free tier's quota continues when rerun) and `make reports` regenerates this section. The harness itself is tested with a scripted model (`make pe-eval` refuses to produce numbers without a real one).
 
-RAG index: 1,407 passages (sentence-transformers/all-MiniLM-L6-v2) (`reports/metrics/rag_index.json` (code b024cfc)).
+RAG index: 3,275 passages (sentence-transformers/all-MiniLM-L6-v2): CPHEEO O&M Manual 2005 1,378, CPHEEO Water Supply Manual 1999 1,868 (OCR of a scan), knowledge base 29 (`reports/metrics/rag_index.json` (code ae45577)).
