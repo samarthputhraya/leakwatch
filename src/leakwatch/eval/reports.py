@@ -51,6 +51,40 @@ def table(header: list[str], rows: list[list[Any]]) -> str:
 # ------------------------------------------------------------------------------------- BDT
 
 
+def kmeans_target_line(ev: dict[str, Any]) -> str:
+    """PRD §10 K-Means aim (≥ half of abrupt 2019 leaks at ≤ 2 false alarms/week), per variant."""
+    parts, met = [], []
+    for name, m in ev["models"].items():
+        e = m["eval_2019"]
+        ab = e["detection"]["abrupt"]
+        rate = ab["detected"] / ab["leaks"] if ab["leaks"] else 0.0
+        ok = rate >= 0.5 and e["false_alarms_per_week"] <= 2
+        if ok:
+            met.append(name)
+        parts.append(
+            f"{name} {ab['detected']}/{ab['leaks']} at {num(e['false_alarms_per_week'])}/week"
+        )
+    live = next(
+        (
+            k
+            for k, v in ev["models"].items()
+            if str(v.get("model_dir", "")).endswith(f"/{ev.get('live_model')}")
+        ),
+        None,
+    )
+    verdict = (
+        f"met by {', '.join(met)}" if met else "not met by any variant at its 2018-tuned τ and m"
+    )
+    return (
+        "**Target (PRD §10): at least half of the abrupt 2019 leaks with ≤ 2 false alarms per "
+        f"week.** Abrupt leaks detected and false alarms: {'; '.join(parts)}. The target is "
+        f"{verdict}"
+        + (f"; the live model ({live}) {'meets' if live in met else 'misses'} it" if live else "")
+        + ". The matched-false-alarm table in the DL report shows each detector's best 2019 "
+        "operating point within 2 false alarms per week."
+    )
+
+
 def bdt_report() -> str:
     """Big Data report draft."""
     data, train, ev = load("data_summary"), load("bdt_kmeans_train"), load("bdt_kmeans_2019")
@@ -173,6 +207,8 @@ def bdt_report() -> str:
             "alert generator with the same number of alerts would also catch nearly every leak within "
             "7 days (chance level). Precision and false alarms per week are the informative columns; "
             "the onset contrast shows how often a new abrupt leak visibly raises the score within 24 h.",
+            "",
+            kmeans_target_line(ev),
         ]
     else:
         lines.append(MISSING.format(cmd="make bdt-eval"))
@@ -295,7 +331,7 @@ def bdt_report() -> str:
         "## Reproduce",
         "",
         "`make data` → `make up` → `make ingest-year YEAR=2018` → `make ingest-year YEAR=2019` → "
-        "`make features` → `make bdt-train` → `make bdt-eval` → `make live-replay` → "
+        "`make features` → `make bdt-train` → `make bdt-eval` → `make bdt-synthetic` → `make live-replay` → "
         "`LEAKWATCH_CONFIG=configs/full.yaml make sim-scale` → `make sim-ingest` → `make bdt-scaling` → `make reports`.",
     ]
     return "\n".join(lines) + "\n"

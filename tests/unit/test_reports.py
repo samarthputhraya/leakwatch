@@ -123,3 +123,24 @@ def test_localizer_target_uses_medium_and_large_leaks_weighted_by_count(metrics_
     row = reports.readme_results()
     assert "medium + large leaks 60.0% (target 60%, MLP 30.0%)" in row
     assert "900 m from the top-1 junction" in row and "400 m for the nearest-sensor" in row
+
+
+def test_kmeans_target_names_the_variants_that_meet_it():
+    def variant(abrupt, fa, live=False):
+        return {
+            "model_dir": "/m/kmeans_live" if live else "/m/kmeans_other",
+            "eval_2019": {
+                "detection": {"abrupt": {"detected": abrupt, "leaks": 8}},
+                "false_alarms_per_week": fa,
+            },
+        }
+
+    ev = {
+        "live_model": "kmeans_live",
+        "models": {"a": variant(4, 1.9, live=True), "b": variant(8, 2.5), "c": variant(3, 1.0)},
+    }
+    text = reports.kmeans_target_line(ev)
+    assert "a 4/8 at 1.90/week" in text
+    assert "met by a" in text and "the live model (a) meets it" in text
+    ev["models"]["a"] = variant(3, 1.9, live=True)
+    assert "not met by any variant" in reports.kmeans_target_line(ev)
