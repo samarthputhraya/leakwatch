@@ -288,25 +288,57 @@ def dl_report() -> str:
             f"precision {num(e['precision'], 3)}, {num(e['false_alarms_per_week'])} false alarms/week, "
             f"windows above τ {num(lstm['windows_above_threshold_2019'], 3, pct=True)}.",
             "",
-            "**K-Means vs LSTM-AE at matched false-alarm rates** (detection rate within 7 days, interpolated on "
-            "each detector's threshold sweep):",
+            "**K-Means vs LSTM-AE at matched false-alarm rates.** Each detector is swept over the "
+            "same threshold levels (quantiles of its own 2018 threshold-day scores, then multiples "
+            "of their maximum) at its own 2018-tuned m; for each budget the table shows its best "
+            "2019 operating point with at most that many false alarms per week, next to the "
+            "chance level of that many random alerts:",
             "",
         ]
-        comp = lstm.get("matched_false_alarm_comparison", {})
-        fas = sorted({k for v in comp.values() for k in v})
+        rows = []
+        for name, budgets in lstm.get("matched_false_alarm_comparison", {}).items():
+            for key, p in budgets.items():
+                budget = key.replace("at_most_", "≤ ").replace("_fa_per_week", "")
+                if not p.get("within_budget"):
+                    rows.append(
+                        [
+                            name,
+                            budget,
+                            "not reachable",
+                            "",
+                            f"lowest {num(p.get('lowest_false_alarms_per_week'))}",
+                            "",
+                            "",
+                        ]
+                    )
+                    continue
+                rows.append(
+                    [
+                        name,
+                        budget,
+                        num(p["detection_rate"], 3, pct=True),
+                        num(p.get("chance_level"), 3, pct=True),
+                        num(p["false_alarms_per_week"]),
+                        num(p.get("precision"), 3),
+                        num(p.get("median_ttd_h"), 1),
+                    ]
+                )
         lines += [
             table(
                 [
                     "detector",
-                    *[
-                        k.replace("detection_at_", "").replace("_fa_per_week", " FA/week")
-                        for k in fas
-                    ],
+                    "FA/week budget",
+                    "detected ≤ 7 d",
+                    "chance level",
+                    "FA/week",
+                    "precision",
+                    "median TTD (h)",
                 ],
-                [[name, *[num(v.get(k), 3) for k in fas]] for name, v in comp.items()],
-            )
+                rows,
+            ),
+            "",
+            "Figure: `reports/figures/dl_detector_comparison_2019.png` (dotted lines: chance level).",
         ]
-        lines += ["", "Figure: `reports/figures/dl_detector_comparison_2019.png`."]
     else:
         lines.append(MISSING.format(cmd="make lstm-ae"))
     lines += ["", "## 2. GNN leak localizer", ""]
@@ -621,14 +653,16 @@ def readme_results() -> str:
     m = load("dl_lstm_ae")
     comp = _get(m, "matched_false_alarm_comparison")
     if comp:
-        key = next((k for k in next(iter(comp.values())) if k.startswith("detection_at_2_")), None)
-        if key:
-            add(
-                "Detection at 2 false alarms/week (2019)",
-                "; ".join(f"{name} {num(v.get(key), 3, pct=True)}" for name, v in comp.items()),
-                "dl_lstm_ae",
-                m,
+        parts = []
+        for name, budgets in comp.items():
+            p = budgets.get("at_most_2_fa_per_week") or {}
+            parts.append(
+                f"{name} {num(p.get('detection_rate'), 3, pct=True)} "
+                f"(chance {num(p.get('chance_level'), 3, pct=True)})"
+                if p.get("within_budget")
+                else f"{name}: not reachable"
             )
+        add("Best 2019 detection with ≤ 2 false alarms/week", "; ".join(parts), "dl_lstm_ae", m)
     m = load("dl_gnn")
     if m:
         best = _get(m, "models", m.get("chosen_model"), "test")

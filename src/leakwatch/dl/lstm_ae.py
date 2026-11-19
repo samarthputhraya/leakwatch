@@ -7,8 +7,9 @@
 3. Score = mean squared reconstruction error; τ = ``bdt.threshold_quantile`` of threshold-day
    scores; m tuned on 2018 validation days with the same rule as K-Means (``eval.alerting``).
 4. Evaluate 2019 with ``eval.detection`` (+ chance level), and compare with K-Means at matched
-   false-alarm rates: both detectors' detection rate vs false alarms per week over the same
-   threshold quantiles at their own m; detection interpolated at 1, 2 and 4 false alarms/week.
+   false-alarm rates (``dl.comparison``): every detector's detection rate, false alarms per week
+   and chance level over the same threshold levels at its own m; at each false-alarm budget the
+   best point within it (``eval.alerting.best_within``).
 
 Writes ``reports/metrics/dl_lstm_ae.json``, ``data/models/lstm_ae/``, and a comparison figure.
 """
@@ -42,14 +43,18 @@ from leakwatch.common.logging import get_logger
 from leakwatch.common.metrics import write_metrics
 from leakwatch.data.ground_truth import load_ground_truth
 from leakwatch.dl.sequences import SequenceSet, make_sequences, residual_matrix
-from leakwatch.eval.alerting import make_rule, operating_points, tune_persistence
+from leakwatch.eval.alerting import (
+    best_within,
+    make_rule,
+    operating_points,
+    threshold_sweep,
+    tune_persistence,
+)
 from leakwatch.eval.detection import chance_detection, evaluate_detections, onset_contrast
 from leakwatch.features.normal import intervals_from_config, is_normal
 from leakwatch.features.spec import load_feature_spec
 
 log = get_logger("leakwatch.dl.lstm_ae")
-QUANTILES = [0.95, 0.97, 0.98, 0.99, 0.995, 0.998, 0.999]
-MATCHED_FA = [1.0, 2.0, 4.0]
 
 
 class LSTMAutoencoder(nn.Module):
@@ -134,36 +139,25 @@ def train_model(
     return model, history
 
 
-def interpolate_at(points: list[dict[str, Any]], fa: float) -> float | None:
-    """Detection rate at a false-alarm rate, linearly interpolated over the operating points."""
-    pts = sorted(
-        (p["false_alarms_per_week"], p["detection_rate"])
-        for p in points
-        if p["false_alarms_per_week"] is not None
-    )
-    if not pts or fa < pts[0][0] or fa > pts[-1][0]:
-        return None
-    xs, ys = zip(*pts, strict=True)
-    return round(float(np.interp(fa, xs, ys)), 4)
-
-
 def plot_comparison(curves: dict[str, list[dict[str, Any]]], year: int) -> str:
-    """Detection rate vs false alarms per week for each detector."""
-    fig, ax = plt.subplots(figsize=(6.5, 4))
-    for name, pts in curves.items():
-        pts = sorted(pts, key=lambda p: p["false_alarms_per_week"])
-        ax.plot(
-            [p["false_alarms_per_week"] for p in pts],
-            [p["detection_rate"] for p in pts],
-            "o-",
-            label=name,
+    """Detection rate (solid) and chance level (dotted) vs false alarms per week per detector."""
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    for i, (name, pts) in enumerate(curves.items()):
+        pts = sorted(
+            (p for p in pts if p["false_alarms_per_week"] is not None),
+            key=lambda p: p["false_alarms_per_week"],
         )
+        color = f"C{i}"
+        x = [p["false_alarms_per_week"] for p in pts]
+        ax.plot(x, [p["detection_rate"] for p in pts], "o-", color=color, label=name)
+        ax.plot(x, [p["chance_level"] for p in pts], ":", color=color, alpha=0.7)
     ax.axvline(2.0, color="grey", ls="--", lw=1, label="aim: ≤ 2 false alarms/week")
+    ax.plot([], [], ":", color="black", label="chance level (same number of random alerts)")
     ax.set_xlabel(f"false alarms per week ({year})")
     ax.set_ylabel(f"share of {year} leaks detected within 7 days")
     ax.set_ylim(0, 1.05)
-    ax.legend(fontsize=8)
-    ax.set_title("K-Means vs LSTM autoencoder (thresholds = quantiles of 2018 normal scores)")
+    ax.legend(fontsize=7)
+    ax.set_title("Detectors at matched false-alarm rates (thresholds from 2018 only)", fontsize=10)
     fig.tight_layout()
     out = paths.FIGURES_DIR / f"dl_detector_comparison_{year}.png"
     fig.savefig(out, dpi=130)
@@ -269,11 +263,16 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    # Matched false-alarm comparison with K-Means (both at their own 2018-tuned m).
+    # Matched false-alarm comparison with K-Means (each at its own 2018-tuned m).
+    comp_cfg = cfg["dl"]["comparison"]
+    n_chance = int(comp_cfg["chance_iterations"])
+
+    def sweep(threshold_scores: np.ndarray) -> list[tuple[str, float]]:
+        return threshold_sweep(threshold_scores, comp_cfg["quantiles"], comp_cfg["max_multiples"])
+
     eval_mask = year == eval_year
     lstm_curve = operating_points(
-        thr_scores,
-        QUANTILES,
+        sweep(thr_scores),
         m,
         scored[eval_mask].reset_index(drop=True),
         shares[eval_mask],
@@ -283,6 +282,7 @@ def main(argv: list[str] | None = None) -> int:
         areas,
         "lstm_ae",
         period,
+        n_chance,
     )
     curves = {"LSTM-AE": lstm_curve}
     comparison: dict[str, Any] = {}
@@ -311,8 +311,7 @@ def main(argv: list[str] | None = None) -> int:
         ].to_numpy()
         km_eval = (km_scored["window_start"].dt.year == eval_year).to_numpy()
         curves[label] = operating_points(
-            km_thr,
-            QUANTILES,
+            sweep(km_thr),
             int(params.persistence_windows),
             km_scored[km_eval].reset_index(drop=True),
             km_shares[km_eval],
@@ -322,11 +321,31 @@ def main(argv: list[str] | None = None) -> int:
             areas,
             model_name,
             period,
+            n_chance,
         )
     for name, pts in curves.items():
         comparison[name] = {
-            f"detection_at_{fa:g}_fa_per_week": interpolate_at(pts, fa) for fa in MATCHED_FA
+            f"at_most_{fa:g}_fa_per_week": best_within(pts, float(fa))
+            for fa in comp_cfg["fa_budgets_per_week"]
         }
+    # PRD §10 aim: beat K-Means on detection rate or time to detection at a matched rate.
+    versus: dict[str, dict[str, Any]] = {}
+    for budget, mine in comparison["LSTM-AE"].items():
+        versus[budget] = {}
+        for name, other in comparison.items():
+            if name == "LSTM-AE":
+                continue
+            theirs = other[budget]
+            if not (mine.get("within_budget") and theirs.get("within_budget")):
+                versus[budget][name] = None
+                continue
+            ttd_a, ttd_b = mine.get("median_ttd_h"), theirs.get("median_ttd_h")
+            versus[budget][name] = {
+                "higher_detection_rate": mine["detection_rate"] > theirs["detection_rate"],
+                "shorter_median_ttd": None
+                if ttd_a is None or ttd_b is None
+                else bool(ttd_a < ttd_b),
+            }
     figure = plot_comparison(curves, eval_year)
 
     payload = {
@@ -342,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
         "windows_above_threshold_2019": round(float((scores[eval_mask] > tau).mean()), 4),
         "operating_points_2019": curves,
         "matched_false_alarm_comparison": comparison,
+        "lstm_ae_vs_kmeans": versus,
+        "comparison_config": comp_cfg,
         "figures": [figure],
         "model_dir": str(out_dir),
         "wall_s": round(time.perf_counter() - t_start, 1),

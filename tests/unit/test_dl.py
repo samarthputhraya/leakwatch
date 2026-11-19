@@ -18,8 +18,9 @@ from leakwatch.dl.gnn import (  # noqa: E402
     nearest_sensor_scores,
     topk_accuracy,
 )
-from leakwatch.dl.lstm_ae import LSTMAutoencoder, interpolate_at, reconstruction  # noqa: E402
+from leakwatch.dl.lstm_ae import LSTMAutoencoder, reconstruction  # noqa: E402
 from leakwatch.dl.sequences import make_sequences, standardize  # noqa: E402
+from leakwatch.eval.alerting import best_within, threshold_sweep  # noqa: E402
 
 
 def residual_frame(steps: int = 300, channels: int = 3) -> pd.DataFrame:
@@ -69,13 +70,23 @@ def test_lstm_autoencoder_scores_and_shares():
     np.testing.assert_allclose(shares.sum(axis=1), 1.0, rtol=1e-5)
 
 
-def test_interpolate_at():
+def test_best_within_picks_the_best_point_inside_the_budget():
     pts = [
-        {"false_alarms_per_week": 1.0, "detection_rate": 0.2},
-        {"false_alarms_per_week": 3.0, "detection_rate": 0.6},
+        {"level": "a", "false_alarms_per_week": 0.5, "detection_rate": 0.2},
+        {"level": "b", "false_alarms_per_week": 1.8, "detection_rate": 0.6},
+        {"level": "c", "false_alarms_per_week": 1.2, "detection_rate": 0.6},
+        {"level": "d", "false_alarms_per_week": 3.0, "detection_rate": 0.9},
     ]
-    assert interpolate_at(pts, 2.0) == pytest.approx(0.4)
-    assert interpolate_at(pts, 5.0) is None
+    best = best_within(pts, 2.0)
+    assert best["within_budget"] and best["level"] == "c"  # tie on detection -> fewer alarms
+    assert best_within(pts, 0.4) == {"within_budget": False, "lowest_false_alarms_per_week": 0.5}
+
+
+def test_threshold_sweep_extends_past_the_largest_normal_score():
+    scores = np.arange(1.0, 101.0)
+    sweep = threshold_sweep(scores, [0.5, 0.99], [2.0])
+    assert [label for label, _ in sweep] == ["q0.5", "q0.99", "2x max"]
+    assert sweep[0][1] == pytest.approx(50.5) and sweep[-1][1] == pytest.approx(200.0)
 
 
 def line_graph(n: int = 6) -> GraphData:

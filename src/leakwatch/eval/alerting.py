@@ -3,9 +3,13 @@
 - :func:`tune_persistence`: the smallest m (consecutive windows above τ) whose false alarms per
   week on the 2018 *validation* days stay within ``bdt.max_false_alarms_per_week`` (2019 is never
   used for tuning);
-- :func:`operating_points`: detection rate and false alarms per week in an evaluation year for a
-  range of thresholds (quantiles of the threshold-day scores) at a fixed m — the curve used to
-  compare detectors at matched false-alarm rates (PRD §8.1).
+- :func:`threshold_sweep`: thresholds from low quantiles of the threshold-day scores up to
+  multiples of their maximum, wide enough that every detector's curve spans the same
+  false-alarm range;
+- :func:`operating_points`: detection rate, false alarms per week and the chance level in an
+  evaluation year for each threshold at a fixed m;
+- :func:`best_within`: the best operating point within a false-alarm budget — how detectors are
+  compared at matched false-alarm rates (PRD §8.1).
 """
 
 from __future__ import annotations
@@ -17,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 from leakwatch.bdt.alerts import AlertRule, run_alerts
-from leakwatch.eval.detection import evaluate_detections
+from leakwatch.eval.detection import chance_detection, evaluate_detections
 
 
 def make_rule(
@@ -104,9 +108,25 @@ def tune_persistence(
     return int(chosen["m"]), rows
 
 
-def operating_points(
+def threshold_sweep(
     threshold_scores: np.ndarray,
     quantiles: Sequence[float],
+    max_multiples: Sequence[float],
+) -> list[tuple[str, float]]:
+    """(label, threshold) pairs: quantiles of the threshold-day scores, then multiples of their max.
+
+    Quantiles alone stop at the largest normal score; a detector whose alerts are frequent even
+    there needs higher thresholds to reach a low false-alarm rate, hence the multiples.
+    """
+    scores = np.asarray(threshold_scores, dtype="float64")
+    out = [(f"q{q:g}", float(np.quantile(scores, q))) for q in quantiles]
+    top = float(scores.max())
+    out += [(f"{k:g}x max", top * float(k)) for k in max_multiples]
+    return out
+
+
+def operating_points(
+    thresholds: Sequence[tuple[str, float]],
     m: int,
     scored: pd.DataFrame,
     shares: np.ndarray,
@@ -116,25 +136,66 @@ def operating_points(
     areas: Mapping[str, str],
     model: str,
     period: tuple[pd.Timestamp, pd.Timestamp],
+    chance_iterations: int = 200,
 ) -> list[dict[str, Any]]:
-    """Detection vs false alarms per week in ``period`` for each threshold quantile."""
+    """Detection, false alarms per week and chance level in ``period`` for each threshold."""
     out = []
     horizon = float(cfg["bdt"]["detection_horizon_days"])
-    for q in quantiles:
-        tau = float(np.quantile(threshold_scores, q))
+    seed = int(cfg["project"]["seed"])
+    for label, tau in thresholds:
         alerts = run_alerts(scored, shares, series, make_rule(tau, m, cfg, areas, model))
         ev = evaluate_detections(alerts, gt, period[0], period[1], horizon)
+        chance = chance_detection(
+            ev["alerts"]["total"], gt, period[0], period[1], horizon, chance_iterations, seed
+        )
         out.append(
             {
-                "quantile": q,
-                "threshold": tau,
+                "level": label,
+                "threshold": float(tau),
                 "alerts": ev["alerts"]["total"],
                 "detection_rate": ev["detection"]["overall"]["rate"],
                 "abrupt_rate": ev["detection"]["abrupt"]["rate"],
                 "incipient_rate": ev["detection"]["incipient"]["rate"],
+                "chance_level": chance["mean_rate"],
                 "false_alarms_per_week": ev["false_alarms_per_week"],
                 "precision": ev["precision"],
                 "median_ttd_h": ev["time_to_detection_h"]["median"],
             }
         )
     return out
+
+
+def best_within(points: Sequence[Mapping[str, Any]], max_fa_per_week: float) -> dict[str, Any]:
+    """The operating point with the highest detection rate among those within the budget.
+
+    Ties go to fewer false alarms. Returns ``{"within_budget": False}`` when no threshold gets
+    the detector down to ``max_fa_per_week``.
+    """
+    ok = [
+        p
+        for p in points
+        if p.get("false_alarms_per_week") is not None
+        and p["false_alarms_per_week"] <= max_fa_per_week
+    ]
+    if not ok:
+        lowest = min(
+            (
+                p["false_alarms_per_week"]
+                for p in points
+                if p.get("false_alarms_per_week") is not None
+            ),
+            default=None,
+        )
+        return {"within_budget": False, "lowest_false_alarms_per_week": lowest}
+    best = max(ok, key=lambda p: (p["detection_rate"], -p["false_alarms_per_week"]))
+    keys = (
+        "level",
+        "detection_rate",
+        "chance_level",
+        "abrupt_rate",
+        "false_alarms_per_week",
+        "precision",
+        "median_ttd_h",
+        "alerts",
+    )
+    return {"within_budget": True, **{k: best.get(k) for k in keys}}
