@@ -4,6 +4,7 @@
 # Needs Kafka (`make up`) and the trained models (`make bdt-train gnn`).
 set -euo pipefail
 RUN="uv run --locked --all-extras"
+export PYTHONFAULTHANDLER=1  # a native crash prints the Python stack instead of a bare exit code
 
 $RUN python -m leakwatch.demo.preflight
 $RUN python -m leakwatch.demo.runner &

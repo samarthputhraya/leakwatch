@@ -98,7 +98,7 @@ class DemoRunner:
             "topic": self.topic,
             "lake": str(demo_lake()),
             "background_start": str(self.dcfg["background_start"]),
-            "leaks": self.leaks,
+            "leaks": [{k: v for k, v in lk.items() if k != "delta"} for lk in self.leaks],
             "pending_leaks": [{k: v for k, v in p.items() if k != "delta"} for p in self.pending],
             "started_at": self.started.isoformat(),
             "updated_at": datetime.now(UTC).isoformat(),

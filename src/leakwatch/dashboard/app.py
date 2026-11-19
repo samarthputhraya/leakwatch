@@ -286,9 +286,12 @@ def copilot_panel(root: Path | None) -> None:
     history = st.session_state.setdefault("chat", [])
     for msg in history:
         st.chat_message(msg["role"]).write(msg["content"])
-    question = st.chat_input(
-        "Ask about alerts, sensors or procedures", disabled=not settings.configured
-    )
+    # Inside a container the input stays in place; at page level Streamlit pins it to the bottom
+    # and scrolls the page there, which hides the map and alerts.
+    with st.container():
+        question = st.chat_input(
+            "Ask about alerts, sensors or procedures", disabled=not settings.configured
+        )
     if question:
         from leakwatch.copilot.agent import CopilotAgent
         from leakwatch.copilot.llm import build_llm
