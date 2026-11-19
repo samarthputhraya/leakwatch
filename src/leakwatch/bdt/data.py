@@ -126,14 +126,31 @@ def write_scores(
     return len(out)
 
 
+def _plain(value: Any) -> Any:
+    """Arrays and nested structures as read back from Parquet/DuckDB -> plain lists/dicts."""
+    if isinstance(value, np.ndarray):
+        return [_plain(v) for v in value.tolist()]
+    if isinstance(value, list | tuple):
+        return [_plain(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _plain(v) for k, v in value.items()}
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
 def alerts_to_spark(spark: SparkSession, alerts: pd.DataFrame):  # -> DataFrame
-    """Alert rows (``ALERT_LAKE_COLUMNS``) as a Spark DataFrame with the lake schema."""
+    """Alert rows (``ALERT_LAKE_COLUMNS``) as a Spark DataFrame with the lake schema.
+
+    Accepts rows built in Python and rows read back from the lake, where list columns
+    (``top_sensors``, ``gnn_top5``) arrive as numpy arrays.
+    """
     rows = []
     for rec in alerts[list(ALERT_LAKE_COLUMNS)].to_dict("records"):
         clean = {}
         for k, v in rec.items():
-            if isinstance(v, list | dict):
-                clean[k] = v
+            if isinstance(v, list | tuple | dict | np.ndarray):
+                clean[k] = _plain(v)
             elif v is None or v is pd.NaT or (np.isscalar(v) and pd.isna(v)):
                 clean[k] = None
             elif isinstance(v, pd.Timestamp):

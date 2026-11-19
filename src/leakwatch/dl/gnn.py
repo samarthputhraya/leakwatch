@@ -1,15 +1,23 @@
 """``make gnn``: leak localization — nearest sensor, MLP, GCN, GAT (PRD §8.2, Phase 5).
 
 Data: ``dl.gnn_data`` scenarios (one leak at a junction; two per-sensor residual values = first
-and second hour of the leak). Node features per scenario: the two residuals at sensor nodes (0
-elsewhere), ``is_sensor``, standardized elevation and base demand. Labels: the leak junction.
+and second hour of the leak). Labels: the leak junction.
+
+Node features per scenario (D-029): the two residuals at sensor nodes (0 elsewhere),
+``is_sensor``, standardized elevation and base demand, and a *sensor-distance encoding*
+``exp(-d(node, sensor_k) / sensor_distance_scale_m)`` for each of the 33 pressure sensors, so
+nodes many hops from any sensor can still be told apart. The GNNs also get a *global sensor
+context*: an MLP embedding of all 33×2 residuals, broadcast to every node before message passing.
+A 3-layer GNN with residuals only at sensor nodes (the first design) cannot see a sensor more
+than 3 hops away; ablation variants switch each addition off (``dl.gnn.variants``).
 
 Models, evaluated identically on the same splits:
 
 1. *nearest sensor*: rank nodes by pipe distance to the sensor with the largest pressure drop;
 2. *MLP*: the 33×2 sensor residuals → one logit per node;
 3. *GCN* (PyTorch Geometric ``GCNConv``, edge weight ∝ diameter / length);
-4. *GAT* (``GATConv`` with edge features length and diameter).
+4. *GAT* (``GATConv`` with edge features length and diameter);
+5. ablations: GCN without the global context, without the sensor closeness, and without both.
 
 Splits: scenarios whose leak diameter is in ``unseen_diameter_m`` are held out ("unseen sizes");
 the rest are split at random 70/15/15 (fixed seed). Metrics: top-1 / top-5 accuracy, mean
@@ -48,7 +56,6 @@ from leakwatch.common.logging import get_logger
 from leakwatch.common.metrics import write_metrics
 
 log = get_logger("leakwatch.dl.gnn")
-MODEL_NAMES = ("nearest_sensor", "mlp", "gcn", "gat")
 
 
 # ------------------------------------------------------------------------------------- data
@@ -57,7 +64,7 @@ MODEL_NAMES = ("nearest_sensor", "mlp", "gcn", "gat")
 class GraphData:
     """Static L-Town graph plus derived tensors and the all-pairs distance matrix (m)."""
 
-    def __init__(self, graph: Mapping[str, np.ndarray]) -> None:
+    def __init__(self, graph: Mapping[str, np.ndarray], sensor_distance_scale_m: float = 500.0):
         self.nodes = [str(n) for n in graph["nodes"]]
         self.index = {n: i for i, n in enumerate(self.nodes)}
         self.n = len(self.nodes)
@@ -84,13 +91,24 @@ class GraphData:
             ],
             axis=1,
         ).astype("float32")
+        # (N, sensors): closeness of every node to every pressure sensor along the pipes
+        d = self.dist[:, self.sensor_idx]
+        d = np.where(np.isfinite(d), d, d[np.isfinite(d)].max())
+        self.sensor_closeness = np.exp(-d / float(sensor_distance_scale_m)).astype("float32")
+        self.node_static = np.concatenate([self.static, self.sensor_closeness], axis=1)
 
-    def node_features(self, x: np.ndarray, scale: float) -> np.ndarray:
-        """(B, sensors, 2) residuals -> (B, N, 2 + 3) node features."""
+    def node_dim(self, closeness: bool = True) -> int:
+        """Node feature width: 2 residuals + static features (+ sensor closeness)."""
+        static = self.node_static if closeness else self.static
+        return 2 + static.shape[1]
+
+    def node_features(self, x: np.ndarray, scale: float, closeness: bool = True) -> np.ndarray:
+        """(B, sensors, 2) residuals -> (B, N, node_dim) node features."""
         b = x.shape[0]
         feats = np.zeros((b, self.n, x.shape[2]), dtype="float32")
         feats[:, self.sensor_idx, :] = x / scale
-        static = np.broadcast_to(self.static, (b, self.n, self.static.shape[1]))
+        base = self.node_static if closeness else self.static
+        static = np.broadcast_to(base, (b, self.n, base.shape[1]))
         return np.concatenate([feats, static], axis=2)
 
 
@@ -116,15 +134,44 @@ class MLPLocalizer(nn.Module):
 
 
 class GNNLocalizer(nn.Module):
-    """Stacked GCN or GAT layers -> one logit per node (graphs in a batch share the topology)."""
+    """GCN or GAT over node features plus a global sensor context -> one logit per node.
 
-    def __init__(self, kind: str, in_dim: int, hidden: int, layers: int, heads: int) -> None:
+    Each node starts from a projection of its own features (residuals, static features and, with
+    ``closeness``, its pipe distance to every sensor) concatenated, with ``context``, with an
+    embedding of all sensor residuals; ``layers`` message-passing layers with residual
+    connections follow; the head scores each node. Graphs in a batch share the topology. With
+    both switches off this is the first design (residuals only at sensor nodes), kept for the
+    ablation.
+    """
+
+    def __init__(
+        self,
+        kind: str,
+        node_dim: int,
+        sensor_dim: int,
+        hidden: int,
+        layers: int,
+        heads: int,
+        closeness: bool = True,
+        context: bool = True,
+    ) -> None:
         super().__init__()
         from torch_geometric.nn import GATConv, GCNConv
 
         self.kind = kind
+        self.closeness = closeness
+        self.use_context = context
+        self.node_in = nn.Linear(node_dim, hidden)
+        self.context = (
+            nn.Sequential(
+                nn.Linear(sensor_dim, hidden * 2), nn.ReLU(), nn.Linear(hidden * 2, hidden)
+            )
+            if context
+            else None
+        )
+        start_dim = hidden * 2 if context else hidden
         self.convs = nn.ModuleList()
-        dim = in_dim
+        dim = start_dim
         for _ in range(layers):
             if kind == "gcn":
                 self.convs.append(GCNConv(dim, hidden))
@@ -132,29 +179,54 @@ class GNNLocalizer(nn.Module):
                 self.convs.append(GATConv(dim, hidden, heads=heads, concat=False, edge_dim=2))
             dim = hidden
         self.head = nn.Sequential(
-            nn.Linear(hidden + in_dim, hidden), nn.ReLU(), nn.Linear(hidden, 1)
+            nn.Linear(hidden + start_dim, hidden), nn.ReLU(), nn.Linear(hidden, 1)
         )
 
     def forward(  # noqa: D102
         self,
         node_x: torch.Tensor,
+        sensor_x: torch.Tensor,
         edge_index: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
         **_: Any,
     ) -> torch.Tensor:
-        b, n, f = node_x.shape
-        x0 = node_x.reshape(b * n, f)
+        b, n, _ = node_x.shape
+        h0 = torch.relu(self.node_in(node_x))  # (b, n, H)
+        if self.context is not None:
+            ctx = self.context(sensor_x.flatten(1))[:, None, :].expand(-1, n, -1)  # (b, n, H)
+            h0 = torch.cat([h0, ctx], dim=2)
+        start = h0.reshape(b * n, -1)
         offsets = (torch.arange(b) * n).repeat_interleave(edge_index.shape[1])
         ei = edge_index.repeat(1, b) + offsets
-        h = x0
-        for conv in self.convs:
+        h = start
+        for i, conv in enumerate(self.convs):
             if self.kind == "gcn":
-                h = conv(h, ei, edge_weight.repeat(b))
+                out = conv(h, ei, edge_weight.repeat(b))
             else:
-                h = conv(h, ei, edge_attr.repeat(b, 1))
-            h = torch.relu(h)
-        return self.head(torch.cat([h, x0], dim=1)).reshape(b, n)
+                out = conv(h, ei, edge_attr.repeat(b, 1))
+            out = torch.relu(out)
+            h = out if i == 0 else h + out
+        return self.head(torch.cat([h, start], dim=1)).reshape(b, n)
+
+
+def build_model(
+    spec: Mapping[str, Any], g: GraphData, sensor_dim: int, gcfg: Mapping[str, Any]
+) -> nn.Module:
+    """A localizer from a variant spec: ``{kind: mlp|gcn|gat, closeness, context}``."""
+    if spec["kind"] == "mlp":
+        return MLPLocalizer(sensor_dim, g.n, int(gcfg["hidden"]))
+    closeness = bool(spec.get("closeness", True))
+    return GNNLocalizer(
+        str(spec["kind"]),
+        g.node_dim(closeness),
+        sensor_dim,
+        int(gcfg["hidden"]),
+        int(gcfg["layers"]),
+        int(gcfg["heads"]),
+        closeness=closeness,
+        context=bool(spec.get("context", True)),
+    )
 
 
 # --------------------------------------------------------------------------------- training
@@ -169,7 +241,7 @@ def masked(logits: torch.Tensor, is_junction: np.ndarray) -> torch.Tensor:
 def forward(model: nn.Module, g: GraphData, x: np.ndarray, scale: float) -> torch.Tensor:
     """Logits (B, N) for residual inputs (B, sensors, 2)."""
     sensor_x = torch.from_numpy(x / scale)
-    node_x = torch.from_numpy(g.node_features(x, scale))
+    node_x = torch.from_numpy(g.node_features(x, scale, getattr(model, "closeness", True)))
     out = model(
         sensor_x=sensor_x,
         node_x=node_x,
@@ -332,10 +404,13 @@ def main(argv: list[str] | None = None) -> int:
     cfg = load_config()
     gcfg = cfg["dl"]["gnn"]
     seed = int(cfg["project"]["seed"])
-    torch.set_num_threads(int(cfg["dl"]["lstm"]["threads"]))
+    torch.set_num_threads(int(gcfg["threads"]))
     data_dir = paths.sim_dir() / "gnn"
     ds = np.load(data_dir / "dataset.npz")
-    g = GraphData(np.load(data_dir / "graph.npz", allow_pickle=False))
+    g = GraphData(
+        np.load(data_dir / "graph.npz", allow_pickle=False),
+        float(gcfg["sensor_distance_scale_m"]),
+    )
     x, y, diam = ds["x"].astype("float32"), ds["label"].astype("int64"), ds["diameter_m"]
     lo, hi = (float(v) for v in gcfg["unseen_diameter_m"])
     unseen = (diam >= lo) & (diam <= hi)
@@ -354,15 +429,10 @@ def main(argv: list[str] | None = None) -> int:
     scores["nearest_sensor"] = {
         s: nearest_sensor_scores(g, x[ix]) for s, ix in (("test", te), ("unseen", un), ("val", va))
     }
-    in_dim = 2 + g.static.shape[1]
-    for name in ("mlp", "gcn", "gat"):
+    variants: dict[str, dict[str, Any]] = {"mlp": {"kind": "mlp"}, **gcfg["variants"]}
+    for name, spec in variants.items():
         t0 = time.perf_counter()
-        if name == "mlp":
-            model: nn.Module = MLPLocalizer(x.shape[1] * x.shape[2], g.n, int(gcfg["hidden"]))
-        else:
-            model = GNNLocalizer(
-                name, in_dim, int(gcfg["hidden"]), int(gcfg["layers"]), int(gcfg["heads"])
-            )
+        model = build_model(spec, g, x.shape[1] * x.shape[2], gcfg)
         hist = train_nn(model, g, x[tr], y[tr], x[va], y[va], scale, gcfg, seed)
         histories[name] = {
             "epochs": len(hist),
@@ -382,7 +452,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     results = {}
-    for name in MODEL_NAMES:
+    for name in ["nearest_sensor", *variants]:
         results[name] = {
             "test": distance_metrics(g, scores[name]["test"], y[te], within),
             "unseen_sizes": distance_metrics(g, scores[name]["unseen"], y[un], within)
@@ -391,14 +461,21 @@ def main(argv: list[str] | None = None) -> int:
             "test_by_size": by_bucket(g, scores[name]["test"], y[te], diam[te], edges, within),
             "val_top5": round(topk_accuracy(scores[name]["val"], y[va], 5), 4),
         }
-    best = max(("mlp", "gcn", "gat"), key=lambda m: results[m]["val_top5"])
+    best = max(variants, key=lambda m: results[m]["val_top5"])
 
     # Save the chosen model.
     out_dir = paths.ensure_dir(paths.models_dir() / "gnn")
     torch.save(models[best].state_dict(), out_dir / "model.pt")
     (out_dir / "meta.json").write_text(
         json.dumps(
-            {"model": best, "scale": scale, "config": dict(gcfg), "nodes": g.nodes}, indent=1
+            {
+                "model": best,
+                "variant": variants[best],
+                "scale": scale,
+                "config": dict(gcfg),
+                "nodes": g.nodes,
+            },
+            indent=1,
         ),
         encoding="utf-8",
     )
@@ -478,9 +555,7 @@ def main(argv: list[str] | None = None) -> int:
         "two 1 h windows before the alert",
     }
 
-    # gnn_top5 for every batch alert (new alert versions).
-    n_updated = write_gnn_top5(cfg, g, models[best], best, scale, sensors)
-
+    gnn_names = [n for n, s in variants.items() if s["kind"] != "mlp"]
     payload = {
         "dataset": {
             "scenarios": len(y),
@@ -491,16 +566,20 @@ def main(argv: list[str] | None = None) -> int:
             "unseen_diameter_m": [lo, hi],
         },
         "residual_scale_m": scale,
+        "variants": variants,
         "models": results,
         "training": histories,
         "chosen_model": best,
         "chosen_by": "validation top-5 accuracy",
-        "gnn_beats_mlp_top5": max(results["gcn"]["test"]["top5"], results["gat"]["test"]["top5"])
+        "gnn_beats_mlp_top5": max(results[n]["test"]["top5"] for n in gnn_names)
         > results["mlp"]["test"]["top5"],
         "battledim_2019": benchmark,
-        "alerts_with_gnn_top5": n_updated,
+        "alerts_with_gnn_top5": None,
         "wall_s": round(time.perf_counter() - t_start, 1),
     }
+    # Results first, so a failure while updating the lake cannot lose the trained comparison.
+    path = write_metrics("dl_gnn", payload)
+    payload["alerts_with_gnn_top5"] = write_gnn_top5(cfg, g, models[best], best, scale, sensors)
     path = write_metrics("dl_gnn", payload)
     log.info(
         "chosen %s; test top5 %s; 2019 within %s m: %s -> %s",
@@ -565,18 +644,13 @@ def make_localizer(model_dir: Any = None) -> Any:
     if not meta_path.exists():
         return None
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    g = GraphData(np.load(paths.sim_dir() / "gnn" / "graph.npz", allow_pickle=False))
     cfg = meta["config"]
-    if meta["model"] == "mlp":
-        model: nn.Module = MLPLocalizer(len(g.sensor_idx) * 2, g.n, int(cfg["hidden"]))
-    else:
-        model = GNNLocalizer(
-            meta["model"],
-            2 + g.static.shape[1],
-            int(cfg["hidden"]),
-            int(cfg["layers"]),
-            int(cfg["heads"]),
-        )
+    g = GraphData(
+        np.load(paths.sim_dir() / "gnn" / "graph.npz", allow_pickle=False),
+        float(cfg.get("sensor_distance_scale_m", 500.0)),
+    )
+    spec = meta.get("variant") or {"kind": meta["model"], "closeness": False, "context": False}
+    model = build_model(spec, g, len(g.sensor_idx) * 2, cfg)
     model.load_state_dict(torch.load(model_dir / "model.pt", map_location="cpu"))
     model.eval()
     sensors = network.parse_sensor_config()["pressure"]

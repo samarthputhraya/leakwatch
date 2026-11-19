@@ -145,6 +145,14 @@ dl:
     unseen_diameter_m: [0.014, 0.017]  # held out of training: "unseen leak sizes" (PRD §8.2)
     size_buckets_m: [0.010, 0.020]     # small < 10 mm <= medium < 20 mm <= large
     within_m: 300
+    threads: 12                        # torch CPU threads while training
+    sensor_distance_scale_m: 500       # node feature exp(-pipe distance to each sensor / this)
+    variants:                          # D-029; the MLP baseline is always trained
+      gcn: {kind: gcn, closeness: true, context: true}
+      gat: {kind: gat, closeness: true, context: true}
+      gcn_no_context: {kind: gcn, closeness: true, context: false}
+      gcn_no_closeness: {kind: gcn, closeness: false, context: true}
+      gcn_local_only: {kind: gcn, closeness: false, context: false}   # the first design
 
 demo:
   # PRD §16 live demo (Phase 7): BattLeDIM background + simulated leak signatures (D-025).

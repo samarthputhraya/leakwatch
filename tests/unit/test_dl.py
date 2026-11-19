@@ -13,6 +13,7 @@ from leakwatch.dl.gnn import (  # noqa: E402
     GNNLocalizer,
     GraphData,
     MLPLocalizer,
+    build_model,
     distance_metrics,
     forward,
     nearest_sensor_scores,
@@ -127,9 +128,35 @@ def test_localizers_give_one_logit_per_node(kind):
     torch.manual_seed(0)
     g = line_graph()
     x = np.random.default_rng(0).normal(size=(4, 3, 2)).astype("float32")
-    model = MLPLocalizer(6, g.n, 8) if kind == "mlp" else GNNLocalizer(kind, 5, 8, 2, 2)
+    model = (
+        MLPLocalizer(6, g.n, 8) if kind == "mlp" else GNNLocalizer(kind, g.node_dim(), 6, 8, 2, 2)
+    )
     out = forward(model, g, x, scale=1.0)
     assert out.shape == (4, g.n)
     loss = torch.nn.functional.cross_entropy(out, torch.tensor([0, 1, 2, 3]))
     loss.backward()
     assert np.isfinite(float(loss))
+
+
+def test_sensor_closeness_tells_far_nodes_apart():
+    g = line_graph()  # sensors on nodes 0, 3, 5; 100 m pipes; default scale 500 m
+    assert g.sensor_closeness.shape == (g.n, 3)
+    np.testing.assert_allclose(g.sensor_closeness[0], np.exp(-np.array([0, 300, 500]) / 500.0))
+    assert len({tuple(row) for row in g.sensor_closeness.round(6)}) == g.n  # every node unique
+    feats = g.node_features(np.ones((2, 3, 2), dtype="float32"), scale=1.0)
+    assert feats.shape == (2, g.n, g.node_dim()) and g.node_dim() == 2 + 3 + 3
+    assert feats[0, 1, 0] == 0.0 and feats[0, 3, 0] == 1.0  # residuals only at sensor nodes
+    assert g.node_features(np.ones((1, 3, 2), "float32"), 1.0, closeness=False).shape[2] == 5
+
+
+@pytest.mark.parametrize("closeness", [True, False])
+@pytest.mark.parametrize("context", [True, False])
+def test_ablation_variants_build_and_run(closeness, context):
+    torch.manual_seed(0)
+    g = line_graph()
+    spec = {"kind": "gcn", "closeness": closeness, "context": context}
+    cfg = {"hidden": 8, "layers": 2, "heads": 2}
+    model = build_model(spec, g, 6, cfg)
+    assert (model.context is not None) == context and model.closeness == closeness
+    out = forward(model, g, np.ones((3, 3, 2), dtype="float32"), scale=1.0)
+    assert out.shape == (3, g.n) and torch.isfinite(out).all()
