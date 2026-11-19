@@ -60,15 +60,22 @@ def fixed_report() -> Path:
 
 
 @pytest.fixture(scope="session")
-def spark():
-    """Small local SparkSession shared by all Spark tests (no Kafka connector)."""
+def spark(request):
+    """Small local SparkSession shared by all Spark tests.
+
+    Spark fixes its packages when the JVM starts, so when integration tests are part of the run
+    the shared session carries the Kafka connector from the start; otherwise the integration
+    tests would stop it to add the connector and every later Spark test would fail.
+    """
     from leakwatch.common.config import load_config
     from leakwatch.stream.spark import get_spark
 
     cfg = load_config(environ={})["spark"]
+    kafka = any(item.get_closest_marker("integration") for item in request.session.items)
     session = get_spark(
         {**cfg, "shuffle_partitions": 2, "ui_enabled": False, "driver_memory": "1g"},
         "leakwatch-tests",
+        with_kafka=kafka,
         master="local[2]",
     )
     yield session
