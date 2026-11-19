@@ -13,7 +13,7 @@ PY_DIRS := src tests scripts notebooks
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
-	demo-check bdt-scaling reports test-report prepare llm-local bdt-synthetic
+	demo-check bdt-scaling reports test-report prepare llm-local bdt-synthetic gnn-apply
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -117,6 +117,9 @@ gnn-data: ## single-leak scenarios for the localizer (EPANET emitters) -> data/s
 gnn: ## nearest-sensor / MLP / GCN / GAT localizers, 2019 test, gnn_top5 into alerts -> dl_gnn.json
 	$(RUN) python -m leakwatch.dl.gnn
 
+gnn-apply: ## re-localize the current batch alerts with the saved localizer (after bdt-eval)
+	$(RUN) python -m leakwatch.dl.gnn --apply-only
+
 bdt-scaling: ## batch features + K-Means scoring at 12.5M / 50M / 100M+ readings -> bdt_scaling.json
 	$(RUN) python -m leakwatch.bdt.scaling
 
@@ -154,6 +157,7 @@ prepare: ## fresh data dir -> lake, features, models, alerts, localizer, RAG ind
 	$(MAKE) features
 	$(MAKE) bdt-train
 	$(MAKE) bdt-eval
+	$(MAKE) bdt-synthetic
 	$(MAKE) gnn-data
 	$(MAKE) gnn
 	$(MAKE) dispatch
