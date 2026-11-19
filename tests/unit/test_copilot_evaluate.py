@@ -152,6 +152,9 @@ def test_mock_oracle_run_scores_every_metric(ctx):
     assert summary["refusal_accuracy"]["value"] == 1.0
     assert summary["hallucinated_number_rate"]["after_guardrail"]["value"] == 0.0
     assert summary["latency_s"]["p50"] is not None
+    by_cat = summary["latency_by_category_s"]
+    assert by_cat["data"]["n"] == 3 and by_cat["data"]["p50"] is not None
+    assert sum(s["n"] for s in by_cat.values()) == summary["latency_s"]["n"] == 7
 
 
 def test_wrong_answers_are_scored_wrong(ctx):

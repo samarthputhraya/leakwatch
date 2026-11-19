@@ -8,8 +8,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from leakwatch.common.metrics import git_commit, read_metrics, write_metrics
+from leakwatch.common.metrics import git_commit, latency_stats, read_metrics, write_metrics
 from leakwatch.common.paths import REPO_ROOT
+
+
+def test_latency_stats_nearest_rank_and_empty():
+    stats = latency_stats([3.0, None, 1.0, 2.0, 10.0])
+    assert stats == {"n": 4, "mean": 4.0, "p50": 3.0, "p95": 10.0, "max": 10.0}
+    assert latency_stats([None]) == {"n": 0, "mean": None, "p50": None, "p95": None, "max": None}
 
 
 def test_write_metrics_adds_provenance_and_cleans_values(tmp_path: Path):

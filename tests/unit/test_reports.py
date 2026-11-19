@@ -78,6 +78,54 @@ def test_pe_report_reads_nested_rates(metrics_dir):
     assert "12.3" in text
 
 
+def _item(item_id, category, latency, **checks):
+    return {"id": item_id, "category": category, "skipped": None, "latency_s": latency, **checks}
+
+
+def test_pe_report_data_latency_aim_and_misses(metrics_dir):
+    """Data-question latency comes from the per-item rows; every failed check is named."""
+    write(
+        metrics_dir,
+        "pe_eval_v3",
+        {
+            "model": {"model": "m", "endpoint_host": "h"},
+            "rate_limit_wait_s": 42.0,
+            "per_item": [
+                _item("d1", "data", 8.0, correct=True, sql_exec_match=True),
+                _item("d2", "data", 12.0, correct=True, sql_exec_match=False),
+                _item("d3", "data", 14.0, correct=True, hallucinated_after=False),
+                _item("p1", "procedure", 30.0, correct=False, citation_ok=False),
+                _item("k1", "complaint", 20.0, correct=True, hallucinated_after=True),
+                {**_item("d4", "data", 1.0, correct=False), "skipped": "lake has no scores"},
+            ],
+        },
+    )
+    assert reports.category_latency(reports.load("pe_eval_v3"), "data")["p50"] == 12.0
+    text = reports.pe_report()
+    assert "| v3 | 3 | 12.0 | 14.0 | 1 | missed | 42 |" in text
+    assert (
+        "v3 items with a failed check (3): d2 (SQL result); p1 (answer, citation); "
+        "k1 (unsupported number)." in text
+    )
+    row = next(r for r in reports.readme_results().splitlines() if "Copilot v3" in r)
+    assert "data answers median 12.0 s (aim ≤ 10 s" in row
+
+
+def test_pe_report_prefers_stored_category_latency(metrics_dir):
+    stored = {"n": 2, "mean": 5.0, "p50": 4.0, "p95": 6.0, "max": 6.0}
+    write(
+        metrics_dir,
+        "pe_eval_v3",
+        {
+            "model": {"model": "m", "endpoint_host": "h"},
+            "latency_by_category_s": {"data": stored},
+            "per_item": [_item("d1", "data", 99.0, correct=True)],
+        },
+    )
+    assert reports.category_latency(reports.load("pe_eval_v3"), "data") == stored
+    assert "| v3 | 2 | 4.0 | 6.0 | 0 | met |" in reports.pe_report()
+
+
 def _model(top5, by_size):
     test = {"top1": 0.1, "top5": top5, "mean_distance_top1_m": 200.0, "within_m_best_of_top5": 0.9}
     return {"test": test, "unseen_sizes": test, "test_by_size": by_size}

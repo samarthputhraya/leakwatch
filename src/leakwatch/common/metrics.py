@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import math
 import platform
+import statistics
 import subprocess
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -64,6 +66,24 @@ def _clean(value: Any) -> Any:
     if isinstance(value, float) and not math.isfinite(value):
         return None
     return value
+
+
+def latency_stats(values: Iterable[float | None]) -> dict[str, Any]:
+    """Count, mean, p50, p95 and max of latencies in seconds (nearest rank; ``None`` dropped)."""
+    lat = sorted(float(v) for v in values if v is not None)
+    if not lat:
+        return {"n": 0, "mean": None, "p50": None, "p95": None, "max": None}
+
+    def pct(q: float) -> float:
+        return round(lat[min(len(lat) - 1, round(q * (len(lat) - 1)))], 3)
+
+    return {
+        "n": len(lat),
+        "mean": round(statistics.fmean(lat), 3),
+        "p50": pct(0.5),
+        "p95": pct(0.95),
+        "max": lat[-1],
+    }
 
 
 def run_metadata() -> dict[str, Any]:

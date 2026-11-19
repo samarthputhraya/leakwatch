@@ -13,9 +13,23 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
+from leakwatch.common.metrics import latency_stats
 from leakwatch.common.paths import METRICS_DIR, REPORTS_DIR
 
 MISSING = "_not available — run `{cmd}`_"
+#: PRD §10 aim (not a tunable): the copilot answers data questions in at most this many seconds.
+DATA_ANSWER_AIM_S = 10.0
+#: Per-item checks of the copilot evaluation, in the order a miss is described.
+PE_CHECKS = (
+    ("correct", "answer"),
+    ("sql_exec_match", "SQL result"),
+    ("tool_ok", "tools"),
+    ("citation_ok", "citation"),
+    ("refusal_ok", "refusal"),
+    ("complaint_extraction_ok", "complaint fields"),
+    ("complaint_match_ok", "complaint match"),
+    ("hallucinated_after", "unsupported number"),
+)
 
 
 def load(name: str) -> dict[str, Any] | None:
@@ -627,6 +641,34 @@ def dl_report() -> str:
 # -------------------------------------------------------------------------------------- PE
 
 
+def category_latency(m: dict[str, Any], category: str) -> dict[str, Any]:
+    """Latency stats of one question category: stored by newer runs, else from the per-item rows."""
+    stored = (m.get("latency_by_category_s") or {}).get(category)
+    if stored:
+        return stored
+    return latency_stats(
+        i.get("latency_s")
+        for i in m.get("per_item", [])
+        if i.get("category") == category and i.get("skipped") is None
+    )
+
+
+def pe_misses(m: dict[str, Any]) -> list[str]:
+    """``id (failed checks)`` for every evaluated item with at least one failed check."""
+    out = []
+    for i in m.get("per_item", []):
+        if i.get("skipped") is not None:
+            continue
+        failed = [
+            label
+            for key, label in PE_CHECKS
+            if (i.get(key) is True if key == "hallucinated_after" else i.get(key) is False)
+        ]
+        if failed:
+            out.append(f"{i['id']} ({', '.join(failed)})")
+    return out
+
+
 def pe_report() -> str:
     """Prompt engineering report draft."""
     lines = [
@@ -714,6 +756,57 @@ def pe_report() -> str:
                     for v, m in evals.items()
                 ],
             ),
+            "",
+            f"Latency of data questions (PRD §10 aim: at most {num(DATA_ANSWER_AIM_S, 0)} s with a "
+            "hosted model). Time spent pacing requests and waiting out the free tier's rate limits "
+            "is measured separately and not counted:",
+            "",
+            table(
+                [
+                    "version",
+                    "data questions",
+                    "median (s)",
+                    "p95 (s)",
+                    f"within {num(DATA_ANSWER_AIM_S, 0)} s",
+                    "aim",
+                    "rate-limit waits, whole run (s)",
+                ],
+                [
+                    [
+                        v,
+                        lat["n"],
+                        num(lat["p50"], 1),
+                        num(lat["p95"], 1),
+                        num(
+                            sum(
+                                1
+                                for i in m.get("per_item", [])
+                                if i.get("category") == "data"
+                                and i.get("skipped") is None
+                                and i.get("latency_s") is not None
+                                and i["latency_s"] <= DATA_ANSWER_AIM_S
+                            ),
+                            0,
+                        ),
+                        "n/a"
+                        if lat["p50"] is None
+                        else ("met" if lat["p50"] <= DATA_ANSWER_AIM_S else "missed"),
+                        num(m.get("rate_limit_wait_s"), 0),
+                    ]
+                    for v, m in evals.items()
+                    for lat in [category_latency(m, "data")]
+                ],
+            ),
+        ]
+        for v, m in evals.items():
+            misses = pe_misses(m)
+            lines += [
+                "",
+                f"{v} items with a failed check ({len(misses)}): "
+                + ("; ".join(misses) if misses else "none")
+                + ".",
+            ]
+        lines += [
             "",
             "Sources: " + ", ".join(src(f"pe_eval_{v}", m) for v, m in evals.items()) + ".",
         ]
@@ -966,7 +1059,9 @@ def readme_results() -> str:
             f"answers {num(_get(m, 'answer_correctness', 'overall', 'value'), 3, pct=True)}, "
             "hallucinated numbers after guardrail "
             f"{num(_get(m, 'hallucinated_number_rate', 'after_guardrail', 'value'), 3, pct=True)}, "
-            f"refusals {num(_get(m, 'refusal_accuracy', 'value'), 3, pct=True)}",
+            f"refusals {num(_get(m, 'refusal_accuracy', 'value'), 3, pct=True)}; "
+            f"data answers median {num(category_latency(m, 'data')['p50'], 1)} s "
+            f"(aim ≤ {num(DATA_ANSWER_AIM_S, 0)} s, free endpoint)",
             "pe_eval_v3",
             m,
         )

@@ -43,6 +43,7 @@ file records the git commit of the code that produced it. Subject report drafts:
 | Best 2019 detection with ≤ 2 false alarms/week | LSTM-AE 79.0% (chance 95.2%); K-Means (all PRD features) 42.1% (chance 91.5%); K-Means (residual features) 68.4% (chance 98.8%); K-Means (residual, combined index) 36.8% (chance 90.5%) | `dl_lstm_ae.json` |
 | Localizer on held-out simulated leaks (gat) | top-5 33.9% (MLP 22.9%); medium + large leaks 40.2% (target 60%, MLP 28.1%); best of top 5 within 300 m 91.5% | `dl_gnn.json` |
 | Localizer on BattLeDIM 2019 leaks | median 1,682 m from the top-1 junction to the leaking pipe vs 750 m for the nearest-sensor heuristic (7 leaks) | `dl_gnn.json` |
+| Copilot v3 (nvidia/nemotron-3-ultra-550b-a55b) | SQL execution 90.6%, answers 97.2%, hallucinated numbers after guardrail 0.0%, refusals 100.0%; data answers median 13.2 s (aim ≤ 10 s, free endpoint) | `pe_eval_v3.json` |
 | Demo rehearsal (inject → alert → top 5 → work order) | 3 of 3 runs within 60 s; slowest 53.3 s; nearest of the localizer's top 5 to the leak: n100 0 m / n300 569 m / n470 108 m (at the alert, before refinement: 0 m / 2,166 m / 108 m) | `demo_runs.json` |
 | Tests | 470 passed, 0 failed; line coverage 70.9% | `test_summary.json` |
 <!-- results:end -->

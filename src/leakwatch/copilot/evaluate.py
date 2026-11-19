@@ -47,7 +47,6 @@ import copy
 import hashlib
 import json
 import re
-import statistics
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
@@ -59,7 +58,7 @@ import pandas as pd
 from leakwatch.common import paths
 from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
-from leakwatch.common.metrics import git_commit, write_metrics
+from leakwatch.common.metrics import git_commit, latency_stats, write_metrics
 from leakwatch.copilot import guardrails
 from leakwatch.copilot.agent import CopilotAgent, CopilotAnswer
 from leakwatch.copilot.llm import (
@@ -420,13 +419,6 @@ def _rate(values: Sequence[bool | None]) -> dict[str, Any]:
 def summarize(outcomes: Sequence[Outcome]) -> dict[str, Any]:
     """Aggregate metrics over the evaluated items."""
     done = [o for o in outcomes if o.skipped is None]
-    latencies = sorted(o.latency_s for o in done if o.latency_s is not None)
-
-    def pct(q: float) -> float | None:
-        if not latencies:
-            return None
-        return round(latencies[min(len(latencies) - 1, round(q * (len(latencies) - 1)))], 3)
-
     by_cat = {c: _rate([o.correct for o in done if o.category == c]) for c in CATEGORIES}
     return {
         "items": {
@@ -448,11 +440,9 @@ def summarize(outcomes: Sequence[Outcome]) -> dict[str, Any]:
         "refusal_accuracy": _rate([o.refusal_ok for o in done]),
         "complaint_extraction_accuracy": _rate([o.complaint_extraction_ok for o in done]),
         "complaint_match_accuracy": _rate([o.complaint_match_ok for o in done]),
-        "latency_s": {
-            "mean": round(statistics.fmean(latencies), 3) if latencies else None,
-            "p50": pct(0.5),
-            "p95": pct(0.95),
-            "max": latencies[-1] if latencies else None,
+        "latency_s": latency_stats(o.latency_s for o in done),
+        "latency_by_category_s": {
+            c: latency_stats(o.latency_s for o in done if o.category == c) for c in CATEGORIES
         },
         "guardrail_actions": {
             "regenerated": sum(o.regenerated for o in done),
