@@ -103,6 +103,12 @@ bdt:
   detection_horizon_days: 7        # PRD §7.4: alert within [leak start, start + 7 days]
   top_sensors: 3
   inflow_series: [flow__p227, flow__p235]   # reservoir inlets; PUMP_1 moves water inside the net
+  synthetic:                       # `make bdt-synthetic` (D-030): simulated leaks on normal 2018
+    background: ["2018-11-08", "2018-12-31"]   # normal under D-015 (Finding 9)
+    junctions: 60
+    diameters_m: [0.01, 0.02, 0.03]
+    starts: 10                     # random leak start times (junctions are spread over them)
+    hours: 6
 
 dl:
   # PRD §8 (Phase 5). CPU-only; laptop-safe defaults.

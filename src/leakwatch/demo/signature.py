@@ -105,6 +105,33 @@ def leak_signature(
     return delta.astype("float64"), flow
 
 
+def leak_signatures(
+    leaks: Sequence[tuple[str, float]],
+    start: pd.Timestamp,
+    hours: float,
+    sensors: Mapping[str, Sequence[str]] | None = None,
+    inp: Path | None = None,
+    discharge_coeff: float = 0.75,
+) -> list[tuple[pd.DataFrame, float]]:
+    """:func:`leak_signature` for several (junction, diameter) leaks from one start time.
+
+    The no-leak run is shared, so n leaks cost n + 1 EPANET runs instead of 2n.
+    """
+    from leakwatch.data import network
+
+    sensors = sensors or network.parse_sensor_config()
+    inp_s = str(inp or paths.network_inp_path())
+    base = _run(inp_s, start, hours, sensors, None, discharge_coeff)
+    out = []
+    for node, diameter in leaks:
+        leak = _run(inp_s, start, hours, sensors, (node, diameter), discharge_coeff)
+        delta = (leak - base).reset_index(drop=True).astype("float64")
+        inflow = [c for c in ("flow__p227", "flow__p235") if c in delta]
+        flow = float(delta[inflow].sum(axis=1).iloc[-1]) if inflow else float("nan")
+        out.append((delta, flow))
+    return out
+
+
 def apply_signature(
     values: np.ndarray, columns: Sequence[str], delta: pd.DataFrame, step: int
 ) -> np.ndarray:

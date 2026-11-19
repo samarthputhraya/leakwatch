@@ -48,21 +48,24 @@ from leakwatch.stream.spark import get_spark
 
 log = get_logger("leakwatch.bdt.train")
 
-#: Detector variants: model directory, D-015 rule for "normal", feature view, PCA variance.
-#: ``absolute`` = all PRD §7.2 features; ``weekly_change`` = each window minus the same window
-#: 7 days earlier; ``residual`` = only the residual statistic of each series (value minus its
-#: hour-of-week baseline), chosen on 2018 validation leak onsets (D-020). ``None`` = config value.
+#: Detector variants: model directory, D-015 rule for "normal", feature view, PCA variance and
+#: score. ``absolute`` = all PRD §7.2 features; ``weekly_change`` = each window minus the same
+#: window 7 days earlier; ``residual`` = only the residual statistic of each series (value minus
+#: its hour-of-week baseline, D-020). Score ``distance`` = distance to the nearest centre in PCA
+#: space; ``combined`` = that distance plus the PCA reconstruction error (D-030). ``None`` = config.
 MODELS = {
     "main": "kmeans",
     "strict": "kmeans_strict",
     "delta": "kmeans_delta",
     "residual": "kmeans_residual",
+    "residual_ci": "kmeans_residual_ci",
 }
-VARIANTS: dict[str, tuple[str, str, float | None]] = {
-    "main": ("main", "absolute", None),
-    "strict": ("strict", "absolute", None),
-    "delta": ("main", "weekly_change", None),
-    "residual": ("main", "residual", 0.99),
+VARIANTS: dict[str, tuple[str, str, float | None, str]] = {
+    "main": ("main", "absolute", None, "distance"),
+    "strict": ("strict", "absolute", None, "distance"),
+    "delta": ("main", "weekly_change", None, "distance"),
+    "residual": ("main", "residual", 0.99, "distance"),
+    "residual_ci": ("main", "residual", 0.99, "combined"),
 }
 
 
@@ -202,7 +205,7 @@ def plot_scores(
             color=color,
         )
     ax.axvline(tau, color="black", lw=1, ls="--", label=f"τ = {tau:.2f}")
-    ax.set_xlabel("distance to nearest centroid (2018 windows)")
+    ax.set_xlabel("anomaly score (2018 windows)")
     ax.set_ylabel("density")
     ax.legend(fontsize=8)
     ax.set_title(f"K-Means anomaly scores, 2018 ({name})")
@@ -226,7 +229,7 @@ def train_one(
     t0 = time.perf_counter()
     bdt = cfg["bdt"]
     variant = rule
-    rule, view, variance = VARIANTS[variant]
+    rule, view, variance, score_kind = VARIANTS[variant]
     features = feature_view(features, spec, view)
     columns = view_columns(spec, view)
     if variance is not None:
@@ -239,23 +242,34 @@ def train_one(
     train = features[normal & (roles == "train")]
     log.info("%s: %d normal windows (%d train)", rule, normal.sum(), len(train))
     trained = fit_kmeans(spark, train, columns, bdt, int(cfg["project"]["seed"]))
-    scorer = KMeansScorer(trained.params)
+    base = trained.params
+    q = float(bdt["threshold_quantile"])
+    thr_mask = normal & (roles == "threshold")
+    references: dict[str, float] = {}
+    if score_kind == "combined":
+        # d_ref, q_ref: p99 of the distance and of the reconstruction error on threshold days
+        raw = KMeansScorer(base).score_matrix(features.loc[thr_mask, columns].to_numpy("float64"))
+        references = {
+            "d_ref": float(np.quantile(raw["distance"], q)),
+            "q_ref": float(np.quantile(raw["spe"], q)),
+        }
+        base = base.with_meta(score="combined", **references)
+    scorer = KMeansScorer(base)
     scored, shares = scorer.score_frame(features)
-    thr_scores = scored.loc[normal & (roles == "threshold"), "score"]
-    tau = float(np.quantile(thr_scores, float(bdt["threshold_quantile"])))
-    scorer = KMeansScorer(trained.params.with_threshold(tau))
+    tau = float(np.quantile(scored.loc[thr_mask, "score"], q))
+    scorer = KMeansScorer(base.with_threshold(tau))
     scored, shares = scorer.score_frame(features)
     validation_normal = normal & (roles == "validation")
     m, table = tune_persistence(
         scorer, features, scored, shares, validation_normal, spec, cfg, gt, areas
     )
-    params = trained.params.with_threshold(tau, m)
+    params = base.with_threshold(tau, m)
     params.meta.update(
         {
             "variant": variant,
             "rule": rule,
             "feature_view": view,
-            "threshold_quantile": float(bdt["threshold_quantile"]),
+            "threshold_quantile": q,
         }
     )
     out_dir = model_dir(MODELS[variant])
@@ -265,6 +279,8 @@ def train_one(
     return {
         "rule": rule,
         "feature_view": view,
+        "score": score_kind,
+        "score_references": references or None,
         "features": len(columns),
         "pca_variance": float(bdt["pca_variance"]),
         "model_dir": str(out_dir),

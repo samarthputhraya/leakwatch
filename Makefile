@@ -13,7 +13,7 @@ PY_DIRS := src tests scripts notebooks
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
-	demo-check bdt-scaling reports test-report prepare llm-local
+	demo-check bdt-scaling reports test-report prepare llm-local bdt-synthetic
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -98,6 +98,9 @@ bdt-train: ## Spark MLlib K-Means on normal 2018 windows (+ strict ablation), ta
 
 bdt-eval: ## score 2018-2019, write scores + alerts, evaluate on 2019 -> bdt_kmeans_2019.json
 	$(RUN) python -m leakwatch.bdt.evaluate
+
+bdt-synthetic: ## simulated leaks on normal 2018 background, residual detectors -> bdt_synthetic_leaks.json
+	$(RUN) python -m leakwatch.bdt.synthetic
 
 sim-scale: ## Spark-parallel scenario simulation (epyt-flow) -> lake/sim/scenarios (full: configs/full.yaml)
 	$(RUN) python -m leakwatch.sim.generate

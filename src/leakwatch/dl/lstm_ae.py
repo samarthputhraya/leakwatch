@@ -290,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
     labels = {
         "kmeans": "K-Means (all PRD features)",
         "kmeans_residual": "K-Means (residual features)",
+        "kmeans_residual_ci": "K-Means (residual, combined index)",
     }
     for model_name, label in labels.items():
         km_dir = model_dir(model_name)

@@ -10,6 +10,14 @@ test checks it against Spark's own ``transform`` (same cluster, same distance).
 - **contribution** of a feature = its squared share of that distance, after mapping the PCA-space
   difference back to the standardized feature space (the shares sum to 1); a series' contribution
   is the sum over its statistics, so the top series explain the alert.
+
+With ``meta["score"] == "combined"`` (D-030) the score is the *combined index*
+``(d / d_ref)² + q / q_ref``: d is the distance above and q the squared PCA reconstruction error
+(SPE, the part of the standardized window that the kept components do not explain), each scaled
+by its p99 on normal 2018 threshold days. PCA keeps the directions of normal variation (demand
+cycles); a change that normal data never shows, such as excess inflow with little pressure change,
+lies mostly outside them and is seen only by q. The cluster is still the nearest centre; the
+contributions add the scaled PCA-space and residual parts per feature.
 """
 
 from __future__ import annotations
@@ -91,6 +99,19 @@ class KMeansParams:
             dict(self.meta),
         )
 
+    def with_meta(self, **meta: Any) -> KMeansParams:
+        """Copy with extra ``meta`` entries (e.g. the combined-index references)."""
+        return KMeansParams(
+            self.feature_columns,
+            self.mean,
+            self.std,
+            self.pc,
+            self.centers,
+            self.threshold,
+            self.persistence_windows,
+            {**self.meta, **meta},
+        )
+
 
 def series_of(feature_column: str) -> str:
     """``pressure__n54__mean`` -> ``pressure__n54``."""
@@ -115,13 +136,20 @@ class KMeansScorer:
         z = (x - self.params.mean) * self._scale
         return np.nan_to_num(z, nan=0.0)
 
+    @property
+    def combined(self) -> bool:
+        """True when the score is the combined index (D-030)."""
+        return self.params.meta.get("score") == "combined"
+
     def score_matrix(self, x: np.ndarray) -> dict[str, np.ndarray]:
         """Score an ``(n, n_features)`` matrix in ``params.feature_columns`` order.
 
-        Returns ``score`` (n,), ``cluster`` (n,), and ``series_share`` (n, n_series): each
-        series' share of the squared distance (rows sum to 1, or 0 for a zero distance).
+        Returns ``score`` (n,), ``cluster`` (n,), ``distance`` and ``spe`` (n,), and
+        ``series_share`` (n, n_series): each series' share of the score (rows sum to 1, or 0
+        for a zero score).
         """
-        p = self.standardize(x) @ self.params.pc
+        z = self.standardize(x)
+        p = z @ self.params.pc
         c = self.params.centers
         # |p - c|^2 = |p|^2 - 2 p.c + |c|^2 as an (n, k) matrix (no (n, k, d) temporary)
         d2 = (p**2).sum(axis=1)[:, None] - 2.0 * p @ c.T + (c**2).sum(axis=1)[None, :]
@@ -129,10 +157,24 @@ class KMeansScorer:
         diff = p - c[cluster]
         dist = np.sqrt((diff**2).sum(axis=1))  # exact distance to the chosen centre
         back = diff @ self.params.pc.T  # PCA-space difference in standardized feature space
-        sq = back**2
+        resid = z - p @ self.params.pc.T  # what the kept components do not explain
+        spe = (resid**2).sum(axis=1)
+        if self.combined:
+            d_ref, q_ref = float(self.params.meta["d_ref"]), float(self.params.meta["q_ref"])
+            score = (dist / d_ref) ** 2 + spe / q_ref
+            sq = back**2 / d_ref**2 + resid**2 / q_ref
+        else:
+            score = dist
+            sq = back**2
         total = sq.sum(axis=1, keepdims=True)
         share = np.divide(sq, total, out=np.zeros_like(sq), where=total > 0) @ self._to_series
-        return {"score": dist, "cluster": cluster, "series_share": share}
+        return {
+            "score": score,
+            "cluster": cluster,
+            "distance": dist,
+            "spe": spe,
+            "series_share": share,
+        }
 
     def score_frame(self, features: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray]:
         """Score a feature table.
