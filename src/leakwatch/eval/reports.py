@@ -96,6 +96,7 @@ def bdt_report() -> str:
                 [
                     name,
                     m.get("feature_view"),
+                    m.get("score", "distance"),
                     m.get("features", "228"),
                     m["pca_components"],
                     m["k"],
@@ -109,6 +110,7 @@ def bdt_report() -> str:
                 [
                     "variant",
                     "features",
+                    "score",
                     "inputs",
                     "PCA comps",
                     "k (elbow)",
@@ -174,8 +176,45 @@ def bdt_report() -> str:
         ]
     else:
         lines.append(MISSING.format(cmd="make bdt-eval"))
+    syn = load("bdt_synthetic_leaks")
+    lines += ["", "## 4. Simulated leaks on normal 2018 background (model selection, D-030)", ""]
+    if syn:
+        sizes = list(next(iter(syn["variants"].values()))["by_diameter_mm"])
+        lines += [
+            f"{syn['scenarios']} EPANET leak signatures ({syn['junctions']} random junctions × "
+            f"{', '.join(s + ' mm' for s in sizes)}; median leak flow "
+            + ", ".join(f"{k}: {v} m³/h" for k, v in syn["median_leak_flow_m3h"].items())
+            + f") added to {num(syn['background']['weeks'], 1)} weeks of normal Nov–Dec 2018 "
+            "windows; false alarms counted on the same weeks without leaks.",
+            "",
+            table(
+                [
+                    "variant",
+                    "score",
+                    "detected",
+                    *[f"{s} mm" for s in sizes],
+                    "median TTD (h)",
+                    "false alarms/week",
+                ],
+                [
+                    [
+                        v,
+                        r["score"],
+                        num(r["detection_rate"], 3, pct=True),
+                        *[num(r["by_diameter_mm"][s], 3, pct=True) for s in sizes],
+                        num(r["median_ttd_h"]),
+                        num(r["background_false_alarms_per_week"]),
+                    ]
+                    for v, r in syn["variants"].items()
+                ],
+            ),
+            "",
+            f"Source: {src('bdt_synthetic_leaks', syn)}.",
+        ]
+    else:
+        lines.append(MISSING.format(cmd="make bdt-synthetic"))
     live = load("bdt_live_replay_2019")
-    lines += ["", "## 4. Live operation", ""]
+    lines += ["", "## 5. Live operation", ""]
     if live:
         a = live["alerts_opened_live"]
         lines.append(
@@ -196,7 +235,7 @@ def bdt_report() -> str:
         lines.append(
             f"- Demo rehearsal: {ok} of {len(demo['runs'])} runs within {num(demo['budget_s'], 0)} s ({src('demo_runs', demo)})."
         )
-    lines += ["", "## 5. Scale", ""]
+    lines += ["", "## 6. Scale", ""]
     sim, scale, layers = load("sim_generation"), load("bdt_scaling"), load("lake_layers_summary")
     if sim:
         lines.append(
@@ -245,7 +284,7 @@ def bdt_report() -> str:
         lines.append(MISSING.format(cmd="make bdt-scaling"))
     lines += [
         "",
-        "## 6. Limitations",
+        "## 7. Limitations",
         "",
         "- K-Means on window statistics sees the network's overall state; in a year where leaks keep "
         "accumulating (2019) the state drifts away from the training year and alerts saturate. A "
@@ -630,8 +669,16 @@ def readme_results() -> str:
             m,
         )
     m = load("bdt_kmeans_2019")
-    for key, label in (("residual", "live model"), ("main", "all 228 features")):
-        e = _get(m, "models", key, "eval_2019")
+    live = next(
+        (
+            k
+            for k, v in (_get(m, "models") or {}).items()
+            if str(v.get("model_dir", "")).endswith(f"/{_get(m, 'live_model')}")
+        ),
+        None,
+    )
+    for key, label in ((live, "live model"), ("main", "all 228 features")):
+        e = _get(m, "models", key, "eval_2019") if key else None
         if e:
             add(
                 f"K-Means 2019 ({label})",
@@ -642,6 +689,20 @@ def readme_results() -> str:
                 "bdt_kmeans_2019",
                 m,
             )
+    m = load("bdt_synthetic_leaks")
+    if m:
+        add(
+            "Simulated leaks on normal 2018 data, by detector",
+            "; ".join(
+                f"{v}: {num(r['detection_rate'], 3, pct=True)} detected, "
+                f"{num(r['background_false_alarms_per_week'])} false alarms/week"
+                for v, r in m["variants"].items()
+            )
+            + f" ({m['scenarios']} leaks, {min(m['diameters_m']) * 1000:g}–"
+            f"{max(m['diameters_m']) * 1000:g} mm)",
+            "bdt_synthetic_leaks",
+            m,
+        )
     m = load("bdt_live_replay_2019")
     a = _get(m, "alerts_opened_live", 0)
     if a:
