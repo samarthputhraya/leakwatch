@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "generated_at": "2026-11-19T06:03:54+00:00",
+    "git_commit": "e75880a",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "pipeline": "raw lake -> clean -> 1 h windows (228 features) -> K-Means score (mapInPandas)",
+  "model": "kmeans_residual_ci",
+  "spark": {
+    "master": "local[4]",
+    "driver_memory": "2g",
+    "shuffle_partitions": 8
+  },
+  "machine": {
+    "logical_cpus": 18,
+    "memory_gb": 8.0
+  },
+  "scales": [
+    {
+      "scale": "BattLeDIM 2019",
+      "readings": 12509280,
+      "windows_scored": 35043,
+      "windows_above_threshold": 30028,
+      "wall_s": 46.8,
+      "readings_per_s": 267197.2,
+      "peak_rss_gb": 2.89
+    },
+    {
+      "scale": "BattLeDIM 2018-2019 + simulated 2020-2022",
+      "readings": 62409312,
+      "windows_scored": 175287,
+      "windows_above_threshold": 116509,
+      "wall_s": 140.8,
+      "readings_per_s": 443370.5,
+      "peak_rss_gb": 4.36
+    },
+    {
+      "scale": "all (BattLeDIM + all simulated)",
+      "readings": 100108512,
+      "windows_scored": 281358,
+      "windows_above_threshold": 193171,
+      "wall_s": 242.9,
+      "readings_per_s": 412062.4,
+      "peak_rss_gb": 3.86
+    }
+  ],
+  "figure": "bdt_scaling.png"
+}

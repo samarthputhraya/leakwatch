@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "generated_at": "2026-11-19T05:51:04+00:00",
+    "git_commit": "e75880a",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "runs": [
+    {
+      "run": 1,
+      "node": "n100",
+      "diameter_m": 0.03,
+      "quiet_before_inject": true,
+      "seconds_to_alert": 29.4,
+      "seconds_to_localizer": 29.5,
+      "seconds_to_work_order": 38.2,
+      "wall_s": 38.2,
+      "speed": 720.0,
+      "localizer_top5": [
+        "n113",
+        "n120",
+        "n491",
+        "n105",
+        "n492"
+      ],
+      "distance": {
+        "top1_m": 139.7027,
+        "best_of_top5_m": 87.5501
+      },
+      "alert_start_sim": "2018-11-19T05:30:00+00:00",
+      "sim_hours_inject_to_alert": 1.75,
+      "ok": true
+    },
+    {
+      "run": 2,
+      "node": "n300",
+      "diameter_m": 0.03,
+      "quiet_before_inject": true,
+      "seconds_to_alert": 18.2,
+      "seconds_to_localizer": 18.3,
+      "seconds_to_work_order": 19.5,
+      "wall_s": 19.5,
+      "speed": 720.0,
+      "localizer_top5": [
+        "n226",
+        "n205",
+        "n208",
+        "n206",
+        "n623"
+      ],
+      "distance": {
+        "top1_m": 1438.1491999999998,
+        "best_of_top5_m": 1438.1491999999998
+      },
+      "alert_start_sim": "2018-11-19T05:15:00+00:00",
+      "sim_hours_inject_to_alert": 1.5,
+      "ok": true
+    },
+    {
+      "run": 3,
+      "node": "n470",
+      "diameter_m": 0.03,
+      "quiet_before_inject": true,
+      "seconds_to_alert": 14.1,
+      "seconds_to_localizer": 14.1,
+      "seconds_to_work_order": 14.2,
+      "wall_s": 14.2,
+      "speed": 720.0,
+      "localizer_top5": [
+        "n94",
+        "n469",
+        "n470",
+        "n468",
+        "n97"
+      ],
+      "distance": {
+        "top1_m": 108.0107,
+        "best_of_top5_m": 0.0
+      },
+      "alert_start_sim": "2018-11-19T04:45:00+00:00",
+      "sim_hours_inject_to_alert": 1.0,
+      "ok": true
+    }
+  ],
+  "all_ok": true,
+  "budget_s": 60.0,
+  "note": "wall seconds from the inject command to each artefact in the demo lake; the leak signature is simulated with EPANET and added to replayed BattLeDIM 2018 data"
+}
