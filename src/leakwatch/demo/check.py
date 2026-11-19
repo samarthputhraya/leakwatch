@@ -42,7 +42,7 @@ def wait_for(predicate: Any, timeout_s: float, poll_s: float = 1.0) -> float | N
     return None
 
 
-ALERT_COLUMNS = ["alert_id", "start_ts", "gnn_top5", "work_order_json"]
+ALERT_COLUMNS = ["alert_id", "start_ts", "last_window_end", "gnn_top5", "work_order_json"]
 
 
 def current_alerts(after: pd.Timestamp) -> pd.DataFrame:
@@ -130,12 +130,25 @@ def main(argv: list[str] | None = None) -> int:
             df = current_alerts(sim_before)
             if not df.empty and df["gnn_top5"].iloc[0] is not None:
                 cands = [c["node_id"] for c in df["gnn_top5"].iloc[0]]
-                row["localizer_top5"] = cands
-                row["distance"] = distance_to(node, cands)
+                row["localizer_top5_at_alert"] = cands
+                row["distance_at_alert"] = distance_to(node, cands)
                 row["alert_start_sim"] = df["start_ts"].iloc[0].isoformat()
                 row["sim_hours_inject_to_alert"] = round(
                     (df["start_ts"].iloc[0] - sim_before).total_seconds() / 3600, 2
                 )
+            # The live localizer refines an open alert during its first hours (D-033): record the
+            # top 5 the operator sees once that is over.
+            refine = pd.Timedelta(hours=float(cfg["dl"]["gnn"].get("live_refine_hours", 0)))
+            row["seconds_to_refined_localizer"] = since_click(
+                lambda t=sim_before, r=refine: (
+                    (current_alerts(t)["last_window_end"] - current_alerts(t)["start_ts"]) > r
+                ).any()
+            )
+            df = current_alerts(sim_before)
+            if not df.empty and df["gnn_top5"].iloc[0] is not None:
+                cands = [c["node_id"] for c in df["gnn_top5"].iloc[0]]
+                row["localizer_top5"] = cands
+                row["distance"] = distance_to(node, cands)
             row["ok"] = bool(
                 row["seconds_to_work_order"] is not None
                 and row["seconds_to_work_order"] <= args.budget_s

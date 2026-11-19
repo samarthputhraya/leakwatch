@@ -156,3 +156,19 @@ def test_reports_render_from_the_committed_metrics():
         assert "(code " in text, name  # numbers carry their source
     table = reports.readme_results()
     assert table.count("\n") >= 5 and "`data_summary.json`" in table
+
+
+def test_demo_distances_show_refined_and_first_localization():
+    runs = [
+        {
+            "node": "n1",
+            "distance": {"best_of_top5_m": 44.0},
+            "distance_at_alert": {"best_of_top5_m": 900.0},
+        },
+        {"node": "n2", "distance": None, "distance_at_alert": None},
+    ]
+    text = reports.demo_distances({"runs": runs})
+    assert (
+        "n1 44 m / n2 n/a m" in text and "(at the alert, before refinement: 900 m / n/a m)" in text
+    )
+    assert reports.demo_distances({"runs": [{"node": "n1"}]}) == ""

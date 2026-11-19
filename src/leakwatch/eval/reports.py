@@ -85,6 +85,27 @@ def kmeans_target_line(ev: dict[str, Any]) -> str:
     )
 
 
+def demo_distances(demo: dict[str, Any]) -> str:
+    """'; nearest of the top 5 to the leak: … m (at the alert: … m)' for the rehearsal runs."""
+
+    def dist(r: dict[str, Any], key: str) -> str:
+        d = (r.get(key) or {}).get("best_of_top5_m")
+        return "n/a" if d is None else num(d, 0)
+
+    runs = demo.get("runs") or []
+    if not any(r.get("distance") for r in runs):
+        return ""
+    text = "; nearest of the localizer's top 5 to the leak: " + " / ".join(
+        f"{r.get('node')} {dist(r, 'distance')} m" for r in runs
+    )
+    if any(r.get("distance_at_alert") for r in runs):
+        text += " (at the alert, before refinement: " + " / ".join(
+            f"{dist(r, 'distance_at_alert')} m" for r in runs
+        )
+        text += ")"
+    return text
+
+
 def bdt_report() -> str:
     """Big Data report draft."""
     data, train, ev = load("data_summary"), load("bdt_kmeans_train"), load("bdt_kmeans_2019")
@@ -269,7 +290,7 @@ def bdt_report() -> str:
     if demo:
         ok = sum(1 for r in demo["runs"] if r.get("ok"))
         lines.append(
-            f"- Demo rehearsal: {ok} of {len(demo['runs'])} runs within {num(demo['budget_s'], 0)} s ({src('demo_runs', demo)})."
+            f"- Demo rehearsal: {ok} of {len(demo['runs'])} runs within {num(demo['budget_s'], 0)} s{demo_distances(demo)} ({src('demo_runs', demo)})."
         )
     lines += ["", "## 6. Scale", ""]
     sim, scale, layers = load("sim_generation"), load("bdt_scaling"), load("lake_layers_summary")
@@ -944,7 +965,8 @@ def readme_results() -> str:
         add(
             "Demo rehearsal (inject → alert → top 5 → work order)",
             f"{ok} of {len(m['runs'])} runs within {num(m['budget_s'], 0)} s"
-            + (f"; slowest {num(max(secs), 1)} s" if secs else ""),
+            + (f"; slowest {num(max(secs), 1)} s" if secs else "")
+            + demo_distances(m),
             "demo_runs",
             m,
         )
