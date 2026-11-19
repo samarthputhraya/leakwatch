@@ -76,3 +76,50 @@ def test_pe_report_reads_nested_rates(metrics_dir):
     assert "87.5% (8)" in text
     assert "m @ 127.0.0.1:8080" in text
     assert "12.3" in text
+
+
+def _model(top5, by_size):
+    test = {"top1": 0.1, "top5": top5, "mean_distance_top1_m": 200.0, "within_m_best_of_top5": 0.9}
+    return {"test": test, "unseen_sizes": test, "test_by_size": by_size}
+
+
+def test_localizer_target_uses_medium_and_large_leaks_weighted_by_count(metrics_dir):
+    gat = _model(
+        0.5,
+        {
+            "small": {"n": 10, "top5": 0.0, "within_m_best_of_top5": 0.5},
+            "medium": {"n": 30, "top5": 0.5, "within_m_best_of_top5": 0.9},
+            "large": {"n": 10, "top5": 0.9, "within_m_best_of_top5": 1.0},
+        },
+    )
+    assert reports.medium_large_top5(gat) == pytest.approx((30 * 0.5 + 10 * 0.9) / 40)
+    assert reports.medium_large_top5({}) is None
+    mlp = _model(0.3, {"medium": {"n": 10, "top5": 0.3}, "large": {"n": 10, "top5": 0.3}})
+    bench = {
+        "leaks_localized": 1,
+        "model": "gat",
+        "median_distance_top1_m": 900.0,
+        "median_distance_best_of_top5_m": 800.0,
+        "nearest_sensor_median_distance_top1_m": 400.0,
+        "within_m_best_of_top5": 0.0,
+        "per_leak": [],
+    }
+    write(
+        metrics_dir,
+        "dl_gnn",
+        {
+            "dataset": {"test": 50, "unseen_sizes": 5, "unseen_diameter_m": [0.014, 0.017]},
+            "variants": {"mlp": {"kind": "mlp"}, "gat": {"kind": "gat"}},
+            "models": {"mlp": mlp, "gat": gat},
+            "chosen_model": "gat",
+            "gnn_beats_mlp_top5": True,
+            "battledim_2019": bench,
+        },
+    )
+    text = reports.dl_report()
+    assert "Measured: 60.0% (gat) vs 30.0% (MLP): met on the 60% level, better than" in text
+    assert "worse than the nearest-sensor heuristic" in text
+    assert "GAT, residuals at sensor nodes + closeness to each sensor + global sensor" in text
+    row = reports.readme_results()
+    assert "medium + large leaks 60.0% (target 60%, MLP 30.0%)" in row
+    assert "900 m from the top-1 junction" in row and "400 m for the nearest-sensor" in row

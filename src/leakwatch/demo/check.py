@@ -17,13 +17,14 @@ import sys
 import time
 from typing import Any
 
+import duckdb
 import pandas as pd
 
 from leakwatch.common import lake
 from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
 from leakwatch.common.metrics import write_metrics
-from leakwatch.demo.runner import demo_lake, read_state, send_command
+from leakwatch.demo.runner import demo_lake, read_state, send_command, state_path
 
 log = get_logger("leakwatch.demo.check")
 
@@ -41,10 +42,16 @@ def wait_for(predicate: Any, timeout_s: float, poll_s: float = 1.0) -> float | N
     return None
 
 
+ALERT_COLUMNS = ["alert_id", "start_ts", "gnn_top5", "work_order_json"]
+
+
 def current_alerts(after: pd.Timestamp) -> pd.DataFrame:
-    """Alerts in the demo lake that fired after a simulated time."""
+    """Alerts in the demo lake that fired after a simulated time (empty before the first one)."""
     con = lake.connect(lake_root=demo_lake())
-    df = lake.query_df(con, "SELECT alert_id, start_ts, gnn_top5, work_order_json FROM alerts")
+    try:
+        df = lake.query_df(con, f"SELECT {', '.join(ALERT_COLUMNS)} FROM alerts")
+    except duckdb.CatalogException:  # a fresh demo lake has no alerts table yet
+        return pd.DataFrame(columns=ALERT_COLUMNS)
     return df[df["start_ts"] >= after]
 
 
@@ -73,13 +80,16 @@ def main(argv: list[str] | None = None) -> int:
     cfg = load_config()
     nodes = list(cfg["demo"]["check_nodes"])
     diameter = float(cfg["demo"]["leak_diameter_m"])
+    # A state file from an earlier demo says "running" before this runner has subscribed to
+    # the command topic; an inject sent then is lost (the first rehearsal failed that way).
+    state_path().unlink(missing_ok=True)
     runner = subprocess.Popen([sys.executable, "-m", "leakwatch.demo.runner"])
     runs: list[dict[str, Any]] = []
     try:
         for k in range(args.runs):
             if k:
                 send_command("reset")
-                wait_for(lambda: read_state().get("status") == "warming up", 120)
+                wait_for(lambda: read_state().get("status") != "running", 120)
             warm = wait_for(lambda: read_state().get("status") == "running", 600, 2)
             if warm is None:
                 runs.append({"run": k + 1, "ok": False, "error": "stream did not warm up"})

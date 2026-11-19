@@ -6,11 +6,13 @@ junctions, 905 pipes, 33 pressure sensors, two years of 5-minute SCADA data with
 
 - **When** is something wrong? Sensor readings stream through Kafka into Spark Structured
   Streaming; K-Means (Spark MLlib) scores every 1-hour window against normal behaviour and raises
-  alerts. BDT title: *Applying K-Means Clustering for Anomaly Detection in Water Resource
+  alerts. The score combines the distance to the nearest normal cluster with what the kept
+  principal components cannot explain, so a change in an unusual direction still counts. BDT title: *Applying K-Means Clustering for Anomaly Detection in Water Resource
   Management.*
 - **Where** is the leak? A localizer trained on simulated leaks (MLP, GCN and GAT compared with a
-  nearest-sensor baseline) ranks the 5 most likely junctions, so a crew walks a few hundred metres
-  of pipe instead of 43 km. An LSTM autoencoder is compared with K-Means as a second detector.
+  nearest-sensor baseline) ranks the 5 most likely junctions, so a crew starts with 5 junctions
+  instead of 43 km of pipe (`network_stats.json`). An LSTM autoencoder is compared with K-Means as
+  a second detector.
 - **What do we do?** An operator copilot turns each alert into a work order (priority, pipes to
   inspect in order, estimated loss, manual citations) and answers questions with tools: read-only
   SQL on the lake, sensor charts, the localizer, a loss estimate, manual search and complaint
@@ -36,8 +38,16 @@ What the numbers say, briefly (details and figures in the report drafts):
   every leak within 7 days, which is why the evaluation reports the chance level next to the
   detection rate; precision, false alarms per week and time to detection are the informative
   columns.
-- The localizer is trained on simulated single leaks; on the real 2019 data (many leaks at once,
-  a model that differs from the real network) it is weaker, and the report shows both.
+- The detector was chosen without looking at 2019: `make bdt-synthetic` adds simulated leaks of
+  three sizes to normal late-2018 data and counts how many each variant catches and how many
+  false alarms it raises. The combined score catches more of them with fewer false alarms than
+  the cluster distance alone, so it is the live model. On 2019 it catches fewer leaks: its score
+  is above the threshold most of the time there, so a new leak rarely opens a new alert.
+- The localizer is trained on simulated single leaks. On held-out simulations the GAT ranks the
+  leak in its top 5 more often than the MLP and the nearest-sensor heuristic, but below the 60%
+  target for medium and large leaks. The ablation in the DL report shows which inputs matter.
+  On the real 2019 data (many leaks at once, a model that differs from the real network) it is
+  worse than the nearest-sensor heuristic; the report lists each leak.
 - The copilot numbers name the model they were measured with. A small local model on CPU is
   expected to score lower and answer more slowly than a hosted model; `make pe-eval` with a hosted
   model's settings replaces the files.
@@ -110,18 +120,23 @@ LLM_BASE_URL=http://127.0.0.1:8080/v1 LLM_API_KEY=local LLM_MODEL=qwen3-4b-instr
 | `make ingest-year YEAR=2018` | replay a year through Kafka into the raw lake with Spark alongside |
 | `make features` / `make stream-features` | batch / live feature tables (same function) |
 | `make features-parity` | live vs batch features, window by window |
+| `make prepare` | fresh data directory → lake, features, models, alerts, localizer, work orders, RAG index |
 | `make bdt-train` / `make bdt-eval` | K-Means variants on 2018 / evaluation on 2019, alerts into the lake |
+| `make bdt-synthetic` | simulated leaks on normal 2018 data, one result per residual detector |
 | `make live-replay` | replay part of 2019 at 360× with live scoring and alerts |
 | `make sim-scale` / `make sim-ingest` | Spark-parallel scenario simulation / its replay through Kafka |
 | `make bdt-scaling` | batch features + scoring at 12.5M, ~50M and 100M+ readings |
 | `make lstm-ae` | LSTM autoencoder and the comparison with K-Means |
-| `make gnn-data` / `make gnn` | localizer training data / nearest-sensor, MLP, GCN, GAT |
+| `make gnn-data` / `make gnn` | localizer training data / nearest-sensor, MLP, GCN, GAT and ablations |
+| `make gnn-apply` | re-localize the current alerts with the saved localizer (no retraining) |
 | `make index` / `make dispatch` / `make pe-eval` | RAG index / work orders / copilot evaluation |
+| `make llm-local` | optional local CPU model for the copilot (2.1 GB download) |
 | `make demo` / `make demo-check` | live demo / headless rehearsal |
 | `make reports` | report drafts and the results table above |
 | `make lake-stats` | rows, files and bytes per lake layer |
 
-Full-scale runs use `LEAKWATCH_CONFIG=configs/full.yaml` (313 simulated weeks, 5,000 localizer
+After `make bdt-eval` (it rewrites the batch alerts) run `make gnn-apply` and then
+`make dispatch`. Full-scale runs use `LEAKWATCH_CONFIG=configs/full.yaml` (313 simulated weeks, 5,000 localizer
 scenarios); the defaults are laptop-safe.
 
 ## Repository layout

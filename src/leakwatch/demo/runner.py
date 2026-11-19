@@ -261,6 +261,10 @@ class DemoRunner:
         consumer.subscribe([kafka["topics"]["demo_commands"]["name"]])
         producer = kafka_io.make_producer(kafka)
         while True:
+            # Overwrite a state file left by an earlier runner (or the pre-reset "running") at
+            # once: readers wait for "running", which must mean *this* replay is warm.
+            self.status = "starting"
+            self.write_state()
             self.start_streams()
             self.leaks, self.pending, self._reset_flag = [], [], False
             self.status = "warming up"

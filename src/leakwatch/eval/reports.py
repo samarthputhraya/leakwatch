@@ -304,6 +304,28 @@ def bdt_report() -> str:
 # -------------------------------------------------------------------------------------- DL
 
 
+def gnn_inputs(name: str, spec: dict[str, Any] | None) -> str:
+    """What a localizer variant sees, for the model table."""
+    if name == "nearest_sensor":
+        return "heuristic: pipe distance to the sensor with the largest pressure drop"
+    if not spec or spec.get("kind") == "mlp":
+        return "sensor residuals only (no graph)"
+    parts = [f"{spec['kind'].upper()}, residuals at sensor nodes"]
+    if spec.get("closeness", True):
+        parts.append("closeness to each sensor")
+    if spec.get("context", True):
+        parts.append("global sensor context")
+    return " + ".join(parts)
+
+
+def medium_large_top5(model: dict[str, Any]) -> float | None:
+    """Test top-5 over the medium and large buckets together (the PRD target's population)."""
+    by = model.get("test_by_size") or {}
+    parts = [by[s] for s in ("medium", "large") if s in by and by[s].get("n")]
+    n = sum(p["n"] for p in parts)
+    return sum(p["n"] * p["top5"] for p in parts) / n if n else None
+
+
 def dl_report() -> str:
     """Deep learning report draft (incl. model cards)."""
     lstm, gnn, ds = load("dl_lstm_ae"), load("dl_gnn"), load("gnn_dataset")
@@ -388,45 +410,143 @@ def dl_report() -> str:
             f"{ds['sensor_noise_m'] * 100:.0f} cm sensor noise) ({src('gnn_dataset', ds)})."
         )
     if gnn:
+        variants, training = gnn.get("variants") or {}, gnn.get("training") or {}
+        models = gnn["models"]
         rows = []
-        for name, r in gnn["models"].items():
+        for name, r in models.items():
             t, u = r["test"], r.get("unseen_sizes") or {}
+            wall = _get(training, name, "wall_s")
             rows.append(
                 [
                     name,
+                    gnn_inputs(name, variants.get(name)),
                     num(t["top1"], 3),
                     num(t["top5"], 3),
+                    num(medium_large_top5(r), 3),
                     num(t["mean_distance_top1_m"], 0),
                     num(t["within_m_best_of_top5"], 3),
                     num(u.get("top5"), 3),
+                    "—" if wall is None else num(wall / 60, 1),
                 ]
             )
         lines += [
             "",
+            f"Held-out simulated leaks: {gnn['dataset']['test']} test scenarios; "
+            f"{gnn['dataset']['unseen_sizes']} more with leak diameters "
+            f"{gnn['dataset']['unseen_diameter_m'][0] * 1000:g}–{gnn['dataset']['unseen_diameter_m'][1] * 1000:g} mm "
+            f"that were never trained on ({src('dl_gnn', gnn)}).",
+            "",
             table(
                 [
                     "model",
+                    "inputs",
                     "top-1",
                     "top-5",
+                    "top-5 medium + large",
                     "mean distance top-1 (m)",
                     "within 300 m (best of 5)",
                     "top-5 unseen sizes",
+                    "training (min)",
                 ],
                 rows,
             ),
             "",
-            f"Chosen by validation top-5: **{gnn['chosen_model']}**. GNN beats MLP on top-5: {gnn['gnn_beats_mlp_top5']} ({src('dl_gnn', gnn)}).",
+            "By leak size (buckets: `dl.gnn.size_buckets_m` in `configs/default.yaml`), test set:",
+            "",
+            table(
+                [
+                    "model",
+                    "top-5 small",
+                    "top-5 medium",
+                    "top-5 large",
+                    "within 300 m small (best of 5)",
+                    "within 300 m medium",
+                    "within 300 m large",
+                ],
+                [
+                    [name]
+                    + [
+                        num(_get(r, "test_by_size", s, "top5"), 3)
+                        for s in ("small", "medium", "large")
+                    ]
+                    + [
+                        num(_get(r, "test_by_size", s, "within_m_best_of_top5"), 3)
+                        for s in ("small", "medium", "large")
+                    ]
+                    for name, r in models.items()
+                ],
+            ),
+            "",
+            f"Chosen by validation top-5: **{gnn['chosen_model']}**. GNN beats MLP on top-5: {gnn['gnn_beats_mlp_top5']}.",
         ]
+        chosen = models.get(gnn["chosen_model"]) or {}
+        ml = medium_large_top5(chosen)
+        if ml is not None:
+            lines += [
+                "",
+                f"**Target (PRD §10): top-5 ≥ 60% on held-out medium and large leaks, and better than the MLP.** "
+                f"Measured: {num(ml, 3, pct=True)} ({gnn['chosen_model']}) vs {num(medium_large_top5(models.get('mlp') or {}), 3, pct=True)} "
+                f"(MLP): {'met' if ml >= 0.6 else 'missed'} on the 60% level, "
+                f"{'better' if gnn['gnn_beats_mlp_top5'] else 'not better'} than the MLP.",
+            ]
+        top5 = {n: r["test"]["top5"] for n, r in models.items()}
+        if "gcn" in top5 and {"gcn_no_context", "gcn_no_closeness"} <= top5.keys():
+            full = top5["gcn"]
+            lines += [
+                "",
+                "**Ablation (GCN, test top-5):** full model "
+                f"{num(full, 3)}; without the global sensor context {num(top5['gcn_no_context'], 3)} "
+                f"({num(100 * (top5['gcn_no_context'] - full), 1)} points); without sensor closeness "
+                f"{num(top5['gcn_no_closeness'], 3)} ({num(100 * (top5['gcn_no_closeness'] - full), 1)} points)"
+                + (
+                    f"; without both (the first design: each junction only sees sensors a few hops away) "
+                    f"{num(top5['gcn_local_only'], 3)}"
+                    if "gcn_local_only" in top5
+                    else ""
+                )
+                + " (D-029).",
+            ]
         b = gnn["battledim_2019"]
         lines += [
             "",
-            f"**BattLeDIM 2019 benchmark:** {b['leaks_localized']} leaks with a detected alert; "
-            f"median distance from the top-1 node to the leaking pipe {num(b['median_distance_top1_m'], 0)} m "
-            f"(nearest of top 5: {num(b['median_distance_best_of_top5_m'], 0)} m; nearest-sensor heuristic top-1: "
-            f"{num(b['nearest_sensor_median_distance_top1_m'], 0)} m); within 300 m (best of top 5): "
-            f"{num(b['within_m_best_of_top5'], 3, pct=True)}. Expected to be weaker than on simulations (model "
-            "uncertainty, many simultaneous leaks).",
+            f"**BattLeDIM 2019 benchmark ({b.get('model', gnn['chosen_model'])}):** {b['leaks_localized']} leaks with a batch "
+            f"alert of the live detector starting within 7 days after the leak; localized at the first such alert. Median distance from the top-1 node to the "
+            f"leaking pipe {num(b['median_distance_top1_m'], 0)} m (nearest of top 5: "
+            f"{num(b['median_distance_best_of_top5_m'], 0)} m); nearest-sensor heuristic top-1: "
+            f"{num(b['nearest_sensor_median_distance_top1_m'], 0)} m; within 300 m (best of top 5): "
+            f"{num(b['within_m_best_of_top5'], 3, pct=True)}. On 2019 the trained localizer is "
+            f"{'worse' if b['median_distance_top1_m'] > b['nearest_sensor_median_distance_top1_m'] else 'better'} "
+            "than the nearest-sensor heuristic: it was trained on one leak at a time on the nominal model, while "
+            "2019 has many leaks running at once and a real network that differs from the model.",
         ]
+        per = b.get("per_leak") or []
+        if per:
+            lines += [
+                "",
+                table(
+                    [
+                        "leak",
+                        "type",
+                        "peak outflow (m³/h)",
+                        "alert start (UTC)",
+                        "top-1 distance (m)",
+                        "best of top 5 (m)",
+                        "nearest sensor top-1 (m)",
+                    ],
+                    [
+                        [
+                            p.get("leak_id"),
+                            p.get("type"),
+                            num(p.get("peak_outflow_m3h"), 1),
+                            str(p.get("alert_start", ""))[:16].replace("T", " "),
+                            num(p.get("distance_top1_m"), 0),
+                            num(p.get("distance_best_of_top5_m"), 0),
+                            num(p.get("nearest_sensor_distance_top1_m"), 0),
+                        ]
+                        for p in per
+                    ],
+                ),
+            ]
     else:
         lines.append(MISSING.format(cmd="make gnn"))
     lines += [
@@ -438,9 +558,11 @@ def dl_report() -> str:
         "accumulated leakage raises scores like K-Means.",
         "",
         "**GNN localizer** — data: EPANET single-leak scenarios on nominal L-Town (D-024); inputs: two "
-        "hourly pressure residuals at 33 sensors; output: probability per junction; limits: one leak at "
-        "a time, nominal model (the real network differs by about ±10%), junction leaks (pipe leaks are "
-        "scored by the nearer pipe end).",
+        "hourly pressure residuals at the 33 sensor nodes, each junction's closeness (pipe distance) to "
+        "every sensor, and a global context vector computed from all sensor residuals (D-029); output: "
+        "probability per junction; limits: one leak at a time, nominal model (the real network differs "
+        "by about ±10%), junction leaks (pipe leaks are scored by the nearer pipe end); see the 2019 "
+        "benchmark above for how it transfers to the recorded data.",
     ]
     return "\n".join(lines) + "\n"
 
@@ -745,10 +867,13 @@ def readme_results() -> str:
         add("Best 2019 detection with ≤ 2 false alarms/week", "; ".join(parts), "dl_lstm_ae", m)
     m = load("dl_gnn")
     if m:
-        best = _get(m, "models", m.get("chosen_model"), "test")
+        chosen = _get(m, "models", m.get("chosen_model")) or {}
+        best = chosen.get("test")
+        ml, ml_mlp = medium_large_top5(chosen), medium_large_top5(_get(m, "models", "mlp") or {})
         add(
             f"Localizer on held-out simulated leaks ({m.get('chosen_model')})",
-            f"top-1 {num(_get(best, 'top1'), 3, pct=True)}, top-5 {num(_get(best, 'top5'), 3, pct=True)}, "
+            f"top-5 {num(_get(best, 'top5'), 3, pct=True)} (MLP {num(_get(m, 'models', 'mlp', 'test', 'top5'), 3, pct=True)}); "
+            f"medium + large leaks {num(ml, 3, pct=True)} (target 60%, MLP {num(ml_mlp, 3, pct=True)}); "
             f"best of top 5 within 300 m {num(_get(best, 'within_m_best_of_top5'), 3, pct=True)}",
             "dl_gnn",
             m,
@@ -756,8 +881,9 @@ def readme_results() -> str:
         b = _get(m, "battledim_2019")
         add(
             "Localizer on BattLeDIM 2019 leaks",
-            f"median {num(_get(b, 'median_distance_best_of_top5_m'), 0)} m from the nearest of the top 5 "
-            f"to the leaking pipe ({_get(b, 'leaks_localized')} leaks)",
+            f"median {num(_get(b, 'median_distance_top1_m'), 0)} m from the top-1 junction to the leaking "
+            f"pipe vs {num(_get(b, 'nearest_sensor_median_distance_top1_m'), 0)} m for the nearest-sensor "
+            f"heuristic ({_get(b, 'leaks_localized')} leaks)",
             "dl_gnn",
             m,
         )
