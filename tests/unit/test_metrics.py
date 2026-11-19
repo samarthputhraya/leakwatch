@@ -35,10 +35,11 @@ def test_write_metrics_adds_provenance_and_cleans_values(tmp_path: Path):
     assert read_metrics("demo", out_dir=tmp_path) == doc
 
 
-def test_git_commit_ignores_metrics_files():
-    """Rewriting a tracked metrics file must not mark the code as dirty."""
+@pytest.mark.parametrize("pattern", ["reports/metrics/*.json", "reports/figures/*.png"])
+def test_git_commit_ignores_report_outputs(pattern):
+    """Rewriting a tracked metrics file or figure must not mark the code as dirty."""
     tracked = subprocess.run(
-        ["git", "ls-files", "reports/metrics/*.json"],
+        ["git", "ls-files", pattern],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -46,7 +47,7 @@ def test_git_commit_ignores_metrics_files():
     ).stdout.split()
     state = git_commit()
     if not tracked or state == "unknown" or state.endswith("+dirty"):
-        pytest.skip("needs a clean git checkout with tracked metrics files")
+        pytest.skip("needs a clean git checkout with tracked report outputs")
     path = REPO_ROOT / tracked[0]
     original = path.read_bytes()
     try:

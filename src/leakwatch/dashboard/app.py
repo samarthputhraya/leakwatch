@@ -384,8 +384,8 @@ def main() -> None:
         left, right = st.columns([3, 2])
         selected_id = st.session_state.get("alert_pick")
         row = None
-        if not df.empty:
-            ids = df["alert_id"].tolist()
+        ids = [] if df.empty else df["alert_id"].tolist()
+        if ids:
             if selected_id not in ids:
                 st.session_state.pop("alert_pick", None)
                 selected_id = ids[0]
