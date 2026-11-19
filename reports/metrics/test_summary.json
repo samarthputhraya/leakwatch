@@ -1,20 +1,20 @@
 {
   "meta": {
-    "generated_at": "2026-11-19T06:42:57+00:00",
-    "git_commit": "c5c020c",
+    "generated_at": "2026-11-19T07:41:01+00:00",
+    "git_commit": "232292e",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "passed": 465,
+  "passed": 470,
   "failed": 0,
   "skipped": 0,
-  "duration_s": 462.9,
+  "duration_s": 489.4,
   "by_folder": {
     "contract": 39,
     "integration": 2,
     "metamorphic": 5,
-    "unit": 419
+    "unit": 424
   },
   "coverage_percent": 70.9,
   "coverage_by_module": {
@@ -27,7 +27,7 @@
       "percent": 100.0
     },
     "bdt/alerts.py": {
-      "statements": 119,
+      "statements": 122,
       "percent": 100.0
     },
     "bdt/data.py": {
@@ -39,7 +39,7 @@
       "percent": 24.0
     },
     "bdt/live.py": {
-      "statements": 99,
+      "statements": 122,
       "percent": 100.0
     },
     "bdt/model.py": {
@@ -195,8 +195,8 @@
       "percent": 100.0
     },
     "demo/check.py": {
-      "statements": 97,
-      "percent": 35.1
+      "statements": 104,
+      "percent": 32.7
     },
     "demo/preflight.py": {
       "statements": 37,
@@ -215,8 +215,8 @@
       "percent": 100.0
     },
     "dl/gnn.py": {
-      "statements": 325,
-      "percent": 50.2
+      "statements": 329,
+      "percent": 50.5
     },
     "dl/gnn_data.py": {
       "statements": 127,
@@ -243,8 +243,8 @@
       "percent": 81.3
     },
     "eval/reports.py": {
-      "statements": 281,
-      "percent": 95.0
+      "statements": 293,
+      "percent": 95.2
     },
     "eval/test_summary.py": {
       "statements": 58,
