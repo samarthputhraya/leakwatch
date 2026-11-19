@@ -49,8 +49,8 @@ Source: `reports/metrics/bdt_synthetic_leaks.json` (code 322e50e).
 
 ## 5. Live operation
 
-- A 14.0 h slice of 2019 replayed at 360× raised 1 alert(s) live; same start as the batch evaluation: True. Leak-to-alert 19.0 s wall, 0.75 h of simulated time after the leak start. Micro-batch p50 6.26 s (`reports/metrics/bdt_live_replay_2019.json` (code e75880a)).
-- Demo rehearsal: 3 of 3 runs within 60 s (`reports/metrics/demo_runs.json` (code e75880a)).
+- A 14.0 h slice of 2019 replayed at 360× raised 1 alert(s) live; same start as the batch evaluation: True. Leak-to-alert 20.8 s wall, 0.75 h of simulated time after the leak start. Micro-batch p50 7.57 s (`reports/metrics/bdt_live_replay_2019.json` (code 200b8ae)).
+- Demo rehearsal: 3 of 3 runs within 60 s; nearest of the localizer's top 5 to the leak: n100 0 m / n300 569 m / n470 108 m (at the alert, before refinement: 0 m / 2,166 m / 108 m) (`reports/metrics/demo_runs.json` (code 48b3dc7)).
 
 ## 6. Scale
 

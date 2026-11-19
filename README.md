@@ -39,12 +39,12 @@ file records the git commit of the code that produced it. Subject report drafts:
 | K-Means 2019 (live model) | 7/19 leaks alerted within 7 days (chance level 95.4%), precision 0.479, 1.40 false alarms/week, median 7.3 h to detection | `bdt_kmeans_2019.json` |
 | K-Means 2019 (all 228 features) | 19/19 leaks alerted within 7 days (chance level 99.6%), precision 0.437, 2.90 false alarms/week, median 18.1 h to detection | `bdt_kmeans_2019.json` |
 | Simulated leaks on normal 2018 data, by detector | residual: 48.3% detected, 1.21 false alarms/week; residual_ci: 68.9% detected, 1.07 false alarms/week (180 leaks, 10–30 mm) | `bdt_synthetic_leaks.json` |
-| Live alert (2019 replay at 360×) | 19.0 s wall from leak start to alert; same alert as the batch run: True | `bdt_live_replay_2019.json` |
+| Live alert (2019 replay at 360×) | 20.8 s wall from leak start to alert; same alert as the batch run: True | `bdt_live_replay_2019.json` |
 | Best 2019 detection with ≤ 2 false alarms/week | LSTM-AE 79.0% (chance 95.2%); K-Means (all PRD features) 42.1% (chance 91.5%); K-Means (residual features) 68.4% (chance 98.8%); K-Means (residual, combined index) 36.8% (chance 90.5%) | `dl_lstm_ae.json` |
 | Localizer on held-out simulated leaks (gat) | top-5 33.9% (MLP 22.9%); medium + large leaks 40.2% (target 60%, MLP 28.1%); best of top 5 within 300 m 91.5% | `dl_gnn.json` |
 | Localizer on BattLeDIM 2019 leaks | median 1,682 m from the top-1 junction to the leaking pipe vs 750 m for the nearest-sensor heuristic (7 leaks) | `dl_gnn.json` |
-| Demo rehearsal (inject → alert → top 5 → work order) | 3 of 3 runs within 60 s; slowest 38.2 s | `demo_runs.json` |
-| Tests | 465 passed, 0 failed; line coverage 70.9% | `test_summary.json` |
+| Demo rehearsal (inject → alert → top 5 → work order) | 3 of 3 runs within 60 s; slowest 53.3 s; nearest of the localizer's top 5 to the leak: n100 0 m / n300 569 m / n470 108 m (at the alert, before refinement: 0 m / 2,166 m / 108 m) | `demo_runs.json` |
+| Tests | 470 passed, 0 failed; line coverage 70.9% | `test_summary.json` |
 <!-- results:end -->
 
 What the numbers say, briefly (details and figures in the report drafts):
