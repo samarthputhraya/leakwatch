@@ -2,7 +2,10 @@
 
 - :class:`OpenAICompatibleLLM` talks to any server that speaks the OpenAI chat-completions API
   (hosted providers, Ollama, vLLM …) with the ``openai`` package. Timeouts and retries
-  (connection errors, 429, 5xx, with backoff) come from ``copilot.llm`` in the config.
+  (connection errors, 429, 5xx, with backoff) come from ``copilot.llm`` in the config. For
+  free, rate-limited endpoints it can pace its own requests (``LLM_RPM`` or
+  ``copilot.llm.requests_per_minute``) and waits out "429 Too Many Requests" answers, honouring
+  the server's ``Retry-After``; errors that a later retry may fix are marked ``transient``.
 - :class:`ScriptedLLM` returns predefined replies and tool calls in order and records every request.
   Unit tests and the evaluation's ``--mock`` mode use it; it never pretends to be a real model in
   result files.
@@ -17,6 +20,7 @@ from __future__ import annotations
 import copy
 import itertools
 import json
+import time
 from collections.abc import Callable, Iterable, Mapping, MutableSequence, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -28,7 +32,30 @@ log = get_logger("leakwatch.copilot.llm")
 
 
 class LLMError(RuntimeError):
-    """The model could not be reached or returned something unusable."""
+    """The model could not be reached or returned something unusable.
+
+    ``transient`` is True for failures a later attempt may not have (rate limit, timeout,
+    connection error, server error), False for a rejected request or an unusable reply.
+    """
+
+    def __init__(self, message: str, transient: bool = False) -> None:
+        """Create the error."""
+        super().__init__(message)
+        self.transient = transient
+
+
+def retry_after_s(exc: BaseException) -> float | None:
+    """Seconds from a ``Retry-After`` / ``retry-after-ms`` header of an API error, if any."""
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None) or {}
+    try:
+        if headers.get("retry-after-ms"):
+            return float(headers["retry-after-ms"]) / 1000.0
+        if headers.get("retry-after"):
+            return float(headers["retry-after"])
+    except (TypeError, ValueError):
+        return None
+    return None
 
 
 @dataclass(frozen=True)
@@ -123,7 +150,8 @@ class OpenAICompatibleLLM:
 
         Args:
             settings: endpoint and model (``settings.llm_settings()``).
-            cfg: ``copilot.llm`` config (temperature, max_tokens, timeout_s, max_retries, seed).
+            cfg: ``copilot.llm`` config (temperature, max_tokens, timeout_s, max_retries, seed,
+                requests_per_minute, rate_limit_retries, rate_limit_max_wait_s).
 
         """
         if not settings.configured:
@@ -138,6 +166,41 @@ class OpenAICompatibleLLM:
             timeout=float(cfg.get("timeout_s", 60)),
             max_retries=int(cfg.get("max_retries", 2)),
         )
+        rpm = settings.rpm or cfg.get("requests_per_minute")
+        self.min_interval_s = 60.0 / float(rpm) if rpm else 0.0
+        self.wait_s = 0.0  # time spent pacing and waiting out rate limits (not model latency)
+        self._last_start = -1e9
+
+    def _sleep(self, seconds: float) -> None:
+        if seconds > 0:
+            time.sleep(seconds)
+            self.wait_s += seconds
+
+    def _create(self, kwargs: Mapping[str, Any]) -> Any:
+        """``chat.completions.create`` with pacing and patient retries on rate limits."""
+        import openai
+
+        retries = int(self.cfg.get("rate_limit_retries", 0))
+        max_wait = float(self.cfg.get("rate_limit_max_wait_s", 60))
+        for attempt in range(retries + 1):
+            self._sleep(self._last_start + self.min_interval_s - time.monotonic())
+            self._last_start = time.monotonic()
+            try:
+                return self._client.chat.completions.create(**kwargs)
+            except openai.RateLimitError as exc:
+                if attempt == retries:
+                    raise LLMError(f"rate limited: {str(exc)[:300]}", transient=True) from exc
+                delay = min(max_wait, retry_after_s(exc) or 5.0 * 2**attempt)
+                log.warning(
+                    "rate limited; waiting %.0f s (retry %d of %d)", delay, attempt + 1, retries
+                )
+                self._sleep(delay)
+            except (openai.APIConnectionError, openai.InternalServerError) as exc:
+                # APITimeoutError is an APIConnectionError
+                raise LLMError(f"{type(exc).__name__}: {str(exc)[:300]}", transient=True) from exc
+            except openai.APIError as exc:
+                raise LLMError(f"{type(exc).__name__}: {str(exc)[:300]}") from exc
+        raise LLMError("unreachable")  # pragma: no cover
 
     def chat(
         self,
@@ -147,8 +210,6 @@ class OpenAICompatibleLLM:
         json_mode: bool = False,
     ) -> LLMResponse:
         """One chat-completions call; raises :class:`LLMError` on any API failure."""
-        import openai
-
         kwargs: dict[str, Any] = {
             "model": self.model,
             "messages": [dict(m) for m in messages],
@@ -162,10 +223,7 @@ class OpenAICompatibleLLM:
             kwargs["tool_choice"] = "auto"
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
-        try:
-            resp = self._client.chat.completions.create(**kwargs)
-        except openai.APIError as exc:
-            raise LLMError(f"{type(exc).__name__}: {str(exc)[:300]}") from exc
+        resp = self._create(kwargs)
         if not resp.choices:
             raise LLMError("the model returned no choices")
         msg = resp.choices[0].message

@@ -64,9 +64,9 @@ What the numbers say, briefly (details and figures in the report drafts):
   target for medium and large leaks. The ablation in the DL report shows which inputs matter.
   On the real 2019 data (many leaks at once, a model that differs from the real network) it is
   worse than the nearest-sensor heuristic; the report lists each leak.
-- The copilot numbers name the model they were measured with. A small local model on CPU is
-  expected to score lower and answer more slowly than a hosted model; `make pe-eval` with a hosted
-  model's settings replaces the files.
+- The copilot numbers name the model and endpoint they were measured with. A small local model
+  on CPU is expected to score lower and answer more slowly than a hosted 70B-class model on a
+  free endpoint; `make pe-eval` with another model's settings replaces the files.
 
 ## Architecture
 
@@ -114,10 +114,25 @@ Before the demo: `make up`, then `make demo` (it checks its prerequisites and na
 for anything missing). Without an LLM configured, work orders are rendered from the same tool
 outputs with a fixed template, labelled "template fallback".
 
-### Copilot model
+### Copilot model (free)
 
-Any OpenAI-compatible endpoint, set in `.env`: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`.
-Without a key you can run a local CPU model (llama.cpp + Qwen3-4B-Instruct, 2.1 GB download):
+Any OpenAI-compatible endpoint whose model can call tools, set in `.env`: `LLM_BASE_URL`,
+`LLM_API_KEY`, `LLM_MODEL`, and for a rate-limited free tier `LLM_RPM` (requests per minute to
+stay under). Nothing here needs a paid account; `.env.example` lists free options (NVIDIA API
+catalog, Groq free plan) with their settings (D-035).
+
+```bash
+make llm-check    # one minute: tool calling + one end-to-end answer, prints the latency
+make pe-eval      # all prompt versions; if the free quota runs out it stops, rerun to continue
+make reports
+```
+
+Free tiers limit speed, not answer quality: the client paces its requests, waits out
+"429 Too Many Requests" and the evaluation keeps every scored answer, so an interrupted run
+continues where it stopped instead of counting the failure as a wrong answer.
+
+Offline, without any account: a local CPU model (llama.cpp + Qwen3-4B-Instruct, 2.1 GB
+download), slower and smaller:
 
 ```bash
 make llm-local    # serves http://127.0.0.1:8080/v1 (leave it running)
@@ -145,7 +160,8 @@ LLM_BASE_URL=http://127.0.0.1:8080/v1 LLM_API_KEY=local LLM_MODEL=qwen3-4b-instr
 | `make lstm-ae` | LSTM autoencoder and the comparison with K-Means |
 | `make gnn-data` / `make gnn` | localizer training data / nearest-sensor, MLP, GCN, GAT and ablations |
 | `make gnn-apply` | re-localize the current alerts with the saved localizer (no retraining) |
-| `make index` / `make dispatch` / `make pe-eval` | RAG index / work orders / copilot evaluation |
+| `make index` / `make dispatch` / `make pe-eval` | RAG index (the first build OCRs the scanned 1999 manual once) / work orders / copilot evaluation |
+| `make llm-check` | check that the LLM in `.env` can call the copilot's tools (no metrics) |
 | `make llm-local` | optional local CPU model for the copilot (2.1 GB download) |
 | `make demo` / `make demo-check` | live demo / headless rehearsal |
 | `make reports` | report drafts and the results table above |
@@ -164,7 +180,7 @@ src/leakwatch/  common/ data/ sim/ ingest/ stream/ features/ bdt/ dl/ copilot/ e
 scripts/        thin shell entry points called by make
 notebooks/      EDA only
 tests/          unit/ contract/ metamorphic/ integration/
-evals/          copilot question set (68 items)
+evals/          copilot question set (72 items)
 reports/        metrics/*.json (source of truth) · figures/ · bdt/ dl/ pe/ st/ report drafts
 ```
 
@@ -174,5 +190,6 @@ reports/        metrics/*.json (source of truth) · figures/ · bdt/ dl/ pe/ st/
   Isolation Methods", Zenodo, doi:10.5281/zenodo.4017659; and S. G. Vrachimis et al., J. Water
   Resources Planning and Management 148(12), 2022.
 - Simulation: [WNTR](https://github.com/USEPA/WNTR) and [epyt-flow](https://github.com/WaterFutures/EPyT-Flow) (EPANET).
-- Copilot manuals: CPHEEO Manual on Operation and Maintenance of Water Supply Systems (2005),
-  public copy on India Water Portal; our own knowledge-base notes in `docs/kb/`.
+- Copilot manuals: CPHEEO Manual on Operation and Maintenance of Water Supply Systems (2005) and
+  CPHEEO Manual on Water Supply and Treatment (third edition, 1999; a scan, OCR'd by
+  `make index`), public copies on India Water Portal; our own knowledge-base notes in `docs/kb/`.

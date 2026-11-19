@@ -30,12 +30,21 @@ passage), refusal accuracy, complaint extraction and match accuracy, latency.
 With no model configured the command exits with status 2 and writes nothing. ``--mock`` runs a
 scripted oracle model (reference SQL, first passage, fixed refusal) to test the harness; it never
 writes metrics.
+
+Free, rate-limited endpoints: every scored answer is appended to
+``paths.pe_eval_progress_dir() / <version>.progress.jsonl``. When the model becomes unavailable
+(rate limit or daily quota after the client's retries, timeout, server error) the run stops
+with status 3 instead of scoring that item as wrong; running the same command again continues
+with the next item, and a finished version is not asked again (``--fresh`` asks everything
+again). Answers are reused only for the same model, code commit, prompt files and item text.
+Latency excludes time spent waiting for the rate limit (reported as ``wait_s``).
 """
 
 from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import re
 import statistics
@@ -50,7 +59,7 @@ import pandas as pd
 from leakwatch.common import paths
 from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
-from leakwatch.common.metrics import write_metrics
+from leakwatch.common.metrics import git_commit, write_metrics
 from leakwatch.copilot import guardrails
 from leakwatch.copilot.agent import CopilotAgent, CopilotAnswer
 from leakwatch.copilot.llm import (
@@ -62,7 +71,7 @@ from leakwatch.copilot.llm import (
     reply,
     tool_call,
 )
-from leakwatch.copilot.prompts import VERSIONS
+from leakwatch.copilot.prompts import PROMPTS_DIR, VERSIONS
 from leakwatch.copilot.settings import NOT_CONFIGURED_MESSAGE, llm_settings
 from leakwatch.copilot.tools import ToolContext, fmt_ts, jsonable
 
@@ -322,6 +331,7 @@ class Outcome:
     scope_prefilter: bool = False
     complaint_extraction_ok: bool | None = None
     complaint_match_ok: bool | None = None
+    wait_s: float = 0.0  # rate-limit pacing/waiting, excluded from latency_s
 
 
 def score(prep: Prepared, ans: CopilotAnswer) -> Outcome:
@@ -451,6 +461,7 @@ def summarize(outcomes: Sequence[Outcome]) -> dict[str, Any]:
             "scope_prefilter_refusals": sum(o.scope_prefilter for o in done),
         },
         "errors": sum(1 for o in done if o.error),
+        "rate_limit_wait_s": round(sum(o.wait_s for o in done), 1),
     }
 
 
@@ -519,17 +530,90 @@ def mock_llm_for(prep: Prepared) -> ScriptedLLM:
 # ------------------------------------------------------------------------------------------
 
 
+class EvalInterruptedError(RuntimeError):
+    """The model became unavailable mid-run; scored answers are kept for the next run."""
+
+
+def _sha(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def prompts_fingerprint() -> str:
+    """Hash of every prompt file (a changed prompt invalidates saved answers)."""
+    files = sorted(PROMPTS_DIR.glob("*.yaml"))
+    return _sha("".join(f.name + f.read_text(encoding="utf-8") for f in files))
+
+
+@dataclass
+class Progress:
+    """Scored answers of an unfinished run, one JSON line each, behind a header line."""
+
+    path: Path
+    meta: dict[str, Any]
+
+    def load(self) -> dict[str, tuple[str, Outcome]]:
+        """Item id -> (item hash, outcome) when the header matches ``meta``, else ``{}``."""
+        if not self.path.exists():
+            return {}
+        lines = self.path.read_text(encoding="utf-8").splitlines()
+        try:
+            if not lines or json.loads(lines[0]).get("meta") != self.meta:
+                log.info("%s was made by another model, commit or prompt; starting over", self.path)
+                return {}
+        except json.JSONDecodeError:
+            return {}
+        saved: dict[str, tuple[str, Outcome]] = {}
+        for line in lines[1:]:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                break  # cut off by an interrupted write
+            saved[row["outcome"]["id"]] = (row["item_sha"], Outcome(**row["outcome"]))
+        return saved
+
+    def start(self, keep: bool) -> None:
+        """Write a fresh header unless continuing a matching file."""
+        if not keep:
+            paths.ensure_dir(self.path.parent)
+            self.path.write_text(json.dumps({"meta": self.meta}) + "\n", encoding="utf-8")
+
+    def add(self, item_sha: str, outcome: Outcome) -> None:
+        """Append one scored answer."""
+        with self.path.open("a", encoding="utf-8") as fh:
+            fh.write(
+                json.dumps({"item_sha": item_sha, "outcome": jsonable(asdict(outcome))}) + "\n"
+            )
+
+    def clear(self) -> None:
+        """Forget saved answers (``--fresh``)."""
+        self.path.unlink(missing_ok=True)
+
+
 def run_eval(
     version: str,
     items: Sequence[Mapping[str, Any]],
     ctx: ToolContext,
     llm_for: Callable[[Prepared], Any],
+    progress: Progress | None = None,
 ) -> tuple[dict[str, Any], list[Outcome]]:
-    """Ask every item with prompt ``version``; ``llm_for(prepared)`` gives the model per item."""
+    """Ask every item with prompt ``version``; ``llm_for(prepared)`` gives the model per item.
+
+    With ``progress``, answers saved by an interrupted run of the same setup are reused and new
+    ones are saved; :class:`EvalInterruptedError` is raised when the model becomes unavailable.
+    """
     retriever, _ = ctx.get_retriever()
     index_docs = set(retriever.documents) if retriever is not None else set()
+    saved = progress.load() if progress is not None else {}
+    if progress is not None:
+        progress.start(keep=bool(saved))
+        if saved:
+            log.info("%s: continuing; %d answers saved by an earlier run", version, len(saved))
     outcomes: list[Outcome] = []
     for item in items:
+        item_sha = _sha(json.dumps(item, sort_keys=True))
+        if item["id"] in saved and saved[item["id"]][0] == item_sha:
+            outcomes.append(saved[item["id"]][1])
+            continue
         prep = prepare(item, ctx, index_docs)
         if prep.skip:
             outcomes.append(
@@ -542,10 +626,23 @@ def run_eval(
             )
             log.info("%s skipped: %s", item["id"], prep.skip)
             continue
-        agent = CopilotAgent(llm_for(prep), ctx, version)
-        ans = agent.ask(prep.question)
+        llm = llm_for(prep)
+        waited_before = float(getattr(llm, "wait_s", 0.0))
+        ans = CopilotAgent(llm, ctx, version).ask(prep.question)
+        if ans.error and ans.error.startswith("llm_unavailable"):
+            done = sum(o.skipped is None for o in outcomes)
+            raise EvalInterruptedError(
+                f"{version} {item['id']}: {ans.error} ({done} answers kept; run the same "
+                "command again to continue)"
+            )
         outcome = score(prep, ans)
+        waited = float(getattr(llm, "wait_s", 0.0)) - waited_before
+        if waited > 0 and outcome.latency_s is not None:
+            outcome.latency_s = round(max(0.0, outcome.latency_s - waited), 3)
+            outcome.wait_s = round(waited, 3)
         outcomes.append(outcome)
+        if progress is not None:
+            progress.add(item_sha, outcome)
         log.info(
             "%s %s correct=%s tools=%s %.1fs",
             version,
@@ -565,6 +662,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--only", help="comma-separated item ids or categories")
     parser.add_argument(
         "--mock", action="store_true", help="scripted oracle model; never writes metrics"
+    )
+    parser.add_argument(
+        "--fresh", action="store_true", help="ask every item again (ignore saved answers)"
     )
     args = parser.parse_args(argv)
     items = load_items(args.items)
@@ -591,9 +691,28 @@ def main(argv: list[str] | None = None) -> int:
                 json.dumps(jsonable({k: v for k, v in summary.items() if k != "items"}))[:2000],
             )
             continue
-        llm = build_llm(settings, ctx.cfg["llm"])
+        llm_cfg = dict(ctx.cfg["llm"])  # an unattended run can wait longer for a rate limit
+        llm_cfg["rate_limit_retries"] = llm_cfg.get("eval_rate_limit_retries", 6)
+        llm = build_llm(settings, llm_cfg)
         ctx.llm = llm
-        summary, outcomes = run_eval(version, items, ctx, lambda _p, _llm=llm: _llm)
+        progress = Progress(
+            paths.pe_eval_progress_dir() / f"{version}.progress.jsonl",
+            {
+                "version": version,
+                **settings.describe(),
+                "git_commit": git_commit(),
+                "prompts": prompts_fingerprint(),
+            },
+        )
+        if args.fresh:
+            progress.clear()
+        try:
+            summary, outcomes = run_eval(
+                version, items, ctx, lambda _p, _llm=llm: _llm, progress=progress
+            )
+        except EvalInterruptedError as exc:
+            log.error("model unavailable, stopped: %s", exc)
+            return 3
         payload = {
             "version": version,
             "model": settings.describe(),

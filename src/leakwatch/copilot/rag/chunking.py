@@ -12,11 +12,21 @@
 
 Some PDFs store heading glyphs as ``/G31/G35`` (hex character codes); :func:`decode_glyphs` turns
 them back into text.
+
+**OCR text** (scanned PDFs, :mod:`leakwatch.copilot.rag.ocr`) garbles headings: spaces vanish
+(``10.2BASICREQUIREMENTS``), digits are read as letters (``10.J0.2``, ``10.1OPREVENTIVE``) and
+dots get lost (``1010.3CLEANING``). With ``ocr=True`` every reading of a heading number is tried
+and the one that continues the section sequence (the next number after the last heading of the
+current chapter, allowing one missed heading) is kept; run-together capitals are split into words
+known from the same document's running text.
 """
 
 from __future__ import annotations
 
+import itertools
+import math
 import re
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -25,7 +35,7 @@ from typing import Any
 import yaml
 
 _GLYPH = re.compile(r"/G([0-9A-Fa-f]{2})")
-_CHAPTER = re.compile(r"^CHAPTER\s+(\d{1,2})$", re.I)
+_CHAPTER = re.compile(r"^CHAPTER[\s'’.:-]*(\d{1,2})$", re.I)  # OCR: CHAPTER10, CHAPTER'6
 _HEADING = re.compile(r"^(\d{1,2})\.(\d{1,2})(?:\.(\d{1,2}))?\.?\s+([A-Za-z(].{2,90})$")
 _DOT_LEADER = re.compile(r"\.{5,}|(?:\. ){4,}")
 _MD_HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
@@ -247,7 +257,8 @@ def chapter_titles(pages: Sequence[str]) -> tuple[dict[int, list[str]], int | No
             number = int(m.group(1))
             words: list[str] = []
             for nxt in lines[i + 1 : i + 4]:
-                if _HEADING.match(nxt) or _upper_share(nxt) < 0.9 or len(nxt) > 60:
+                numbered = nxt[0].isdigit() or _OCR_FIVE.match(nxt)  # 10.1GENERAL, S.1KINDS
+                if numbered or _upper_share(nxt) < 0.9 or len(nxt) > 60:
                     break
                 words.append(nxt)
             if number not in titles and words:
@@ -261,18 +272,186 @@ def _is_toc(lines: Sequence[str]) -> bool:
     return bool(lines) and sum(bool(_DOT_LEADER.search(x)) for x in lines) / len(lines) >= 0.25
 
 
+# ------------------------------------------------------------------------------------------
+# OCR headings
+# ------------------------------------------------------------------------------------------
+
+_OCR_PREFIX = re.compile(r"^[0-9OoIlJS|.,]+")
+_OCR_FIVE = re.compile(r"^S[.,]\d")  # "S.1KINDS": 5 read as S
+_OCR_DIGITS = str.maketrans({"O": "0", "o": "0", "I": "1", "l": "1", "J": "1", "|": "1", "S": "5"})
+_CAPS_RUN = re.compile(r"[A-Z]{4,}")
+_WORD = re.compile(r"[a-z]{2,}")
+_APPENDIX = re.compile(r"^APPENDIX[\s'’.:-]*([A-Z]|[0-9OIlJ|S]{1,2}(?:[.,][0-9OIlJ|S]{1,2})?)\.?$")
+
+Number = tuple[int, ...]
+
+
+def _group_splits(digits: str) -> list[Number]:
+    """Ways to read a digit run as 1-3 section numbers of 1-2 digits (no 0, no leading 0)."""
+    out: list[Number] = []
+    for parts in range(1, 4):
+        for cuts in itertools.combinations(range(1, len(digits)), parts - 1):
+            bounds = [0, *cuts, len(digits)]
+            pieces = [digits[a:b] for a, b in itertools.pairwise(bounds)]
+            if all(len(p) <= 2 and p[0] != "0" for p in pieces):
+                out.append(tuple(int(p) for p in pieces))
+    return out
+
+
+def ocr_heading_readings(line: str) -> list[tuple[Number, str, bool]]:
+    """Possible ``(number, title, had_dot)`` readings of an OCR line that may be a heading.
+
+    ``10.1OPREVENTIVE MAINTENANCE`` reads as ``(10, 10)`` + ``PREVENTIVE MAINTENANCE`` or as
+    ``(10, 1)`` + ``OPREVENTIVE MAINTENANCE``; ``1010.3CLEANING`` as ``(10, 10, 3)`` among
+    others. Only 2- and 3-level numbers are returned (4-level headings stay running text).
+    """
+    m = _OCR_PREFIX.match(line)
+    if not m or not (line[0].isdigit() or _OCR_FIVE.match(line)):
+        return []
+    prefix = m.group(0)
+    readings: list[tuple[Number, str, bool]] = []
+    for cut in range(len(prefix), 0, -1):
+        token = prefix[:cut].rstrip(".,")
+        title = (prefix[cut:] + line[len(prefix) :]).lstrip(" .,")
+        if not token or len(title) < 3 or not (title[0].isalpha() or title[0] == "("):
+            continue
+        mapped = token.translate(_OCR_DIGITS)
+        if not re.fullmatch(r"[0-9.,]+", mapped):
+            continue
+        groups = [g for g in re.split(r"[.,]", mapped) if g]
+        for combo in itertools.product(*(_group_splits(g) for g in groups)):
+            number = tuple(n for part in combo for n in part)
+            if 2 <= len(number) <= 3 and (number, title) not in {(r[0], r[1]) for r in readings}:
+                readings.append((number, title, len(groups) > 1))
+    return readings
+
+
+def follows(number: Number, chapter: int | None, last: Number | None) -> bool:
+    """Whether ``number`` can be the next heading after ``last`` (one missed heading allowed).
+
+    ``chapter`` is the current chapter (from a ``CHAPTER n`` line or earlier headings);
+    ``last`` the previous heading number in it, or None at the start of a chapter.
+    """
+    x, y = number[0], number[1]
+    z = number[2] if len(number) == 3 else 0
+    if chapter is not None and x == chapter:
+        if last is None or last[0] != x:
+            return y <= 2 and z <= 2
+        ly, lz = last[1], (last[2] if len(last) == 3 else 0)
+        if (y, z) <= (ly, lz):
+            return False
+        if y == ly:
+            return z <= lz + 3
+        return y <= ly + 2 and z <= 2
+    if chapter is None or x == chapter + 1:
+        return y <= 2 and z <= 2
+    return False
+
+
+def word_counts(pages: Sequence[str]) -> Counter[str]:
+    """Lower-case word counts from running text (lines that are not mostly capitals)."""
+    counts: Counter[str] = Counter()
+    for page in pages:
+        for line in page.splitlines():
+            if _upper_share(line) < 0.5:
+                counts.update(_WORD.findall(line.lower()))
+    return counts
+
+
+class OcrWords:
+    """Word counts of one OCR'd document, used to clean its headings.
+
+    Runs of capitals are split into the most likely sequence of words from the document's
+    running text (``WASTEASSESSMENT`` -> ``WASTE ASSESSMENT``); a word that is one letter away
+    from a frequent word is read as that word (``PREVENTTVE`` -> ``PREVENTIVE``). A run that
+    cannot be read entirely as known words is kept as it is (no ``CONVERSI ON``).
+    """
+
+    def __init__(self, vocab: Counter[str]) -> None:
+        """Index ``vocab`` (lower-case word counts, :func:`word_counts`)."""
+        self.vocab = vocab
+        self.total = sum(vocab.values()) or 1
+        self.near: dict[str, str] = {}  # "pre?entive" -> "preventive"
+        for word, n in vocab.items():
+            if n >= 3 and len(word) >= 5:
+                for i in range(len(word)):
+                    key = word[:i] + "?" + word[i + 1 :]
+                    if vocab[self.near.get(key, "")] < n:
+                        self.near[key] = word
+
+    def _cost(self, word: str) -> tuple[float, str]:
+        n = self.vocab.get(word, 0)
+        if n >= 2 and (len(word) >= 2 or word == "a"):
+            return math.log(self.total / n), word
+        if len(word) >= 5:
+            for i in range(len(word)):
+                fix = self.near.get(word[:i] + "?" + word[i + 1 :])
+                if fix:
+                    return math.log(self.total / self.vocab[fix]) + 4.0, fix
+        return math.inf, word  # unknown: a split must consist of known words only
+
+    def split(self, run: str) -> str:
+        """One run of capitals as words."""
+        low = run.lower()
+        best: list[tuple[float, int, str]] = [(0.0, 0, "")] + [(math.inf, 0, "")] * len(low)
+        for i in range(1, len(low) + 1):
+            for j in range(max(0, i - 20), i):
+                cost, word = self._cost(low[j:i])
+                if best[j][0] + cost < best[i][0]:
+                    best[i] = (best[j][0] + cost, j, word)
+        if math.isinf(best[-1][0]):
+            return run
+        words, i = [], len(low)
+        while i > 0:
+            _, j, word = best[i]
+            words.append(run[j:i] if word == low[j:i] else word.upper())
+            i = j
+        return " ".join(reversed(words))
+
+    def clean(self, text: str) -> str:
+        """``text`` with every run of 4+ capitals read as words."""
+        return _CAPS_RUN.sub(lambda m: self.split(m.group(0)), text)
+
+
+def split_caps(text: str, vocab: Counter[str]) -> str:
+    """Shorthand for ``OcrWords(vocab).clean(text)``."""
+    return OcrWords(vocab).clean(text)
+
+
+def ocr_heading(line: str, chapter: int | None, last: Number | None) -> tuple[Number, str] | None:
+    """The reading of ``line`` that continues the section sequence, if it looks like a heading."""
+    best: tuple[Number, str] | None = None
+    for number, title, had_dot in ocr_heading_readings(line):
+        if not follows(number, chapter, last) or title.endswith(",") or len(title) > 90:
+            continue
+        caps = _upper_share(title) >= 0.8
+        mixed_ok = len(number) == 3 and had_dot and title[0].isupper() and len(title) <= 70
+        if (caps or mixed_ok) and (best is None or number < best[0]):
+            best = (number, title)
+    return best
+
+
 def chunk_pdf_pages(
     pages: Sequence[str],
     info: DocumentInfo,
     max_chars: int = 1000,
     overlap: int = 150,
     skip_front_matter: bool = True,
+    ocr: bool = False,
 ) -> list[Chunk]:
     """Passages of a PDF given the text of its pages (see module docstring)."""
     title_lines_of, first_chapter_page = chapter_titles(pages)
-    titles = {n: title_case(" ".join(words)) for n, words in title_lines_of.items()}
+    words = OcrWords(word_counts(pages)) if ocr else None
+    titles = {
+        n: title_case(words.clean(" ".join(lines)) if words else " ".join(lines))
+        for n, lines in title_lines_of.items()
+    }
     chapter: int | None = None
     section: str | None = None
+    # OCR mode: last heading number in the current chapter; the appendix being read, if any
+    last_heading: Number | None = None
+    appendix: str | None = None
+    appendix_title_next = False
     # (chapter, section, [(page, printed, line)])
     blocks: list[tuple[int | None, str | None, list[tuple[int, str | None, str]]]] = []
     current: list[tuple[int, str | None, str]] = []
@@ -301,10 +480,32 @@ def chunk_pdf_pages(
             m_ch = _CHAPTER.match(line)
             if m_ch:
                 number = int(m_ch.group(1))
-                if number != chapter:
+                if number != chapter or appendix:
                     flush()
-                    chapter, section = number, None
+                    chapter, section, last_heading, appendix = number, None, None, None
                 expect_title = list(title_lines_of.get(number, []))
+                continue
+            if words is not None:  # OCR text
+                m_ap = _APPENDIX.match(line)
+                if m_ap:  # "APPENDIX 10.1" / "APPENDIXA": numbered lines inside are not headings
+                    flush()
+                    label = m_ap.group(1)
+                    appendix = label.translate(_OCR_DIGITS) if label[0].isdigit() else label
+                    chapter, last_heading, section = None, None, f"Appendix {appendix}"
+                    appendix_title_next = True
+                elif appendix_title_next:
+                    appendix_title_next = False
+                    if _upper_share(line) >= 0.8 and not line[0].isdigit() and len(line) <= 90:
+                        section = f"Appendix {appendix} {title_case(words.clean(line))}"
+                elif appendix is None:
+                    heading = ocr_heading(line, chapter, last_heading)
+                    if heading:
+                        flush()
+                        last_heading, text = heading
+                        chapter = last_heading[0]
+                        label = ".".join(map(str, last_heading))
+                        section = f"§{label} {title_case(words.clean(text))}"
+                current.append((page_no, printed, line))
                 continue
             m_h = _HEADING.match(line)
             if m_h:
@@ -356,5 +557,5 @@ def chunk_pdf_pages(
 def chunk_pdf(
     path: Path, info: DocumentInfo, max_chars: int = 1000, overlap: int = 150
 ) -> list[Chunk]:
-    """Read a PDF and split it into passages."""
+    """Read a PDF (text layer) and split it into passages."""
     return chunk_pdf_pages(read_pdf_pages(path), info, max_chars, overlap)

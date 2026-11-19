@@ -40,6 +40,10 @@ copilot = [
     "sentence-transformers==3.4.1",
     "pypdf==5.9.0",
     "sqlglot==26.33.0",
+    # OCR for scanned manuals (docs/DECISIONS.md D-034): render pages, RapidOCR on ONNX Runtime.
+    "pypdfium2==4.30.0",
+    "rapidocr-onnxruntime==1.4.4",
+    "opencv-python-headless==4.10.0.84",
 ]
 dashboard = ["streamlit==1.45.1", "plotly==5.24.1"]
 
@@ -63,6 +67,9 @@ packages = ["src/leakwatch"]
 
 [tool.uv]
 default-groups = ["dev"]
+# rapidocr-onnxruntime asks for the GUI build of OpenCV, which needs libGL at import time;
+# the headless build above provides the same `cv2` module without it.
+exclude-dependencies = ["opencv-python"]
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu" }]

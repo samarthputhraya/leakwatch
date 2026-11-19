@@ -13,7 +13,7 @@ PY_DIRS := src tests scripts notebooks
 	lake-reset replay stream ingest-year stream-latency lake-stats test-integration features \
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
-	demo-check bdt-scaling reports test-report prepare llm-local bdt-synthetic gnn-apply
+	demo-check bdt-scaling reports test-report prepare llm-local llm-check bdt-synthetic gnn-apply
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -133,7 +133,7 @@ test-report: ## tests + coverage -> test_summary.json (TEST_SCOPE="--all --integ
 live-replay: ## replay part of 2019 at 360x with live K-Means alerts (needs `make up`)
 	$(RUN) python -m leakwatch.stream.live_replay
 
-index: ## copilot RAG index: docs/kb + CPHEEO PDFs in data/docs (downloaded if missing) -> data/index/
+index: ## copilot RAG index: docs/kb + CPHEEO PDFs in data/docs (downloaded if missing; scans OCR'd once) -> data/index/
 	$(RUN) python -m leakwatch.copilot.rag.build
 
 dispatch: ## work orders for alerts without one -> lake/work_orders (template when no LLM is set)
@@ -142,8 +142,11 @@ dispatch: ## work orders for alerts without one -> lake/work_orders (template wh
 llm-local: ## local CPU model for the copilot (llama.cpp + Qwen3-4B, ~2.1 GB download) on :8080
 	bash scripts/local_llm.sh
 
+llm-check: ## one-minute check that the LLM in .env can call the copilot's tools (no metrics)
+	$(RUN) python -m leakwatch.copilot.check
+
 PE_VERSION ?= all
-pe-eval: ## copilot evaluation, needs LLM_* in .env: make pe-eval PE_VERSION=v1|v2|v3|all
+pe-eval: ## copilot evaluation, needs LLM_* in .env: make pe-eval PE_VERSION=v1|v2|v3|all (resumes)
 	$(RUN) python -m leakwatch.copilot.evaluate --version $(PE_VERSION)
 
 features-stream-reset: ## delete the live feature table, its carried state and checkpoint
@@ -161,8 +164,8 @@ prepare: ## fresh data dir -> lake, features, models, alerts, localizer, RAG ind
 	$(MAKE) bdt-synthetic
 	$(MAKE) gnn-data
 	$(MAKE) gnn
-	$(MAKE) dispatch
 	$(MAKE) index
+	$(MAKE) dispatch
 
 demo: ## live demo: runner (replay + Spark + leak injection) + dashboard on :8501 (needs `make up`)
 	bash scripts/demo.sh

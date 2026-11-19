@@ -101,5 +101,83 @@ def test_openai_client_parses_tool_calls_and_wraps_errors():
         raise openai.APIConnectionError(request=SimpleNamespace(method="POST", url="http://x"))
 
     llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=fail)))
-    with pytest.raises(LLMError):
+    with pytest.raises(LLMError) as err:
         llm.chat([{"role": "user", "content": "q"}])
+    assert err.value.transient  # a retry later may work
+
+
+def _reply_ok(**kwargs):
+    msg = SimpleNamespace(content="done", tool_calls=None)
+    return SimpleNamespace(choices=[SimpleNamespace(message=msg)], usage=None)
+
+
+def test_rate_limits_are_waited_out_then_reported_as_transient(monkeypatch):
+    openai = pytest.importorskip("openai")
+    httpx = pytest.importorskip("httpx")
+    from leakwatch.copilot import llm as llm_mod
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(llm_mod.time, "sleep", sleeps.append)
+    request = httpx.Request("POST", "http://x/v1/chat/completions")
+
+    def limited(headers):
+        response = httpx.Response(429, headers=headers, request=request)
+        return openai.RateLimitError("slow down", response=response, body=None)
+
+    attempts = iter([limited({"retry-after": "2"}), limited({}), None])
+
+    def create(**kwargs):
+        exc = next(attempts)
+        if exc is not None:
+            raise exc
+        return _reply_ok()
+
+    cfg = {"max_retries": 0, "rate_limit_retries": 3, "rate_limit_max_wait_s": 60}
+    llm = llm_mod.OpenAICompatibleLLM(LLMSettings("http://x/v1", "k", "m"), cfg)
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    assert llm.chat([{"role": "user", "content": "q"}]).content == "done"
+    assert sleeps == [2.0, 10.0] and llm.wait_s == 12.0  # Retry-After, then 5 s doubled
+
+    def always(**kwargs):
+        raise limited({"retry-after": "500"})
+
+    llm = llm_mod.OpenAICompatibleLLM(
+        LLMSettings("http://x/v1", "k", "m"), {**cfg, "rate_limit_retries": 1}
+    )
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=always)))
+    sleeps.clear()
+    with pytest.raises(LLMError) as err:
+        llm.chat([{"role": "user", "content": "q"}])
+    assert err.value.transient and sleeps == [60.0]  # capped at rate_limit_max_wait_s
+
+
+def test_requests_are_paced_to_the_configured_rate(monkeypatch):
+    pytest.importorskip("openai")
+    from leakwatch.copilot import llm as llm_mod
+
+    clock = {"t": 1000.0}
+    sleeps: list[float] = []
+
+    def sleep(s):
+        sleeps.append(round(s, 3))
+        clock["t"] += s
+
+    monkeypatch.setattr(llm_mod.time, "monotonic", lambda: clock["t"])
+    monkeypatch.setattr(llm_mod.time, "sleep", sleep)
+    llm = llm_mod.OpenAICompatibleLLM(LLMSettings("http://x/v1", "k", "m", rpm=30), {})
+    llm._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=_reply_ok))
+    )
+    llm.chat([{"role": "user", "content": "q"}])
+    clock["t"] += 0.5  # the model answered in 0.5 s
+    llm.chat([{"role": "user", "content": "q"}])
+    assert sleeps == [1.5] and llm.wait_s == 1.5  # 30/min = one request every 2 s
+
+
+def test_rpm_setting_is_parsed():
+    base = {"LLM_BASE_URL": "http://x/v1", "LLM_MODEL": "m"}
+    assert llm_settings({**base, "LLM_RPM": "30"}).rpm == 30.0
+    assert llm_settings({**base, "LLM_RPM": ""}).rpm is None
+    assert llm_settings({**base, "LLM_RPM": "0"}).rpm is None
+    with pytest.raises(ValueError, match="LLM_RPM"):
+        llm_settings({**base, "LLM_RPM": "fast"})

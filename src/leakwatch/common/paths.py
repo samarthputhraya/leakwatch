@@ -161,6 +161,11 @@ def models_dir() -> Path:
     return data_dir() / "models"
 
 
+def pe_eval_progress_dir() -> Path:
+    """Answers of an unfinished copilot evaluation, kept so a rerun continues (free tiers)."""
+    return data_dir() / "pe_eval"
+
+
 _SCRATCH: dict[int, Path] = {}
 
 

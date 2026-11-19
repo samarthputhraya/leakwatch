@@ -167,6 +167,59 @@ def test_wrong_answers_are_scored_wrong(ctx):
     assert out.hallucinated_before is False
 
 
+def test_an_unavailable_model_stops_the_run_and_a_rerun_continues(ctx, tmp_path):
+    from leakwatch.copilot.llm import LLMError
+
+    items = [ITEMS[0], ITEMS[1], ITEMS[4]]  # d1, d2, p1
+    progress = evaluate.Progress(tmp_path / "v3.progress.jsonl", {"model": "m", "commit": "c"})
+    asked: list[str] = []
+
+    class QuotaGone:
+        model = "m"
+        wait_s = 0.0
+
+        def chat(self, *args, **kwargs):
+            raise LLMError("rate limited: daily quota", transient=True)
+
+    def first_run(prep):
+        asked.append(prep.item["id"])
+        return evaluate.mock_llm_for(prep) if prep.item["id"] == "d1" else QuotaGone()
+
+    with pytest.raises(evaluate.EvalInterruptedError, match="d2"):
+        evaluate.run_eval("v3", items, ctx, first_run, progress=progress)
+    assert asked == ["d1", "d2"]  # d2 was not scored as a wrong answer
+
+    def second_run(prep):
+        asked.append(prep.item["id"])
+        return evaluate.mock_llm_for(prep)
+
+    asked.clear()
+    summary, outcomes = evaluate.run_eval("v3", items, ctx, second_run, progress=progress)
+    assert asked == ["d2", "p1"]  # d1 came from the saved answers
+    assert [o.id for o in outcomes] == ["d1", "d2", "p1"] and all(o.correct for o in outcomes)
+    assert summary["items"]["evaluated"] == 3
+
+    asked.clear()  # a finished run is not asked again; another model starts over
+    evaluate.run_eval("v3", items, ctx, second_run, progress=progress)
+    assert asked == []
+    other = evaluate.Progress(progress.path, {"model": "other", "commit": "c"})
+    evaluate.run_eval("v3", items, ctx, second_run, progress=other)
+    assert asked == ["d1", "d2", "p1"]
+
+
+def test_rejected_requests_are_scored_not_retried(ctx):
+    from leakwatch.copilot.llm import LLMError
+
+    class Rejects:
+        model = "m"
+
+        def chat(self, *args, **kwargs):
+            raise LLMError("BadRequestError: tool schema rejected")
+
+    _, outcomes = evaluate.run_eval("v3", [ITEMS[0]], ctx, lambda _p: Rejects())
+    assert outcomes[0].correct is False and outcomes[0].error.startswith("llm_error")
+
+
 def test_main_without_a_model_writes_nothing(monkeypatch):
     for key in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"):
         monkeypatch.delenv(key, raising=False)

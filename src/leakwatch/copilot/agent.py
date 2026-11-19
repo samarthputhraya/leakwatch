@@ -239,10 +239,13 @@ class CopilotAgent:
             answer = self._guard(question, draft, messages, tools, execute, results, report)
         except LLMError as exc:
             log.warning("model call failed: %s", exc)
+            # llm_unavailable: rate limit, timeout or server error (a retry may work);
+            # llm_error: the request was rejected or the reply was unusable
+            kind = "llm_unavailable" if getattr(exc, "transient", False) else "llm_error"
             return finish(
                 "The language model did not respond, so I cannot answer right now. Alerts, charts "
                 "and template work orders still work; please try again in a moment.",
-                error=f"llm_error: {exc}",
+                error=f"{kind}: {exc}",
             )
         return finish(answer)
 

@@ -9,6 +9,9 @@ Corpus:
    checked when configured); otherwise it is skipped with a warning (the owner places it by hand);
 3. any other ``*.pdf`` / ``*.md`` dropped into ``paths.docs_data_dir()`` (title = file name).
 
+A PDF without a text layer (a scan) is OCR'd once and cached next to it
+(:mod:`leakwatch.copilot.rag.ocr`, settings in ``copilot.rag.ocr``).
+
 Passages are embedded with ``copilot.rag.embedding_model`` and written to
 ``paths.index_dir() / copilot.rag.index_name``. A summary goes to
 ``reports/metrics/rag_index.json`` (documents, passages per document, skipped files and why).
@@ -17,7 +20,6 @@ Passages are embedded with ``copilot.rag.embedding_model`` and written to
 from __future__ import annotations
 
 import argparse
-import hashlib
 import sys
 import time
 from collections.abc import Mapping, Sequence
@@ -33,23 +35,16 @@ from leakwatch.copilot.rag.chunking import (
     Chunk,
     DocumentInfo,
     chunk_markdown,
-    chunk_pdf,
+    chunk_pdf_pages,
     markdown_info,
+    read_pdf_pages,
 )
 from leakwatch.copilot.rag.embed import Embedder, get_embedder
 from leakwatch.copilot.rag.index import VectorIndex, index_path
+from leakwatch.copilot.rag.ocr import OcrSettings, needs_ocr, ocr_pdf, sha256_of
 from leakwatch.copilot.settings import copilot_config
 
 log = get_logger("leakwatch.copilot.rag.build")
-
-
-def sha256_of(path: Path) -> str:
-    """Hex SHA-256 of a file."""
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for block in iter(lambda: fh.read(1 << 20), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def download_document(spec: Mapping[str, Any], target: Path, timeout_s: float) -> str:
@@ -141,8 +136,22 @@ def collect_documents(
     return docs, status
 
 
-def chunk_documents(docs: Sequence[DocumentInfo], cfg: Mapping[str, Any]) -> list[Chunk]:
-    """Passages of every document."""
+def pdf_pages(path: Path, rag: Mapping[str, Any]) -> tuple[list[str], bool]:
+    """Text of a PDF's pages and whether it came from OCR (the PDF has no text layer)."""
+    pages = read_pdf_pages(path)
+    ocr_cfg = rag.get("ocr") or {}
+    if not needs_ocr(pages, float(ocr_cfg.get("min_text_share", 0.5))):
+        return pages, False
+    log.info("%s: no text layer on most pages; using OCR", path.name)
+    return ocr_pdf(path, OcrSettings.from_config(ocr_cfg), n_pages=len(pages)), True
+
+
+def chunk_documents(
+    docs: Sequence[DocumentInfo],
+    cfg: Mapping[str, Any],
+    sources: dict[str, dict[str, Any]] | None = None,
+) -> list[Chunk]:
+    """Passages of every document; ``sources`` gets each PDF's page count and text source."""
     rag = cfg["rag"]
     max_chars, overlap = int(rag["chunk_max_chars"]), int(rag["chunk_overlap_chars"])
     chunks: list[Chunk] = []
@@ -152,7 +161,13 @@ def chunk_documents(docs: Sequence[DocumentInfo], cfg: Mapping[str, Any]) -> lis
             _, body = markdown_info(path, doc_id=info.doc_id)
             found = chunk_markdown(body, info, max_chars, overlap)
         else:
-            found = chunk_pdf(path, info, max_chars, overlap)
+            pages, scanned = pdf_pages(path, rag)
+            found = chunk_pdf_pages(pages, info, max_chars, overlap, ocr=scanned)
+            if sources is not None:
+                sources[info.doc_id] = {
+                    "pages": len(pages),
+                    "text_source": "ocr" if scanned else "text layer",
+                }
         log.info("%s: %d passages", info.doc_id, len(found))
         chunks.extend(found)
     return chunks
@@ -162,7 +177,8 @@ def build_index(
     docs: Sequence[DocumentInfo], embedder: Embedder, cfg: Mapping[str, Any]
 ) -> VectorIndex:
     """Chunk and embed ``docs``."""
-    chunks = chunk_documents(docs, cfg)
+    sources: dict[str, dict[str, Any]] = {}
+    chunks = chunk_documents(docs, cfg, sources)
     texts = [f"{c.section}\n{c.text}" for c in chunks]
     vectors = embedder.encode(texts) if texts else np.zeros((0, 1), dtype=np.float32)
     per_doc: dict[str, int] = {}
@@ -181,6 +197,7 @@ def build_index(
                 "file": Path(d.path).name,
                 "url": d.url,
                 "chunks": per_doc.get(d.doc_id, 0),
+                **sources.get(d.doc_id, {}),
             }
             for d in docs
         ],

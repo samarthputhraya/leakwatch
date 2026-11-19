@@ -2,7 +2,8 @@
 
 The endpoint is any OpenAI-compatible server (PRD §9.1): ``LLM_BASE_URL``, ``LLM_API_KEY`` and
 ``LLM_MODEL``. A local server (Ollama) needs no key; a hosted one needs a key and may leave the base
-URL empty (the client's default). Keys are never logged or written to result files.
+URL empty (the client's default). Keys are never logged or written to result files. ``LLM_RPM``
+(optional) caps requests per minute for a rate-limited free endpoint.
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ class LLMSettings:
     base_url: str | None
     api_key: str | None
     model: str | None
+    rpm: float | None = None  # requests per minute to stay under (free tiers)
 
     @property
     def configured(self) -> bool:
@@ -44,14 +46,24 @@ class LLMSettings:
 
 
 def llm_settings(environ: Mapping[str, str] | None = None) -> LLMSettings:
-    """Read ``LLM_BASE_URL``, ``LLM_API_KEY`` and ``LLM_MODEL`` (empty values count as unset)."""
+    """Read ``LLM_BASE_URL``, ``LLM_API_KEY``, ``LLM_MODEL`` and ``LLM_RPM`` (empty = unset)."""
     env = os.environ if environ is None else environ
 
     def get(name: str) -> str | None:
         value = (env.get(name) or "").strip()
         return value or None
 
-    return LLMSettings(get("LLM_BASE_URL"), get("LLM_API_KEY"), get("LLM_MODEL"))
+    rpm = get("LLM_RPM")
+    try:
+        rpm_value = float(rpm) if rpm else None
+    except ValueError as exc:
+        raise ValueError(f"LLM_RPM must be a number, got {rpm!r}") from exc
+    return LLMSettings(
+        get("LLM_BASE_URL"),
+        get("LLM_API_KEY"),
+        get("LLM_MODEL"),
+        rpm_value if rpm_value and rpm_value > 0 else None,
+    )
 
 
 def copilot_config(cfg: Mapping[str, Any] | None = None) -> dict[str, Any]:
