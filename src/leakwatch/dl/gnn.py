@@ -394,12 +394,98 @@ def pipe_distance(g: GraphData, wn: Any, node_idx: np.ndarray, pipe: str) -> np.
     return np.min(g.dist[np.ix_(node_idx, ends)], axis=1)
 
 
+def benchmark_2019(
+    g: GraphData, model: nn.Module, best: str, scale: float, within: float, sensors: list[str]
+) -> dict[str, Any]:
+    """Localize each 2019 leak at its first detecting batch alert; distances to the pipe."""
+    from leakwatch.data import network
+    from leakwatch.data.ground_truth import load_ground_truth
+
+    wn = network.load_network()
+    gt = load_ground_truth()
+    con = lake.connect()
+    alerts = lake.query_df(
+        con,
+        "SELECT alert_id, start_ts, version FROM alerts "
+        "WHERE origin = 'batch' AND model = 'kmeans'",
+    )
+    bench = []
+    new_2019 = gt[gt["start_ts"].dt.year == 2019]
+    for leak in new_2019.itertuples(index=False):
+        hit = alerts[
+            (alerts["start_ts"] >= leak.start_ts)
+            & (alerts["start_ts"] <= leak.start_ts + pd.Timedelta(days=7))
+        ]
+        if hit.empty:
+            continue
+        t = hit["start_ts"].min()
+        xb = benchmark_inputs(g, [t], sensors)
+        sc = (
+            predict(model, g, xb, scale)[0]
+            if best != "nearest_sensor"
+            else nearest_sensor_scores(g, xb)[0]
+        )
+        top = np.argsort(-sc)[:5]
+        d = pipe_distance(g, wn, top, leak.pipe_id)
+        heur = np.argsort(-nearest_sensor_scores(g, xb)[0])[:5]
+        dh = pipe_distance(g, wn, heur, leak.pipe_id)
+        bench.append(
+            {
+                "leak_id": leak.leak_id,
+                "pipe_id": leak.pipe_id,
+                "type": leak.type,
+                "peak_outflow_m3h": float(leak.peak_outflow_m3h),
+                "alert_start": t.isoformat(),
+                "top5_nodes": [g.nodes[i] for i in top],
+                "distance_top1_m": round(float(d[0]), 1),
+                "distance_best_of_top5_m": round(float(d.min()), 1),
+                "nearest_sensor_distance_top1_m": round(float(dh[0]), 1),
+                "nearest_sensor_distance_best_of_top5_m": round(float(dh.min()), 1),
+            }
+        )
+    bench_df = pd.DataFrame(bench)
+    benchmark = {
+        "leaks_localized": len(bench_df),
+        "model": best,
+        "within_m_top1": round(float((bench_df["distance_top1_m"] <= within).mean()), 4)
+        if len(bench_df)
+        else None,
+        "within_m_best_of_top5": round(
+            float((bench_df["distance_best_of_top5_m"] <= within).mean()), 4
+        )
+        if len(bench_df)
+        else None,
+        "median_distance_top1_m": float(bench_df["distance_top1_m"].median())
+        if len(bench_df)
+        else None,
+        "median_distance_best_of_top5_m": float(bench_df["distance_best_of_top5_m"].median())
+        if len(bench_df)
+        else None,
+        "nearest_sensor_median_distance_top1_m": float(
+            bench_df["nearest_sensor_distance_top1_m"].median()
+        )
+        if len(bench_df)
+        else None,
+        "per_leak": bench,
+        "input": "week-over-week change of pressure residual features, "
+        "two 1 h windows before the alert",
+    }
+    return benchmark
+
+
 # ------------------------------------------------------------------------------------- main
 
 
 def main(argv: list[str] | None = None) -> int:
     """Train/evaluate all localizers, test on BattLeDIM 2019, write gnn_top5 to alerts."""
-    argparse.ArgumentParser(description="GNN leak localizer.").parse_args(argv)
+    parser = argparse.ArgumentParser(description="GNN leak localizer.")
+    parser.add_argument(
+        "--apply-only",
+        action="store_true",
+        help="no training: re-localize the current batch alerts with the saved model",
+    )
+    if parser.parse_args(argv).apply_only:
+        return apply_only()
     t_start = time.perf_counter()
     cfg = load_config()
     gcfg = cfg["dl"]["gnn"]
@@ -480,80 +566,10 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    # BattLeDIM 2019: first true-positive alert per leak.
     from leakwatch.data import network
-    from leakwatch.data.ground_truth import load_ground_truth
 
-    wn = network.load_network()
     sensors = network.parse_sensor_config()["pressure"]
-    gt = load_ground_truth()
-    con = lake.connect()
-    alerts = lake.query_df(
-        con,
-        "SELECT alert_id, start_ts, version FROM alerts "
-        "WHERE origin = 'batch' AND model = 'kmeans'",
-    )
-    bench = []
-    new_2019 = gt[gt["start_ts"].dt.year == 2019]
-    for leak in new_2019.itertuples(index=False):
-        hit = alerts[
-            (alerts["start_ts"] >= leak.start_ts)
-            & (alerts["start_ts"] <= leak.start_ts + pd.Timedelta(days=7))
-        ]
-        if hit.empty:
-            continue
-        t = hit["start_ts"].min()
-        xb = benchmark_inputs(g, [t], sensors)
-        sc = (
-            predict(models[best], g, xb, scale)[0]
-            if best != "nearest_sensor"
-            else nearest_sensor_scores(g, xb)[0]
-        )
-        top = np.argsort(-sc)[:5]
-        d = pipe_distance(g, wn, top, leak.pipe_id)
-        heur = np.argsort(-nearest_sensor_scores(g, xb)[0])[:5]
-        dh = pipe_distance(g, wn, heur, leak.pipe_id)
-        bench.append(
-            {
-                "leak_id": leak.leak_id,
-                "pipe_id": leak.pipe_id,
-                "type": leak.type,
-                "peak_outflow_m3h": float(leak.peak_outflow_m3h),
-                "alert_start": t.isoformat(),
-                "top5_nodes": [g.nodes[i] for i in top],
-                "distance_top1_m": round(float(d[0]), 1),
-                "distance_best_of_top5_m": round(float(d.min()), 1),
-                "nearest_sensor_distance_top1_m": round(float(dh[0]), 1),
-                "nearest_sensor_distance_best_of_top5_m": round(float(dh.min()), 1),
-            }
-        )
-    bench_df = pd.DataFrame(bench)
-    benchmark = {
-        "leaks_localized": len(bench_df),
-        "model": best,
-        "within_m_top1": round(float((bench_df["distance_top1_m"] <= within).mean()), 4)
-        if len(bench_df)
-        else None,
-        "within_m_best_of_top5": round(
-            float((bench_df["distance_best_of_top5_m"] <= within).mean()), 4
-        )
-        if len(bench_df)
-        else None,
-        "median_distance_top1_m": float(bench_df["distance_top1_m"].median())
-        if len(bench_df)
-        else None,
-        "median_distance_best_of_top5_m": float(bench_df["distance_best_of_top5_m"].median())
-        if len(bench_df)
-        else None,
-        "nearest_sensor_median_distance_top1_m": float(
-            bench_df["nearest_sensor_distance_top1_m"].median()
-        )
-        if len(bench_df)
-        else None,
-        "per_leak": bench,
-        "input": "week-over-week change of pressure residual features, "
-        "two 1 h windows before the alert",
-    }
+    benchmark = benchmark_2019(g, models[best], best, scale, within, sensors)
 
     gnn_names = [n for n, s in variants.items() if s["kind"] != "mlp"]
     payload = {
@@ -589,6 +605,39 @@ def main(argv: list[str] | None = None) -> int:
         benchmark["within_m_best_of_top5"],
         path,
     )
+    return 0
+
+
+def apply_only() -> int:
+    """Re-run the 2019 benchmark and ``gnn_top5`` with the saved model (after ``make bdt-eval``).
+
+    ``make bdt-eval`` rewrites the batch alerts; this refreshes the localizer's part without
+    retraining and updates ``battledim_2019`` and ``alerts_with_gnn_top5`` in ``dl_gnn.json``.
+    """
+    from leakwatch.common.metrics import read_metrics
+    from leakwatch.data import network
+
+    cfg = load_config()
+    gcfg = cfg["dl"]["gnn"]
+    model_dir = paths.models_dir() / "gnn"
+    meta = json.loads((model_dir / "meta.json").read_text(encoding="utf-8"))
+    g = GraphData(
+        np.load(paths.sim_dir() / "gnn" / "graph.npz", allow_pickle=False),
+        float(meta["config"].get("sensor_distance_scale_m", 500.0)),
+    )
+    spec = meta.get("variant") or {"kind": meta["model"], "closeness": False, "context": False}
+    model = build_model(spec, g, len(g.sensor_idx) * 2, meta["config"])
+    model.load_state_dict(torch.load(model_dir / "model.pt", map_location="cpu", weights_only=True))
+    scale, best = float(meta["scale"]), str(meta["model"])
+    sensors = network.parse_sensor_config()["pressure"]
+    payload = read_metrics("dl_gnn")
+    payload.pop("meta", None)
+    payload["battledim_2019"] = benchmark_2019(
+        g, model, best, scale, float(gcfg["within_m"]), sensors
+    )
+    payload["alerts_with_gnn_top5"] = write_gnn_top5(cfg, g, model, best, scale, sensors)
+    path = write_metrics("dl_gnn", payload)
+    log.info("re-localized %s alerts with %s -> %s", payload["alerts_with_gnn_top5"], best, path)
     return 0
 
 
@@ -651,7 +700,7 @@ def make_localizer(model_dir: Any = None) -> Any:
     )
     spec = meta.get("variant") or {"kind": meta["model"], "closeness": False, "context": False}
     model = build_model(spec, g, len(g.sensor_idx) * 2, cfg)
-    model.load_state_dict(torch.load(model_dir / "model.pt", map_location="cpu"))
+    model.load_state_dict(torch.load(model_dir / "model.pt", map_location="cpu", weights_only=True))
     model.eval()
     sensors = network.parse_sensor_config()["pressure"]
     cols = [f"pressure__{s}__residual" for s in sensors]
