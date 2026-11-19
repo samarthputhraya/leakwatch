@@ -1,20 +1,352 @@
 {
   "meta": {
-    "generated_at": "2026-11-19T02:47:09+00:00",
-    "git_commit": "fe9da9b",
+    "generated_at": "2026-11-19T06:33:34+00:00",
+    "git_commit": "9d5130b",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "passed": 423,
+  "passed": 459,
   "failed": 0,
   "skipped": 0,
-  "duration_s": 1111.4,
+  "duration_s": 461.9,
   "by_folder": {
     "contract": 39,
-    "unit": 384
+    "integration": 2,
+    "metamorphic": 5,
+    "unit": 413
   },
-  "coverage_percent": 62.4,
-  "marker": "not slow and not integration",
+  "coverage_percent": 69.8,
+  "coverage_by_module": {
+    "__init__.py": {
+      "statements": 1,
+      "percent": 100.0
+    },
+    "bdt/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "bdt/alerts.py": {
+      "statements": 119,
+      "percent": 100.0
+    },
+    "bdt/data.py": {
+      "statements": 92,
+      "percent": 66.3
+    },
+    "bdt/evaluate.py": {
+      "statements": 129,
+      "percent": 24.0
+    },
+    "bdt/live.py": {
+      "statements": 99,
+      "percent": 100.0
+    },
+    "bdt/model.py": {
+      "statements": 62,
+      "percent": 100.0
+    },
+    "bdt/scaling.py": {
+      "statements": 122,
+      "percent": 29.5
+    },
+    "bdt/scorer.py": {
+      "statements": 97,
+      "percent": 94.8
+    },
+    "bdt/synthetic.py": {
+      "statements": 121,
+      "percent": 38.0
+    },
+    "bdt/train.py": {
+      "statements": 144,
+      "percent": 25.0
+    },
+    "common/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "common/config.py": {
+      "statements": 46,
+      "percent": 95.7
+    },
+    "common/lake.py": {
+      "statements": 84,
+      "percent": 63.1
+    },
+    "common/logging.py": {
+      "statements": 22,
+      "percent": 95.5
+    },
+    "common/metrics.py": {
+      "statements": 40,
+      "percent": 95.0
+    },
+    "common/paths.py": {
+      "statements": 81,
+      "percent": 97.5
+    },
+    "common/schemas.py": {
+      "statements": 153,
+      "percent": 98.7
+    },
+    "copilot/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "copilot/agent.py": {
+      "statements": 190,
+      "percent": 94.2
+    },
+    "copilot/chat.py": {
+      "statements": 40,
+      "percent": 0.0
+    },
+    "copilot/complaints.py": {
+      "statements": 181,
+      "percent": 95.6
+    },
+    "copilot/dispatch.py": {
+      "statements": 227,
+      "percent": 93.4
+    },
+    "copilot/evaluate.py": {
+      "statements": 344,
+      "percent": 86.3
+    },
+    "copilot/guardrails.py": {
+      "statements": 240,
+      "percent": 97.9
+    },
+    "copilot/llm.py": {
+      "statements": 137,
+      "percent": 94.2
+    },
+    "copilot/network_index.py": {
+      "statements": 78,
+      "percent": 88.5
+    },
+    "copilot/prompts/__init__.py": {
+      "statements": 78,
+      "percent": 97.4
+    },
+    "copilot/rag/__init__.py": {
+      "statements": 3,
+      "percent": 100.0
+    },
+    "copilot/rag/build.py": {
+      "statements": 133,
+      "percent": 51.1
+    },
+    "copilot/rag/chunking.py": {
+      "statements": 223,
+      "percent": 94.2
+    },
+    "copilot/rag/embed.py": {
+      "statements": 53,
+      "percent": 100.0
+    },
+    "copilot/rag/index.py": {
+      "statements": 74,
+      "percent": 91.9
+    },
+    "copilot/settings.py": {
+      "statements": 31,
+      "percent": 87.1
+    },
+    "copilot/sql_guard.py": {
+      "statements": 83,
+      "percent": 97.6
+    },
+    "copilot/testing.py": {
+      "statements": 85,
+      "percent": 98.8
+    },
+    "copilot/tools.py": {
+      "statements": 562,
+      "percent": 90.6
+    },
+    "data/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "data/battledim.py": {
+      "statements": 130,
+      "percent": 73.1
+    },
+    "data/build.py": {
+      "statements": 81,
+      "percent": 0.0
+    },
+    "data/ground_truth.py": {
+      "statements": 112,
+      "percent": 92.9
+    },
+    "data/network.py": {
+      "statements": 94,
+      "percent": 83.0
+    },
+    "data/quality.py": {
+      "statements": 40,
+      "percent": 100.0
+    },
+    "demo/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "demo/check.py": {
+      "statements": 97,
+      "percent": 25.8
+    },
+    "demo/preflight.py": {
+      "statements": 37,
+      "percent": 81.1
+    },
+    "demo/runner.py": {
+      "statements": 217,
+      "percent": 18.0
+    },
+    "demo/signature.py": {
+      "statements": 80,
+      "percent": 83.8
+    },
+    "dl/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "dl/gnn.py": {
+      "statements": 325,
+      "percent": 50.2
+    },
+    "dl/gnn_data.py": {
+      "statements": 127,
+      "percent": 0.0
+    },
+    "dl/lstm_ae.py": {
+      "statements": 202,
+      "percent": 55.0
+    },
+    "dl/sequences.py": {
+      "statements": 50,
+      "percent": 74.0
+    },
+    "eval/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "eval/alerting.py": {
+      "statements": 59,
+      "percent": 42.4
+    },
+    "eval/detection.py": {
+      "statements": 75,
+      "percent": 81.3
+    },
+    "eval/reports.py": {
+      "statements": 281,
+      "percent": 94.3
+    },
+    "eval/test_summary.py": {
+      "statements": 58,
+      "percent": 98.3
+    },
+    "features/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "features/baselines.py": {
+      "statements": 17,
+      "percent": 94.1
+    },
+    "features/build.py": {
+      "statements": 122,
+      "percent": 0.0
+    },
+    "features/clean.py": {
+      "statements": 21,
+      "percent": 100.0
+    },
+    "features/normal.py": {
+      "statements": 53,
+      "percent": 88.7
+    },
+    "features/parity.py": {
+      "statements": 58,
+      "percent": 79.3
+    },
+    "features/spec.py": {
+      "statements": 82,
+      "percent": 97.6
+    },
+    "features/windows.py": {
+      "statements": 62,
+      "percent": 100.0
+    },
+    "ingest/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "ingest/kafka_io.py": {
+      "statements": 72,
+      "percent": 59.7
+    },
+    "ingest/replayer.py": {
+      "statements": 174,
+      "percent": 79.3
+    },
+    "ingest/topics.py": {
+      "statements": 20,
+      "percent": 0.0
+    },
+    "sim/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "sim/bench.py": {
+      "statements": 89,
+      "percent": 0.0
+    },
+    "sim/generate.py": {
+      "statements": 80,
+      "percent": 0.0
+    },
+    "sim/replay.py": {
+      "statements": 43,
+      "percent": 0.0
+    },
+    "sim/scenarios.py": {
+      "statements": 109,
+      "percent": 61.5
+    },
+    "stream/__init__.py": {
+      "statements": 0,
+      "percent": 100.0
+    },
+    "stream/features_stream.py": {
+      "statements": 212,
+      "percent": 59.0
+    },
+    "stream/lake_writer.py": {
+      "statements": 80,
+      "percent": 86.2
+    },
+    "stream/latency_bench.py": {
+      "statements": 55,
+      "percent": 0.0
+    },
+    "stream/live_replay.py": {
+      "statements": 103,
+      "percent": 0.0
+    },
+    "stream/raw_ingest.py": {
+      "statements": 180,
+      "percent": 73.9
+    },
+    "stream/spark.py": {
+      "statements": 21,
+      "percent": 90.5
+    }
+  },
+  "marker": "slow or not slow",
   "pytest_exit_code": 0
 }
