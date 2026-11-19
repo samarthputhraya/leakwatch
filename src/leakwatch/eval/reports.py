@@ -723,17 +723,29 @@ def pe_report() -> str:
     else:
         lines += [
             "_Not run yet._ The evaluation needs an LLM endpoint (`LLM_BASE_URL`, `LLM_API_KEY`, "
-            "`LLM_MODEL` in `.env`, or the local CPU model from `make llm-local`, D-027); none was "
-            "configured on the build machine. `make pe-eval` writes "
-            "`reports/metrics/pe_eval_v1|v2|v3.json` and `make reports` regenerates this section. "
-            "The harness itself is tested with a scripted model (`make pe-eval` refuses to "
-            "produce numbers without a real one).",
+            "`LLM_MODEL` in `.env`: a free endpoint from `.env.example`, D-035, or the local CPU "
+            "model from `make llm-local`, D-027); none was configured on the build machine. "
+            "`make llm-check` tests an endpoint in a minute; `make pe-eval` writes "
+            "`reports/metrics/pe_eval_v1|v2|v3.json` (a run stopped by a free tier's quota "
+            "continues when rerun) and `make reports` regenerates this section. The harness itself "
+            "is tested with a scripted model (`make pe-eval` refuses to produce numbers without a "
+            "real one).",
         ]
     rag = load("rag_index")
     if rag:
+        docs = ", ".join(
+            f"{d['short']} {num(d['chunks'], 0)}"
+            + (" (OCR of a scan)" if d.get("text_source") == "ocr" else "")
+            for d in rag.get("documents", [])
+            if d.get("source_type") == "pdf"
+        )
+        kb = sum(
+            d["chunks"] for d in rag.get("documents", []) if d.get("source_type") == "markdown"
+        )
         lines += [
             "",
-            f"RAG index: {num(rag['passages'], 0)} passages ({rag['embedder']}) ({src('rag_index', rag)}).",
+            f"RAG index: {num(rag['passages'], 0)} passages ({rag['embedder']}): {docs}, "
+            f"knowledge base {num(kb, 0)} ({src('rag_index', rag)}).",
         ]
     return "\n".join(lines) + "\n"
 
