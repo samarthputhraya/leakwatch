@@ -85,8 +85,13 @@ def alert_starts(above: np.ndarray, contiguous: np.ndarray, m: int, close_after:
 
 
 def residual_variants() -> list[str]:
-    """Detector variants that use only residual features (the ones this test covers)."""
-    return [v for v, spec in VARIANTS.items() if spec[1] == "residual"]
+    """Detector variants that use only residual features (the ones this test covers).
+
+    The re-baselined variant (D-038) is included: its background windows are re-baselined over
+    the whole training year first; a 6-hour leak does not reach its own reference (gap 1 day), so
+    the leak signature adds to the re-baselined residual exactly as to the plain one.
+    """
+    return [v for v, spec in VARIANTS.items() if spec[1] in ("residual", "rebaselined")]
 
 
 def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
@@ -128,6 +133,16 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
             variants[v] = KMeansScorer(KMeansParams.load(d))
     if not variants:
         raise FileNotFoundError("no trained residual detector: run `make bdt-train`")
+    frames = {v: bg for v in variants}
+    rebased = [v for v in variants if VARIANTS[v][1] == "rebaselined"]
+    if rebased:
+        from leakwatch.bdt.train import feature_view
+
+        full = feature_view(load_features(int(cfg["bdt"]["train_year"])), spec, "rebaselined", cfg)
+        bg_rb = full.set_index("window_start").reindex(bg["window_start"]).reset_index()
+        bg_rb.index = bg.index
+        for v in rebased:
+            frames[v] = bg_rb
 
     scenarios: list[dict[str, Any]] = []
     for i, start in enumerate(starts):
@@ -148,7 +163,7 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
             }
             for v, scorer in variants.items():
                 cols = list(scorer.params.feature_columns)
-                x = rows[cols].to_numpy("float64").copy()
+                x = frames[v].loc[rows.index, cols].to_numpy("float64").copy()
                 for j, c in enumerate(cols):
                     series = c.removesuffix("__residual")
                     if series in shift.columns:
@@ -174,9 +189,10 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
     df = pd.DataFrame(scenarios)
     results = {}
     for v, scorer in variants.items():
-        above = scorer.score_matrix(bg[list(scorer.params.feature_columns)].to_numpy("float64"))[
-            "score"
-        ] > float(scorer.params.threshold)
+        cols = list(scorer.params.feature_columns)
+        above = scorer.score_matrix(frames[v][cols].to_numpy("float64"))["score"] > float(
+            scorer.params.threshold
+        )
         fa = alert_starts(
             above,
             contiguous,
