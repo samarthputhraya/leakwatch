@@ -5,7 +5,8 @@ Scoring_Algorithm.m`` and ``functions/scoring_function.m``, Vrachimis et al. 202
 doi:10.1061/(ASCE)WR.1943-5452.0001601), so LeakWatch can be placed on the competition's results
 table. A *detection* is a pipe ID and a time. Rules, as in the MATLAB code:
 
-- times are 5-minute steps from 2019-01-01 00:00; detections dated in 2018 are ignored;
+- times are 5-minute steps from 2019-01-01 00:00; detections dated in 2018 are ignored (and,
+  when a year is scored from a longer list, those after it);
 - detections are scored in time order (stable sort). For every detection and leak, the distance
   ``x`` is the shortest pipe-length path between the two links' end nodes plus half of each
   link's length (0 for the same link). Pumps and valves are not part of the distance graph;
@@ -172,7 +173,9 @@ def score_detections(
 ) -> dict[str, Any]:
     """Score ``detections`` (columns ``link_id``, ``ts``) like ``Scoring_Algorithm.m``."""
     det = detections.assign(step=[to_step(t, year) for t in detections["ts"]])
-    det = det[det["step"] >= 0].sort_values("step", kind="stable").reset_index(drop=True)
+    last = to_step(year_bounds(year)[1], year)
+    in_year = (det["step"] >= 0) & (det["step"] <= last)  # the official files hold one year only
+    det = det[in_year].sort_values("step", kind="stable").reset_index(drop=True)
     detected: list[int] = []
     rows = []
     for d in det.itertuples(index=False):

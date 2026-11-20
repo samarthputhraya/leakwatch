@@ -157,3 +157,12 @@ def test_official_leaks_per_year_and_steps():
     assert [x.link_id for x in l19] == ["p1", "p3"]  # p1 never repaired: carried into 2019
     assert l18[0].end_step == bs.to_step("2018-12-31 23:55", 2018)
     assert bs.to_step("2018-01-01 00:05", 2018) == 1 and l19[0].start_step < 0
+
+
+def test_detections_after_the_scored_year_are_left_out(dist):
+    leaks = [leak("p1", 100, 1_000)]
+    det = pd.DataFrame(
+        {"link_id": ["p1", "p1"], "ts": [at(200), pd.Timestamp("2020-01-02", tz="UTC")]}
+    )
+    r = bs.score_detections(det, leaks, dist, PARAMS)
+    assert r["detections"] == 1 and r["false_positives"] == 0

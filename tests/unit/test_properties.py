@@ -105,10 +105,11 @@ def test_official_score_bookkeeping(dets):
     assert r["true_positives"] + r["false_positives"] + r["repeated_detections"] == in_year
     assert r["true_positives"] <= len(LEAKS)
     assert r["true_positives"] + r["false_negatives"] == len(LEAKS)
-    # a second copy of every detection adds no false positive and no money
+    # a copy of a report that hit nothing hits nothing again; a copy of a hit is a repeat or
+    # claims another running leak within 300 m (as in the official code), never a false positive
     twice = bs.score_detections(frame(dets + dets), LEAKS, DIST, bs.ScoringParams())
-    assert twice["false_positives"] >= r["false_positives"]
-    assert twice["true_positives"] == r["true_positives"]
+    assert twice["false_positives"] == 2 * r["false_positives"]
+    assert twice["true_positives"] >= r["true_positives"]
 
 
 @FAST
