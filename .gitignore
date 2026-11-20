@@ -44,3 +44,7 @@ checkpoints/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# mutation testing work files (make mutation)
+mutants/
+.hypothesis/

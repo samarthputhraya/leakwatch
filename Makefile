@@ -14,7 +14,7 @@ PY_DIRS := src tests scripts notebooks
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
 	demo-check bdt-scaling reports test-report prepare llm-local llm-check bdt-synthetic gnn-apply \
-	battledim-score
+	battledim-score mutation
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -123,6 +123,11 @@ gnn-apply: ## re-localize the current batch alerts with the saved localizer (aft
 
 bdt-scaling: ## batch features + K-Means scoring at 12.5M / 50M / 100M+ readings -> bdt_scaling.json
 	$(RUN) python -m leakwatch.bdt.scaling
+
+MUTATION_JOBS ?= 6
+mutation: ## mutation testing of core modules (mutmut, D-040) -> reports/metrics/st_mutation.json
+	-$(RUN) mutmut run --max-children $(MUTATION_JOBS)
+	$(RUN) python -m leakwatch.eval.mutation
 
 battledim-score: ## official BattLeDIM 2020 score of the 2019 batch alerts + leaderboard place (D-037)
 	$(RUN) python -m leakwatch.eval.battledim_score
