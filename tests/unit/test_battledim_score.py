@@ -166,3 +166,10 @@ def test_detections_after_the_scored_year_are_left_out(dist):
     )
     r = bs.score_detections(det, leaks, dist, PARAMS)
     assert r["detections"] == 1 and r["false_positives"] == 0
+
+
+def test_placement_is_chosen_on_2018_with_the_localizer_on_ties():
+    assert bs.choose_placement({"localizer": 10.0, "sensor_drop": 20.0}) == "sensor_drop"
+    assert bs.choose_placement({"localizer": 20.0, "sensor_drop": 10.0}) == "localizer"
+    assert bs.choose_placement({"localizer": 5.0, "sensor_drop": 5.0}) == "localizer"
+    assert bs.PLACEMENTS == ("localizer", "sensor_drop")

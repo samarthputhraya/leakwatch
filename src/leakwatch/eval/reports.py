@@ -442,12 +442,31 @@ def official_score_lines() -> list[str]:
                 ]
             )
         y19 = _get(sys_score, "years", "2019") or {}
+        placements = sys_score.get("placements") or {}
+        names = {"localizer": "localizer top-1", "sensor_drop": "most-dropped pressure sensor"}
+        chosen = sys_score.get("placement")
+        how = (
+            [
+                "",
+                "Where each report is placed was chosen on 2018 alone (D-041): "
+                + "; ".join(
+                    f"{names.get(k, k)} €{num(_get(v, '2018', 'total_score_eur'), 0)} (2018) / "
+                    f"€{num(_get(v, '2019', 'total_score_eur'), 0)} (2019)"
+                    for k, v in placements.items()
+                )
+                + f" → the system uses the {names.get(chosen, chosen)}.",
+            ]
+            if placements
+            else []
+        )
         lines += [
             "",
-            f"Full system (live detector `{sys_score.get('detector')}` + localizer, one report per "
-            f"alert; {src('battledim_score', sys_score)}):",
+            f"Full system (live detector `{sys_score.get('detector')}`, one report per alert, "
+            f"placed at the {names.get(chosen, 'localizer top-1')}; "
+            f"{src('battledim_score', sys_score)}):",
             "",
             table(["year", "role", "score", "leaks found", "false positives", "alerts"], rows),
+            *how,
             "",
             "Competition results (Vrachimis et al. 2022, Table 4, top 6 of 18 teams): "
             + "; ".join(

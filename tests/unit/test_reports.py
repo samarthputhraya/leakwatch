@@ -239,6 +239,11 @@ def test_official_score_row_and_report_section(metrics_dir):
         {
             "detector": "kmeans_rebaselined",
             "years": {"2019": year},
+            "placement": "sensor_drop",
+            "placements": {
+                "localizer": {"2018": {"total_score_eur": 1.0}, "2019": {"total_score_eur": 2.0}},
+                "sensor_drop": {"2018": {"total_score_eur": 3.0}, "2019": {"total_score_eur": 4.0}},
+            },
             "leaderboard_top6": [{"team": "Tongji-Team", "score_eur": 264_873}],
         },
     )
@@ -246,6 +251,8 @@ def test_official_score_row_and_report_section(metrics_dir):
     assert "€230,000: 10 of 23 leaks, 4 false positives; would rank 3" in row
     text = reports.bdt_report()
     assert "## Official BattLeDIM 2020 score" in text and "rank **3**" in text
+    assert "placed at the most-dropped pressure sensor" in text
+    assert "localizer top-1 €1 (2018) / €2 (2019)" in text
 
 
 def test_real_leak_localization_table(metrics_dir):

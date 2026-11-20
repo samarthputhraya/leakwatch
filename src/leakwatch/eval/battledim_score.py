@@ -20,16 +20,18 @@ table. A *detection* is a pipe ID and a time. Rules, as in the MATLAB code:
 The same rules applied to 2018 (its 14 leaks, steps from 2018-01-01) give a development score:
 every design choice is made on 2018 and simulated leaks; 2019 is scored as the blind test.
 
-``make battledim-score`` scores the system's batch alerts of both years (one detection per alert,
-at the pipe nearest the localizer's top candidate) and the perfect submission (a self-check: the
-paper's Table 4 gives €523,154), and writes ``reports/metrics/battledim_score.json``.
+``make battledim-score`` scores the system's batch alerts of both years (one detection per alert)
+with two placements — the pipe at the localizer's top candidate, and the pipe at the pressure
+sensor that dropped most (``bdt.report``) — and reports the system with the one that scores better
+on 2018 (D-041); also the perfect submission (a self-check: the paper's Table 4 gives €523,154).
+Writes ``reports/metrics/battledim_score.json``.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -310,24 +312,47 @@ class YearScorer:
         """Official score of ``detections`` (``link_id``, ``ts``) in ``year``."""
         return score_detections(detections, self.leaks[year], self.dist, self.params, year)
 
-    def score_alerts(self, alerts: pd.DataFrame, year: int) -> dict[str, Any]:
-        """One detection per alert (see :func:`detections_from_alerts`), scored in ``year``."""
+    def score_alerts(
+        self,
+        alerts: pd.DataFrame,
+        year: int,
+        place: Callable[[pd.DataFrame], pd.DataFrame] | None = None,
+    ) -> dict[str, Any]:
+        """One detection per alert, scored in ``year``.
+
+        ``place`` turns alerts into detections; default :func:`detections_from_alerts` (the
+        localizer's top candidate, else the top sensor).
+        """
         first, last = year_bounds(year)
         in_year = alerts[(alerts["start_ts"] >= first) & (alerts["start_ts"] <= last)]
-        dets = detections_from_alerts(in_year, self.dist)
+        dets = place(in_year) if place is not None else detections_from_alerts(in_year, self.dist)
         out = self.score(dets, year)
         out["alerts"] = len(in_year)
-        out["localized_by"] = dets["how"].value_counts().to_dict() if len(dets) else {}
+        how = dets["how"] if "how" in dets else pd.Series(["sensor_drop"] * len(dets))
+        out["localized_by"] = how.value_counts().to_dict() if len(dets) else {}
         return out
+
+
+#: How an alert becomes a report. The system uses the one with the better 2018 score (D-041).
+PLACEMENTS = ("localizer", "sensor_drop")
+
+
+def choose_placement(scores_2018: Mapping[str, float]) -> str:
+    """The placement with the best 2018 (development) score; the localizer wins a tie."""
+    return max(PLACEMENTS, key=lambda p: (scores_2018[p], p == "localizer"))
 
 
 def main(argv: list[str] | None = None) -> int:
     """Score the lake's batch alerts of 2018 and 2019 and the perfect submission."""
     parser = argparse.ArgumentParser(description="Official BattLeDIM score of the alerts.")
     parser.parse_args(argv)
+    from leakwatch.bdt.data import load_features
+    from leakwatch.bdt.report import sensor_drop_detections
+    from leakwatch.bdt.train import feature_view
     from leakwatch.common import lake
     from leakwatch.common.config import load_config
     from leakwatch.common.metrics import write_metrics
+    from leakwatch.features.spec import load_feature_spec
 
     cfg = load_config()
     scorer = YearScorer(cfg)
@@ -337,16 +362,33 @@ def main(argv: list[str] | None = None) -> int:
         "SELECT alert_id, start_ts, model, top_sensors, gnn_top5 FROM alerts "
         "WHERE origin = 'batch'",
     )
+    spec = load_feature_spec(cfg)
+    feats = pd.concat([load_features(2018), load_features(2019)], ignore_index=True)
+    drops = feature_view(feats, spec, "rebaselined", cfg)
+    place = {
+        "localizer": None,
+        "sensor_drop": lambda a: sensor_drop_detections(a, drops, spec, scorer.dist),
+    }
+    results = {
+        p: {year: scorer.score_alerts(alerts, year, place[p]) for year in (2018, 2019)}
+        for p in PLACEMENTS
+    }
+    chosen = choose_placement({p: results[p][2018]["total_score_eur"] for p in PLACEMENTS})
     years = {}
     for year in (2018, 2019):
-        res = scorer.score_alerts(alerts, year)
+        res = dict(results[chosen][year])
         per = res.pop("per_detection")
         years[str(year)] = {
             "role": "development (rules applied to 2018)" if year == 2018 else "test (official)",
+            "placement": chosen,
             **res,
             **(rank(res["total_score_eur"]) if year == 2019 else {}),
             "per_detection": per,
         }
+    keep = ("total_score_eur", "true_positives", "false_positives", "detections", "alerts")
+    placements = {
+        p: {str(y): {k: results[p][y][k] for k in keep} for y in (2018, 2019)} for p in PLACEMENTS
+    }
     payload = {
         "source": "KIOS-Research/BattLeDIM Scoring_Algorithm.m, ported (D-037)",
         "params": scorer.params.__dict__,
@@ -356,6 +398,9 @@ def main(argv: list[str] | None = None) -> int:
             "paper_table4_eur": PERFECT_SCORE_EUR,
         },
         "leaderboard_top6": list(LEADERBOARD),
+        "placement_rule": "the placement with the best 2018 score (localizer on a tie), D-041",
+        "placements": placements,
+        "placement": chosen,
         "years": years,
     }
     path = write_metrics("battledim_score", payload)
