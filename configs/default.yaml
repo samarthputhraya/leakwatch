@@ -293,6 +293,13 @@ copilot:
     chunk_overlap_chars: 150
     top_k: 4
     min_score: 0.25                # cosine similarity below this is "not covered"
+    hybrid:                        # D-039: BM25 on OCR-folded words fused with the embeddings
+      enabled: false               # off: no gain on the 18 procedure questions (16/18 either way)
+      pool: 50                     # candidates taken from each ranking
+      rrf_k: 60                    # reciprocal rank fusion constant (Cormack et al. 2009)
+      k1: 1.2                      # BM25 term saturation
+      b: 0.75                      # BM25 length normalisation
+      min_lexical_terms: 2         # a passage kept on words alone shares >= 2 question words
     passage_chars: 700             # passage text returned to the model
     embed_batch_size: 32
     download_timeout_s: 300

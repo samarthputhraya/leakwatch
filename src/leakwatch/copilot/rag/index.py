@@ -87,8 +87,14 @@ def index_path(cfg: Mapping[str, Any]) -> Path:
 class Retriever:
     """Embeds a question and returns the best passages with their citations."""
 
-    def __init__(self, index: VectorIndex, embedder: Embedder) -> None:
-        """Pair an index with the embedder it was built with."""
+    def __init__(
+        self, index: VectorIndex, embedder: Embedder, hybrid: Mapping[str, Any] | None = None
+    ) -> None:
+        """Pair an index with the embedder it was built with.
+
+        ``hybrid`` (``rag.hybrid``, D-039): when enabled, BM25 over OCR-folded words is fused
+        with the embedding ranking.
+        """
         built_with = index.meta.get("embedder")
         if built_with and built_with != embedder.name:
             raise RagIndexError(
@@ -97,22 +103,71 @@ class Retriever:
             )
         self.index = index
         self.embedder = embedder
+        self.hybrid = dict(hybrid or {})
+        self.bm25 = None
+        if self.hybrid.get("enabled") and index.chunks:
+            from leakwatch.copilot.rag.lexical import Bm25
+
+            self.bm25 = Bm25(
+                [f"{c.get('section', '')} {c.get('text', '')}" for c in index.chunks],
+                float(self.hybrid.get("k1", 1.2)),
+                float(self.hybrid.get("b", 0.75)),
+            )
 
     @classmethod
     def from_config(cls, cfg: Mapping[str, Any], directory: Path | None = None) -> Retriever:
         """Load the index under ``paths.index_dir()`` with the configured embedder."""
         index = VectorIndex.load(directory or index_path(cfg))
         name = str(index.meta.get("embedder") or cfg["rag"]["embedding_model"])
-        return cls(index, get_embedder(name, int(cfg["rag"].get("embed_batch_size", 32))))
+        return cls(
+            index,
+            get_embedder(name, int(cfg["rag"].get("embed_batch_size", 32))),
+            cfg["rag"].get("hybrid"),
+        )
 
     def search(self, query: str, k: int = 4, min_score: float = 0.0) -> list[dict[str, Any]]:
-        """Passages scoring at least ``min_score``, best first, each with ``score``."""
+        """The best ``k`` passages, each with its cosine ``score``.
+
+        Dense only: passages with cosine ≥ ``min_score``. Hybrid: the reciprocal-rank fusion of
+        the embedding and BM25 rankings; a passage is kept if its cosine reaches ``min_score``
+        or it is among the top ``k`` lexical matches that share ``min_lexical_terms`` of the
+        question's words (``lexical: true``).
+        """
         vector = self.embedder.encode([query])[0]
-        return [
-            {**chunk, "score": round(score, 4)}
-            for score, chunk in self.index.search(vector, k)
-            if score >= min_score
-        ]
+        if self.bm25 is None:
+            return [
+                {**chunk, "score": round(score, 4)}
+                for score, chunk in self.index.search(vector, k)
+                if score >= min_score
+            ]
+        from leakwatch.copilot.rag.lexical import rrf_fuse
+
+        cos = self.index.embeddings @ vector.astype(np.float32).ravel()
+        lex = self.bm25.scores(query)
+        pool = min(int(self.hybrid.get("pool", 50)), len(cos))
+        dense_rank = np.argsort(-cos, kind="stable")[:pool]
+        lex_rank = np.argsort(-lex, kind="stable")[:pool]
+        lex_rank = lex_rank[lex[lex_rank] > 0]
+        fused = rrf_fuse([dense_rank, lex_rank], float(self.hybrid.get("rrf_k", 60)), len(cos))
+        # a passage kept on words alone must share several of the question's words
+        matched = self.bm25.matched_terms(query)
+        need = min(int(self.hybrid.get("min_lexical_terms", 2)), int(matched.max(initial=0)))
+        lexical_top = {int(i) for i in lex_rank if matched[i] >= max(need, 1)}
+        lexical_top = set(sorted(lexical_top, key=lambda i: -lex[i])[:k])
+        order = np.argsort(-fused, kind="stable")
+        out = []
+        for i in order:
+            if fused[i] <= 0 or len(out) >= k:
+                break
+            if cos[i] >= min_score or int(i) in lexical_top:
+                out.append(
+                    {
+                        **self.index.chunks[i],
+                        "score": round(float(cos[i]), 4),
+                        "lexical": int(i) in lexical_top,
+                    }
+                )
+        return out
 
     @property
     def documents(self) -> list[str]:
