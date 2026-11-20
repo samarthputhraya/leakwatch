@@ -1,14 +1,14 @@
 {
   "meta": {
-    "generated_at": "2026-11-19T01:12:45+00:00",
-    "git_commit": "d6c4db9",
+    "generated_at": "2026-11-20T18:01:45+00:00",
+    "git_commit": "ed7c9f9",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
   "train_year": 2018,
   "eval_year": 2019,
-  "live_model": "kmeans_residual_ci",
+  "live_model": "kmeans_rebaselined",
   "label_rules": "eval.detection (D-020): tp = alert within [leak start, +7 d]; preexisting = only carried-over 2018 leaks active; fp = everything else",
   "models": {
     "main": {
@@ -498,13 +498,14 @@
         "2019-10": 0.9399,
         "2019-11": 0.9823,
         "2019-12": 0.997
-      }
+      },
+      "official_score_sensor_drop": null
     },
     "strict": {
       "model_dir": "/root/leakwatch-data/models/kmeans_strict",
       "feature_view": "absolute",
       "k": 8,
-      "threshold": 23.143082512848455,
+      "threshold": 23.143082512848462,
       "persistence_windows": 1,
       "eval_2019": {
         "period": {
@@ -987,13 +988,14 @@
         "2019-10": 0.7984,
         "2019-11": 0.9281,
         "2019-12": 0.9388
-      }
+      },
+      "official_score_sensor_drop": null
     },
     "delta": {
       "model_dir": "/root/leakwatch-data/models/kmeans_delta",
       "feature_view": "weekly_change",
       "k": 10,
-      "threshold": 23.96349005983212,
+      "threshold": 23.96349005983214,
       "persistence_windows": 2,
       "eval_2019": {
         "period": {
@@ -1475,7 +1477,8 @@
         "2019-10": 0.4103,
         "2019-11": 0.3656,
         "2019-12": 0.4891
-      }
+      },
+      "official_score_sensor_drop": null
     },
     "residual": {
       "model_dir": "/root/leakwatch-data/models/kmeans_residual",
@@ -1959,13 +1962,29 @@
         "2019-10": 0.9966,
         "2019-11": 1.0,
         "2019-12": 1.0
+      },
+      "official_score_sensor_drop": {
+        "2018": {
+          "total_score_eur": -753.51,
+          "true_positives": 5,
+          "false_positives": 149,
+          "leaks": 14,
+          "detections": 296
+        },
+        "2019": {
+          "total_score_eur": 36552.87,
+          "true_positives": 6,
+          "false_positives": 180,
+          "leaks": 23,
+          "detections": 260
+        }
       }
     },
     "residual_ci": {
       "model_dir": "/root/leakwatch-data/models/kmeans_residual_ci",
       "feature_view": "residual",
       "k": 6,
-      "threshold": 1.579098469953718,
+      "threshold": 1.5790984699537165,
       "persistence_windows": 1,
       "eval_2019": {
         "period": {
@@ -2434,9 +2453,525 @@
         "2019-11": 1.0,
         "2019-12": 1.0
       },
+      "official_score_sensor_drop": {
+        "2018": {
+          "total_score_eur": -19357.08,
+          "true_positives": 4,
+          "false_positives": 180,
+          "leaks": 14,
+          "detections": 291
+        },
+        "2019": {
+          "total_score_eur": 97849.99,
+          "true_positives": 7,
+          "false_positives": 106,
+          "leaks": 23,
+          "detections": 160
+        }
+      }
+    },
+    "rebaselined": {
+      "model_dir": "/root/leakwatch-data/models/kmeans_rebaselined",
+      "feature_view": "rebaselined",
+      "k": 5,
+      "threshold": 1.3664359811445281,
+      "persistence_windows": 32,
+      "eval_2019": {
+        "period": {
+          "start": "2019-01-01T00:00:00+00:00",
+          "end": "2019-12-31T23:59:59+00:00"
+        },
+        "horizon_days": 7.0,
+        "detection": {
+          "overall": {
+            "leaks": 19,
+            "detected": 19,
+            "rate": 1.0
+          },
+          "abrupt": {
+            "leaks": 9,
+            "detected": 9,
+            "rate": 1.0
+          },
+          "incipient": {
+            "leaks": 10,
+            "detected": 10,
+            "rate": 1.0
+          }
+        },
+        "time_to_detection_h": {
+          "median": 20.75,
+          "mean": 31.700526315789478,
+          "values": [
+            8.5,
+            8.5,
+            53.67,
+            47.58,
+            48.5,
+            37.58,
+            22.83,
+            52.58,
+            15.83,
+            130.58,
+            6.75,
+            18.83,
+            30.0,
+            20.75,
+            12.67,
+            43.25,
+            5.25,
+            18.33,
+            20.33
+          ]
+        },
+        "alerts": {
+          "total": 196,
+          "tp": 71,
+          "fp": 124,
+          "preexisting": 1,
+          "fp_during_active_new_leak": 124
+        },
+        "precision": 0.3641,
+        "false_alarms_per_week": 2.378,
+        "weeks": 52.14,
+        "per_leak": [
+          {
+            "leak_id": "L2019_p523",
+            "pipe_id": "p523",
+            "type": "abrupt",
+            "start": "2019-01-15T23:00:00+00:00",
+            "peak_outflow_m3h": 28.39,
+            "detected": true,
+            "time_to_detection_h": 8.5,
+            "first_alert": "2019-01-16T07:30:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p827",
+            "pipe_id": "p827",
+            "type": "abrupt",
+            "start": "2019-01-24T18:30:00+00:00",
+            "peak_outflow_m3h": 26.46,
+            "detected": true,
+            "time_to_detection_h": 8.5,
+            "first_alert": "2019-01-25T03:00:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p280",
+            "pipe_id": "p280",
+            "type": "abrupt",
+            "start": "2019-02-10T13:05:00+00:00",
+            "peak_outflow_m3h": 5.26,
+            "detected": true,
+            "time_to_detection_h": 53.67,
+            "first_alert": "2019-02-12T18:45:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p653",
+            "pipe_id": "p653",
+            "type": "incipient",
+            "start": "2019-03-03T13:10:00+00:00",
+            "peak_outflow_m3h": 18.28,
+            "detected": true,
+            "time_to_detection_h": 47.58,
+            "first_alert": "2019-03-05T12:45:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p710",
+            "pipe_id": "p710",
+            "type": "abrupt",
+            "start": "2019-03-24T14:15:00+00:00",
+            "peak_outflow_m3h": 5.58,
+            "detected": true,
+            "time_to_detection_h": 48.5,
+            "first_alert": "2019-03-26T14:45:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p514",
+            "pipe_id": "p514",
+            "type": "abrupt",
+            "start": "2019-04-02T20:40:00+00:00",
+            "peak_outflow_m3h": 15.58,
+            "detected": true,
+            "time_to_detection_h": 37.58,
+            "first_alert": "2019-04-04T10:15:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p331",
+            "pipe_id": "p331",
+            "type": "abrupt",
+            "start": "2019-04-20T10:10:00+00:00",
+            "peak_outflow_m3h": 10.93,
+            "detected": true,
+            "time_to_detection_h": 22.83,
+            "first_alert": "2019-04-21T09:00:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p193",
+            "pipe_id": "p193",
+            "type": "incipient",
+            "start": "2019-05-19T10:40:00+00:00",
+            "peak_outflow_m3h": 10.36,
+            "detected": true,
+            "time_to_detection_h": 52.58,
+            "first_alert": "2019-05-21T15:15:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p277",
+            "pipe_id": "p277",
+            "type": "incipient",
+            "start": "2019-05-30T21:55:00+00:00",
+            "peak_outflow_m3h": 7.36,
+            "detected": true,
+            "time_to_detection_h": 15.83,
+            "first_alert": "2019-05-31T13:45:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p142",
+            "pipe_id": "p142",
+            "type": "abrupt",
+            "start": "2019-06-12T19:55:00+00:00",
+            "peak_outflow_m3h": 27.04,
+            "detected": true,
+            "time_to_detection_h": 130.58,
+            "first_alert": "2019-06-18T06:30:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p680",
+            "pipe_id": "p680",
+            "type": "abrupt",
+            "start": "2019-07-10T08:45:00+00:00",
+            "peak_outflow_m3h": 5.37,
+            "detected": true,
+            "time_to_detection_h": 6.75,
+            "first_alert": "2019-07-10T15:30:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p586",
+            "pipe_id": "p586",
+            "type": "incipient",
+            "start": "2019-07-26T14:40:00+00:00",
+            "peak_outflow_m3h": 20.52,
+            "detected": true,
+            "time_to_detection_h": 18.83,
+            "first_alert": "2019-07-27T09:30:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p721",
+            "pipe_id": "p721",
+            "type": "incipient",
+            "start": "2019-08-02T03:00:00+00:00",
+            "peak_outflow_m3h": 13.18,
+            "detected": true,
+            "time_to_detection_h": 30.0,
+            "first_alert": "2019-08-03T09:00:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p800",
+            "pipe_id": "p800",
+            "type": "incipient",
+            "start": "2019-08-16T14:00:00+00:00",
+            "peak_outflow_m3h": 21.95,
+            "detected": true,
+            "time_to_detection_h": 20.75,
+            "first_alert": "2019-08-17T10:45:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p123",
+            "pipe_id": "p123",
+            "type": "incipient",
+            "start": "2019-09-13T20:05:00+00:00",
+            "peak_outflow_m3h": 9.19,
+            "detected": true,
+            "time_to_detection_h": 12.67,
+            "first_alert": "2019-09-14T08:45:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p455",
+            "pipe_id": "p455",
+            "type": "incipient",
+            "start": "2019-10-03T14:00:00+00:00",
+            "peak_outflow_m3h": 11.05,
+            "detected": true,
+            "time_to_detection_h": 43.25,
+            "first_alert": "2019-10-05T09:15:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p762",
+            "pipe_id": "p762",
+            "type": "incipient",
+            "start": "2019-10-09T10:15:00+00:00",
+            "peak_outflow_m3h": 15.71,
+            "detected": true,
+            "time_to_detection_h": 5.25,
+            "first_alert": "2019-10-09T15:30:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p426",
+            "pipe_id": "p426",
+            "type": "abrupt",
+            "start": "2019-10-25T13:25:00+00:00",
+            "peak_outflow_m3h": 13.56,
+            "detected": true,
+            "time_to_detection_h": 18.33,
+            "first_alert": "2019-10-26T07:45:00+00:00"
+          },
+          {
+            "leak_id": "L2019_p879",
+            "pipe_id": "p879",
+            "type": "incipient",
+            "start": "2019-11-20T11:55:00+00:00",
+            "peak_outflow_m3h": 10.93,
+            "detected": true,
+            "time_to_detection_h": 20.33,
+            "first_alert": "2019-11-21T08:15:00+00:00"
+          }
+        ],
+        "onset_contrast_24h": {
+          "hours": 24.0,
+          "leaks": 19,
+          "share_rising_overall": 0.1579,
+          "share_rising_abrupt": 0.2222,
+          "share_rising_incipient": 0.1,
+          "median_ratio_abrupt": 1.404,
+          "per_leak": [
+            {
+              "leak_id": "L2019_p523",
+              "type": "abrupt",
+              "before_mean": 0.234,
+              "after_mean": 3.027,
+              "ratio": 12.957,
+              "after_above_before_p95": true
+            },
+            {
+              "leak_id": "L2019_p827",
+              "type": "abrupt",
+              "before_mean": 0.504,
+              "after_mean": 5.63,
+              "ratio": 11.175,
+              "after_above_before_p95": true
+            },
+            {
+              "leak_id": "L2019_p280",
+              "type": "abrupt",
+              "before_mean": 3.568,
+              "after_mean": 2.828,
+              "ratio": 0.793,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p653",
+              "type": "incipient",
+              "before_mean": 0.982,
+              "after_mean": 0.795,
+              "ratio": 0.81,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p710",
+              "type": "abrupt",
+              "before_mean": 1.429,
+              "after_mean": 1.127,
+              "ratio": 0.789,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p514",
+              "type": "abrupt",
+              "before_mean": 1.21,
+              "after_mean": 1.698,
+              "ratio": 1.404,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p331",
+              "type": "abrupt",
+              "before_mean": 2.254,
+              "after_mean": 2.129,
+              "ratio": 0.945,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p193",
+              "type": "incipient",
+              "before_mean": 4.703,
+              "after_mean": 1.153,
+              "ratio": 0.245,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p277",
+              "type": "incipient",
+              "before_mean": 0.606,
+              "after_mean": 5.453,
+              "ratio": 9.003,
+              "after_above_before_p95": true
+            },
+            {
+              "leak_id": "L2019_p142",
+              "type": "abrupt",
+              "before_mean": 2.865,
+              "after_mean": 5.938,
+              "ratio": 2.073,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p680",
+              "type": "abrupt",
+              "before_mean": 3.085,
+              "after_mean": 6.148,
+              "ratio": 1.993,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p586",
+              "type": "incipient",
+              "before_mean": 6.106,
+              "after_mean": 2.688,
+              "ratio": 0.44,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p721",
+              "type": "incipient",
+              "before_mean": 3.001,
+              "after_mean": 2.653,
+              "ratio": 0.884,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p800",
+              "type": "incipient",
+              "before_mean": 4.805,
+              "after_mean": 2.746,
+              "ratio": 0.572,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p123",
+              "type": "incipient",
+              "before_mean": 8.224,
+              "after_mean": 5.167,
+              "ratio": 0.628,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p455",
+              "type": "incipient",
+              "before_mean": 5.183,
+              "after_mean": 5.412,
+              "ratio": 1.044,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p762",
+              "type": "incipient",
+              "before_mean": 2.369,
+              "after_mean": 1.996,
+              "ratio": 0.843,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p426",
+              "type": "abrupt",
+              "before_mean": 6.616,
+              "after_mean": 4.131,
+              "ratio": 0.624,
+              "after_above_before_p95": false
+            },
+            {
+              "leak_id": "L2019_p879",
+              "type": "incipient",
+              "before_mean": 2.848,
+              "after_mean": 3.749,
+              "ratio": 1.316,
+              "after_above_before_p95": false
+            }
+          ]
+        },
+        "chance_level": {
+          "n_alerts": 196,
+          "mean_rate": 0.9771,
+          "p95_rate": 1.0,
+          "iterations": 500
+        }
+      },
+      "in_sample_2018": {
+        "detection": {
+          "overall": {
+            "leaks": 14,
+            "detected": 9,
+            "rate": 0.6429
+          },
+          "abrupt": {
+            "leaks": 6,
+            "detected": 5,
+            "rate": 0.8333
+          },
+          "incipient": {
+            "leaks": 8,
+            "detected": 4,
+            "rate": 0.5
+          }
+        },
+        "time_to_detection_h": {
+          "median": 11.33,
+          "mean": 20.094444444444445,
+          "values": [
+            3.0,
+            94.17,
+            8.0,
+            8.17,
+            11.33,
+            14.42,
+            12.17,
+            21.17,
+            8.42
+          ]
+        },
+        "alerts": {
+          "total": 45,
+          "tp": 26,
+          "fp": 19,
+          "preexisting": 0,
+          "fp_during_active_new_leak": 18
+        },
+        "precision": 0.5778,
+        "false_alarms_per_week": 0.364
+      },
+      "windows_above_threshold_2019": 0.6588,
+      "windows_above_threshold_by_month": {
+        "2019-01": 0.3807,
+        "2019-02": 0.6038,
+        "2019-03": 0.4651,
+        "2019-04": 0.6517,
+        "2019-05": 0.7157,
+        "2019-06": 0.7302,
+        "2019-07": 0.7708,
+        "2019-08": 0.6667,
+        "2019-09": 0.7878,
+        "2019-10": 0.7255,
+        "2019-11": 0.7003,
+        "2019-12": 0.7097
+      },
+      "official_score_sensor_drop": {
+        "2018": {
+          "total_score_eur": 50230.81,
+          "true_positives": 4,
+          "false_positives": 32,
+          "leaks": 14,
+          "detections": 45
+        },
+        "2019": {
+          "total_score_eur": 140857.86,
+          "true_positives": 13,
+          "false_positives": 139,
+          "leaks": 23,
+          "detections": 196
+        }
+      },
       "lake": {
-        "scores_written": 70077,
-        "alerts_written": 451
+        "scores_written": 69645,
+        "alerts_written": 241
       }
     }
   },
@@ -2446,7 +2981,9 @@
     "bdt_score_timeline_2019_delta.png",
     "bdt_detection_per_leak_2019_delta.png",
     "bdt_score_timeline_2019_residual.png",
-    "bdt_detection_per_leak_2019_residual.png"
+    "bdt_detection_per_leak_2019_residual.png",
+    "bdt_score_timeline_2019_rebaselined.png",
+    "bdt_detection_per_leak_2019_rebaselined.png"
   ],
-  "wall_s": 189.6
+  "wall_s": 161.3
 }

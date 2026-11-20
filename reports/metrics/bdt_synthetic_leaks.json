@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-19T01:06:41+00:00",
-    "git_commit": "322e50e",
+    "generated_at": "2026-11-20T18:08:30+00:00",
+    "git_commit": "a98cf8c",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -24,9 +24,9 @@
   ],
   "hours": 6.0,
   "median_leak_flow_m3h": {
-    "10 mm": 6.46,
-    "20 mm": 26.19,
-    "30 mm": 56.94
+    "10 mm": 6.41,
+    "20 mm": 26.18,
+    "30 mm": 56.69
   },
   "variants": {
     "residual": {
@@ -34,16 +34,74 @@
       "score": "distance",
       "threshold": 6.404309411032491,
       "persistence_windows": 1,
-      "detection_rate": 0.4833,
+      "detection_rate": 0.5111,
       "by_diameter_mm": {
-        "10": 0.0833,
-        "20": 0.4333,
-        "30": 0.9333
+        "10": 0.1,
+        "20": 0.4667,
+        "30": 0.9667
       },
       "by_area": {
         "A": {
           "leaks": 135,
-          "rate": 0.4
+          "rate": 0.4296
+        },
+        "B": {
+          "leaks": 18,
+          "rate": 0.9444
+        },
+        "C": {
+          "leaks": 27,
+          "rate": 0.6296
+        }
+      },
+      "median_ttd_h": 0.83,
+      "background_false_alarms": 9,
+      "background_false_alarms_per_week": 1.208
+    },
+    "residual_ci": {
+      "model": "kmeans_residual_ci",
+      "score": "combined",
+      "threshold": 1.5790984699537165,
+      "persistence_windows": 1,
+      "detection_rate": 0.7222,
+      "by_diameter_mm": {
+        "10": 0.2167,
+        "20": 0.95,
+        "30": 1.0
+      },
+      "by_area": {
+        "A": {
+          "leaks": 135,
+          "rate": 0.6889
+        },
+        "B": {
+          "leaks": 18,
+          "rate": 0.9444
+        },
+        "C": {
+          "leaks": 27,
+          "rate": 0.7407
+        }
+      },
+      "median_ttd_h": 0.58,
+      "background_false_alarms": 8,
+      "background_false_alarms_per_week": 1.074
+    },
+    "rebaselined": {
+      "model": "kmeans_rebaselined",
+      "score": "combined",
+      "threshold": 1.3664359811445281,
+      "persistence_windows": 32,
+      "detection_rate": 0.6,
+      "by_diameter_mm": {
+        "10": 0.0833,
+        "20": 0.7167,
+        "30": 1.0
+      },
+      "by_area": {
+        "A": {
+          "leaks": 135,
+          "rate": 0.5556
         },
         "B": {
           "leaks": 18,
@@ -54,38 +112,9 @@
           "rate": 0.6296
         }
       },
-      "median_ttd_h": 0.92,
-      "background_false_alarms": 9,
-      "background_false_alarms_per_week": 1.208
-    },
-    "residual_ci": {
-      "model": "kmeans_residual_ci",
-      "score": "combined",
-      "threshold": 1.579098469953718,
-      "persistence_windows": 1,
-      "detection_rate": 0.6889,
-      "by_diameter_mm": {
-        "10": 0.2,
-        "20": 0.8667,
-        "30": 1.0
-      },
-      "by_area": {
-        "A": {
-          "leaks": 135,
-          "rate": 0.6519
-        },
-        "B": {
-          "leaks": 18,
-          "rate": 0.8889
-        },
-        "C": {
-          "leaks": 27,
-          "rate": 0.7407
-        }
-      },
-      "median_ttd_h": 0.58,
-      "background_false_alarms": 8,
-      "background_false_alarms_per_week": 1.074
+      "median_ttd_h": 8.25,
+      "background_false_alarms": 0,
+      "background_false_alarms_per_week": 0.0
     }
   },
   "per_scenario": [
@@ -93,7 +122,7 @@
       "node": "n603",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 6.91,
       "residual": {
         "detected": false,
@@ -102,43 +131,55 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
       "node": "n603",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 27.48,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 27.47,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 1.0
+        "ttd_h": 0.92
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.42
       }
     },
     {
       "node": "n603",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 60.91,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 60.89,
       "residual": {
         "detected": true,
-        "ttd_h": 0.75
+        "ttd_h": 1.42
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.5
+        "ttd_h": 0.42
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
       }
     },
     {
       "node": "n770",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 6.57,
       "residual": {
         "detected": false,
@@ -147,43 +188,55 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
       "node": "n770",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 26.18,
       "residual": {
         "detected": true,
-        "ttd_h": 1.0
+        "ttd_h": 1.67
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.75
+        "ttd_h": 0.92
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.42
       }
     },
     {
       "node": "n770",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 58.46,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 58.44,
       "residual": {
         "detected": true,
-        "ttd_h": 0.5
+        "ttd_h": 0.67
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.25
+        "ttd_h": 0.42
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
       }
     },
     {
       "node": "n526",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 6.93,
       "residual": {
         "detected": false,
@@ -192,43 +245,55 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 11.17
       }
     },
     {
       "node": "n526",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 27.49,
       "residual": {
         "detected": true,
-        "ttd_h": 1.25
+        "ttd_h": 2.67
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.5
+        "ttd_h": 0.42
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
       }
     },
     {
       "node": "n526",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 60.23,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 60.2,
       "residual": {
         "detected": true,
-        "ttd_h": 0.5
+        "ttd_h": 0.67
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.25
+        "ttd_h": 0.17
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.92
       }
     },
     {
       "node": "n532",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 6.85,
       "residual": {
         "detected": false,
@@ -237,43 +302,55 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
       "node": "n532",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 27.31,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 27.3,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 1.0
+        "ttd_h": 0.92
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.42
       }
     },
     {
       "node": "n532",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 60.92,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 60.89,
       "residual": {
         "detected": true,
-        "ttd_h": 0.75
+        "ttd_h": 1.42
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.5
+        "ttd_h": 0.67
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
       }
     },
     {
       "node": "n655",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 6.59,
       "residual": {
         "detected": false,
@@ -282,43 +359,55 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
       "node": "n655",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 26.19,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 26.18,
       "residual": {
         "detected": true,
-        "ttd_h": 1.5
+        "ttd_h": 2.92
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.75
+        "ttd_h": 1.17
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
       "node": "n655",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 57.74,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 57.71,
       "residual": {
         "detected": true,
-        "ttd_h": 0.75
+        "ttd_h": 0.67
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.5
+        "ttd_h": 0.42
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
       }
     },
     {
       "node": "n482",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 6.64,
       "residual": {
         "detected": false,
@@ -327,364 +416,464 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
       "node": "n482",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-11-12T06:45:00+00:00",
+      "start": "2018-11-12T05:20:00+00:00",
       "leak_flow_m3h": 26.47,
       "residual": {
         "detected": true,
-        "ttd_h": 1.75
+        "ttd_h": 3.17
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.75
+        "ttd_h": 0.67
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.67
       }
     },
     {
       "node": "n482",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-11-12T06:45:00+00:00",
-      "leak_flow_m3h": 58.97,
+      "start": "2018-11-12T05:20:00+00:00",
+      "leak_flow_m3h": 58.96,
       "residual": {
         "detected": true,
-        "ttd_h": 0.75
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n142",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 6.94,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.33
-      }
-    },
-    {
-      "node": "n142",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 27.67,
-      "residual": {
-        "detected": true,
-        "ttd_h": 6.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n142",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 61.92,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.08
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.33
-      }
-    },
-    {
-      "node": "n686",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 6.46,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.58
-      }
-    },
-    {
-      "node": "n686",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 25.69,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.08
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n686",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 56.87,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.33
-      }
-    },
-    {
-      "node": "n98",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 6.55,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.33
-      }
-    },
-    {
-      "node": "n98",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 26.09,
-      "residual": {
-        "detected": true,
-        "ttd_h": 6.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n98",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 58.0,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.33
-      }
-    },
-    {
-      "node": "n704",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 6.67,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.58
-      }
-    },
-    {
-      "node": "n704",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 26.5,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.08
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.83
-      }
-    },
-    {
-      "node": "n704",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 58.48,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.33
-      }
-    },
-    {
-      "node": "n628",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 6.3,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.58
-      }
-    },
-    {
-      "node": "n628",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 25.12,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.83
-      }
-    },
-    {
-      "node": "n628",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 56.14,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n386",
-      "area": "C",
-      "diameter_m": 0.01,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 0.0,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.83
-      }
-    },
-    {
-      "node": "n386",
-      "area": "C",
-      "diameter_m": 0.02,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 43.84,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.33
-      }
-    },
-    {
-      "node": "n386",
-      "area": "C",
-      "diameter_m": 0.03,
-      "start": "2018-11-14T03:10:00+00:00",
-      "leak_flow_m3h": 44.03,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n289",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 6.43,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n289",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 25.61,
-      "residual": {
-        "detected": true,
-        "ttd_h": 5.67
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.17
-      }
-    },
-    {
-      "node": "n289",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 57.0,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.67
+        "ttd_h": 0.92
       },
       "residual_ci": {
         "detected": true,
         "ttd_h": 0.42
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
+      }
+    },
+    {
+      "node": "n142",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 6.95,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 3.33
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n142",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 27.74,
+      "residual": {
+        "detected": true,
+        "ttd_h": 8.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n142",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 62.1,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n686",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 6.48,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 3.33
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n686",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 25.77,
+      "residual": {
+        "detected": true,
+        "ttd_h": 6.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 22.08
+      }
+    },
+    {
+      "node": "n686",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 57.06,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n98",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 6.57,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 3.33
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n98",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 26.16,
+      "residual": {
+        "detected": true,
+        "ttd_h": 8.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
+      }
+    },
+    {
+      "node": "n98",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 58.18,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n704",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 6.69,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 3.33
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n704",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 26.58,
+      "residual": {
+        "detected": true,
+        "ttd_h": 6.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.08
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n704",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 58.68,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n628",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 6.32,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 3.58
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n628",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 25.21,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.08
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n628",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 56.39,
+      "residual": {
+        "detected": true,
+        "ttd_h": 6.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n386",
+      "area": "C",
+      "diameter_m": 0.01,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": -0.0,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 3.08
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n386",
+      "area": "C",
+      "diameter_m": 0.02,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 43.89,
+      "residual": {
+        "detected": true,
+        "ttd_h": 2.58
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 2.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 10.33
+      }
+    },
+    {
+      "node": "n386",
+      "area": "C",
+      "diameter_m": 0.03,
+      "start": "2018-11-14T01:10:00+00:00",
+      "leak_flow_m3h": 44.08,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n289",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 6.46,
+      "residual": {
+        "detected": true,
+        "ttd_h": 20.33
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n289",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 25.77,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 16.58
+      }
+    },
+    {
+      "node": "n289",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 57.43,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
       "node": "n231",
       "area": "B",
       "diameter_m": 0.01,
-      "start": "2018-12-01T04:35:00+00:00",
+      "start": "2018-11-30T20:40:00+00:00",
       "leak_flow_m3h": 5.65,
       "residual": {
-        "detected": false,
-        "ttd_h": null
+        "detected": true,
+        "ttd_h": 20.08
       },
       "residual_ci": {
+        "detected": true,
+        "ttd_h": 20.33
+      },
+      "rebaselined": {
         "detected": false,
         "ttd_h": null
       }
@@ -693,43 +882,55 @@
       "node": "n231",
       "area": "B",
       "diameter_m": 0.02,
-      "start": "2018-12-01T04:35:00+00:00",
+      "start": "2018-11-30T20:40:00+00:00",
       "leak_flow_m3h": 22.59,
       "residual": {
         "detected": true,
-        "ttd_h": 0.42
+        "ttd_h": 0.33
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.42
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
       "node": "n231",
       "area": "B",
       "diameter_m": 0.03,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 50.65,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 52.48,
       "residual": {
         "detected": true,
-        "ttd_h": 0.17
+        "ttd_h": 0.33
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.17
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
       "node": "n621",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 7.09,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 7.13,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
         "detected": false,
         "ttd_h": null
       }
@@ -738,43 +939,55 @@
       "node": "n621",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 28.19,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 28.36,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 1.17
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
       }
     },
     {
       "node": "n621",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 62.31,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 64.6,
       "residual": {
         "detected": true,
-        "ttd_h": 3.92
+        "ttd_h": 0.83
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.42
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
       "node": "n446",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 6.15,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 6.19,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
         "detected": false,
         "ttd_h": null
       }
@@ -783,43 +996,55 @@
       "node": "n446",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 24.44,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 24.63,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 6.92
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 16.83
       }
     },
     {
       "node": "n446",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 53.86,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 56.21,
       "residual": {
         "detected": true,
-        "ttd_h": 5.17
+        "ttd_h": 0.83
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.67
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
       }
     },
     {
       "node": "n425",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 5.93,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 5.97,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
         "detected": false,
         "ttd_h": null
       }
@@ -828,13 +1053,17 @@
       "node": "n425",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 23.57,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 23.78,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
         "detected": false,
         "ttd_h": null
       }
@@ -843,22 +1072,83 @@
       "node": "n425",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 52.24,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 54.62,
       "residual": {
         "detected": true,
-        "ttd_h": 5.67
+        "ttd_h": 0.83
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.67
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
       }
     },
     {
       "node": "n40",
       "area": "C",
       "diameter_m": 0.01,
-      "start": "2018-12-01T04:35:00+00:00",
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 0.0,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n40",
+      "area": "C",
+      "diameter_m": 0.02,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 45.93,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.83
+      }
+    },
+    {
+      "node": "n40",
+      "area": "C",
+      "diameter_m": 0.03,
+      "start": "2018-11-30T20:40:00+00:00",
+      "leak_flow_m3h": 46.12,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n353",
+      "area": "C",
+      "diameter_m": 0.01,
+      "start": "2018-12-02T11:55:00+00:00",
       "leak_flow_m3h": -0.0,
       "residual": {
         "detected": false,
@@ -867,49 +1157,8 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
-      }
-    },
-    {
-      "node": "n40",
-      "area": "C",
-      "diameter_m": 0.02,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 43.91,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
       },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 2.67
-      }
-    },
-    {
-      "node": "n40",
-      "area": "C",
-      "diameter_m": 0.03,
-      "start": "2018-12-01T04:35:00+00:00",
-      "leak_flow_m3h": 44.1,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.17
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n353",
-      "area": "C",
-      "diameter_m": 0.01,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 0.0,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
+      "rebaselined": {
         "detected": false,
         "ttd_h": null
       }
@@ -918,53 +1167,8 @@
       "node": "n353",
       "area": "C",
       "diameter_m": 0.02,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 45.27,
-      "residual": {
-        "detected": true,
-        "ttd_h": 3.33
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.83
-      }
-    },
-    {
-      "node": "n353",
-      "area": "C",
-      "diameter_m": 0.03,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 45.42,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.83
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.33
-      }
-    },
-    {
-      "node": "n370",
-      "area": "C",
-      "diameter_m": 0.01,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 0.0,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n370",
-      "area": "C",
-      "diameter_m": 0.02,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 45.3,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 43.93,
       "residual": {
         "detected": true,
         "ttd_h": 3.08
@@ -972,14 +1176,18 @@
       "residual_ci": {
         "detected": true,
         "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
       }
     },
     {
-      "node": "n370",
+      "node": "n353",
       "area": "C",
       "diameter_m": 0.03,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 45.48,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 44.08,
       "residual": {
         "detected": true,
         "ttd_h": 0.83
@@ -987,19 +1195,84 @@
       "residual_ci": {
         "detected": true,
         "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n370",
+      "area": "C",
+      "diameter_m": 0.01,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": -0.0,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n370",
+      "area": "C",
+      "diameter_m": 0.02,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 43.96,
+      "residual": {
+        "detected": true,
+        "ttd_h": 2.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
+      }
+    },
+    {
+      "node": "n370",
+      "area": "C",
+      "diameter_m": 0.03,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 44.14,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
       "node": "n662",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 6.51,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 6.47,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
         "detected": false,
         "ttd_h": null
       }
@@ -1008,8 +1281,8 @@
       "node": "n662",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 25.92,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 25.71,
       "residual": {
         "detected": true,
         "ttd_h": 1.08
@@ -1017,14 +1290,18 @@
       "residual_ci": {
         "detected": true,
         "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
       "node": "n662",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 58.47,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 56.73,
       "residual": {
         "detected": true,
         "ttd_h": 0.58
@@ -1032,13 +1309,17 @@
       "residual_ci": {
         "detected": true,
         "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
       }
     },
     {
       "node": "n234",
       "area": "B",
       "diameter_m": 0.01,
-      "start": "2018-12-02T20:25:00+00:00",
+      "start": "2018-12-02T11:55:00+00:00",
       "leak_flow_m3h": 5.63,
       "residual": {
         "detected": false,
@@ -1047,14 +1328,18 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
       "node": "n234",
       "area": "B",
       "diameter_m": 0.02,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 23.54,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 22.43,
       "residual": {
         "detected": true,
         "ttd_h": 0.33
@@ -1062,208 +1347,36 @@
       "residual_ci": {
         "detected": true,
         "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
       "node": "n234",
       "area": "B",
       "diameter_m": 0.03,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 50.85,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 49.67,
       "residual": {
         "detected": true,
-        "ttd_h": 0.08
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.08
-      }
-    },
-    {
-      "node": "n575",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 6.98,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n575",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 28.88,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.08
-      }
-    },
-    {
-      "node": "n575",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 62.67,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.83
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n57",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 5.96,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n57",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 24.82,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.08
-      }
-    },
-    {
-      "node": "n57",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-02T20:25:00+00:00",
-      "leak_flow_m3h": 53.67,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.08
+        "ttd_h": 0.33
       },
       "residual_ci": {
         "detected": true,
         "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.83
       }
     },
     {
-      "node": "n581",
+      "node": "n575",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 7.04,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n581",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 29.62,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.92
-      }
-    },
-    {
-      "node": "n581",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 62.07,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.92
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n744",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 6.53,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n744",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 27.67,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.92
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.67
-      }
-    },
-    {
-      "node": "n744",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 59.0,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.42
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n558",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-07T19:05:00+00:00",
+      "start": "2018-12-02T11:55:00+00:00",
       "leak_flow_m3h": 6.93,
       "residual": {
         "detected": false,
@@ -1272,134 +1385,113 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
-      "node": "n558",
+      "node": "n575",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 29.33,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 27.56,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 2.42
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
       }
     },
     {
-      "node": "n558",
+      "node": "n575",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 63.16,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 60.91,
       "residual": {
         "detected": true,
-        "ttd_h": 0.92
+        "ttd_h": 0.83
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.67
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
-      "node": "n624",
-      "area": "B",
+      "node": "n57",
+      "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 5.84,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 5.9,
       "residual": {
-        "detected": true,
-        "ttd_h": 0.67
+        "detected": false,
+        "ttd_h": null
       },
       "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.92
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
-      "node": "n624",
-      "area": "B",
+      "node": "n57",
+      "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 23.09,
+      "start": "2018-12-02T11:55:00+00:00",
+      "leak_flow_m3h": 23.46,
       "residual": {
-        "detected": true,
-        "ttd_h": 0.17
+        "detected": false,
+        "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.17
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
-      "node": "n624",
-      "area": "B",
+      "node": "n57",
+      "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-12-07T19:05:00+00:00",
+      "start": "2018-12-02T11:55:00+00:00",
       "leak_flow_m3h": 51.81,
       "residual": {
         "detected": true,
-        "ttd_h": 0.17
+        "ttd_h": 0.83
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.17
-      }
-    },
-    {
-      "node": "n207",
-      "area": "B",
-      "diameter_m": 0.01,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 5.86,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.67
+        "ttd_h": 0.33
       },
-      "residual_ci": {
+      "rebaselined": {
         "detected": true,
-        "ttd_h": 0.92
+        "ttd_h": 8.33
       }
     },
     {
-      "node": "n207",
-      "area": "B",
-      "diameter_m": 0.02,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 23.08,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.17
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.17
-      }
-    },
-    {
-      "node": "n207",
-      "area": "B",
-      "diameter_m": 0.03,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 51.03,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.17
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.17
-      }
-    },
-    {
-      "node": "n184",
+      "node": "n581",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 6.46,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 7.01,
       "residual": {
         "detected": false,
         "ttd_h": null
@@ -1407,1258 +1499,55 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
-      "node": "n184",
+      "node": "n581",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 25.75,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 27.69,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 1.17
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
       }
     },
     {
-      "node": "n184",
+      "node": "n581",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-12-07T19:05:00+00:00",
-      "leak_flow_m3h": 59.21,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 59.91,
       "residual": {
         "detected": true,
-        "ttd_h": 0.92
+        "ttd_h": 0.83
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.42
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
-      "node": "n64",
+      "node": "n744",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 5.88,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n64",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 23.42,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.0
-      }
-    },
-    {
-      "node": "n64",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 52.25,
-      "residual": {
-        "detected": true,
-        "ttd_h": 2.0
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n586",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 6.58,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n586",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 26.2,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.5
-      }
-    },
-    {
-      "node": "n586",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 58.07,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.0
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n212",
-      "area": "B",
-      "diameter_m": 0.01,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 5.84,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.5
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.75
-      }
-    },
-    {
-      "node": "n212",
-      "area": "B",
-      "diameter_m": 0.02,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 23.18,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.25
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.25
-      }
-    },
-    {
-      "node": "n212",
-      "area": "B",
-      "diameter_m": 0.03,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 50.8,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.25
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.25
-      }
-    },
-    {
-      "node": "n718",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 6.33,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n718",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 25.14,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.75
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.75
-      }
-    },
-    {
-      "node": "n718",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 55.42,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.5
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.25
-      }
-    },
-    {
-      "node": "n253",
-      "area": "B",
-      "diameter_m": 0.01,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 5.83,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.0
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.0
-      }
-    },
-    {
-      "node": "n253",
-      "area": "B",
-      "diameter_m": 0.02,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 22.77,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.25
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.25
-      }
-    },
-    {
-      "node": "n253",
-      "area": "B",
-      "diameter_m": 0.03,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 47.21,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.25
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.25
-      }
-    },
-    {
-      "node": "n721",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 6.35,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n721",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 25.18,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.25
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n721",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-08T07:00:00+00:00",
-      "leak_flow_m3h": 55.15,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.5
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.25
-      }
-    },
-    {
-      "node": "n66",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 5.93,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n66",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 23.62,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.0
-      }
-    },
-    {
-      "node": "n66",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 52.68,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.0
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n157",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 6.89,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n157",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 27.5,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n157",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 61.59,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.75
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n161",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 6.82,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n161",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 27.19,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.0
-      }
-    },
-    {
-      "node": "n161",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 60.57,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.75
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n404",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 5.18,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n404",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 20.37,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n404",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 43.69,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.25
-      }
-    },
-    {
-      "node": "n155",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 6.49,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n155",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 25.85,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.0
-      }
-    },
-    {
-      "node": "n155",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 57.56,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.0
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n580",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 6.86,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n580",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 27.28,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.0
-      }
-    },
-    {
-      "node": "n580",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-12T11:15:00+00:00",
-      "leak_flow_m3h": 60.41,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.0
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.5
-      }
-    },
-    {
-      "node": "n382",
-      "area": "C",
-      "diameter_m": 0.01,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 0.0,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n382",
-      "area": "C",
-      "diameter_m": 0.02,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 43.83,
-      "residual": {
-        "detected": true,
-        "ttd_h": 2.42
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.42
-      }
-    },
-    {
-      "node": "n382",
-      "area": "C",
-      "diameter_m": 0.03,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 43.99,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.92
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n146",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 6.79,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n146",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 27.08,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.17
-      }
-    },
-    {
-      "node": "n146",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 60.6,
-      "residual": {
-        "detected": true,
-        "ttd_h": 2.17
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.67
-      }
-    },
-    {
-      "node": "n468",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 6.48,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n468",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 25.79,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.67
-      }
-    },
-    {
-      "node": "n468",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 57.12,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.92
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n407",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 6.1,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n407",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 24.21,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.17
-      }
-    },
-    {
-      "node": "n407",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 53.28,
-      "residual": {
-        "detected": true,
-        "ttd_h": 2.67
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n220",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 6.17,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n220",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 24.59,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.17
-      }
-    },
-    {
-      "node": "n220",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 54.98,
-      "residual": {
-        "detected": true,
-        "ttd_h": 2.42
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.67
-      }
-    },
-    {
-      "node": "n347",
-      "area": "C",
-      "diameter_m": 0.01,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 0.0,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 5.67
-      }
-    },
-    {
-      "node": "n347",
-      "area": "C",
-      "diameter_m": 0.02,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 43.83,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.92
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n347",
-      "area": "C",
-      "diameter_m": 0.03,
-      "start": "2018-12-13T04:50:00+00:00",
-      "leak_flow_m3h": 43.96,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.42
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.17
-      }
-    },
-    {
-      "node": "n4",
-      "area": "C",
-      "diameter_m": 0.01,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 43.79,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 2.42
-      }
-    },
-    {
-      "node": "n4",
-      "area": "C",
-      "diameter_m": 0.02,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 43.89,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.67
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.17
-      }
-    },
-    {
-      "node": "n4",
-      "area": "C",
-      "diameter_m": 0.03,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 44.03,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.42
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.17
-      }
-    },
-    {
-      "node": "n477",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 6.6,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n477",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 26.28,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.67
-      }
-    },
-    {
-      "node": "n477",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 58.4,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.67
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n620",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 7.06,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n620",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 28.03,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.92
-      }
-    },
-    {
-      "node": "n620",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 61.77,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.92
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n447",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 6.12,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n447",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 24.28,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.17
-      }
-    },
-    {
-      "node": "n447",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 53.38,
-      "residual": {
-        "detected": true,
-        "ttd_h": 1.42
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.42
-      }
-    },
-    {
-      "node": "n160",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 6.89,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n160",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 27.48,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n160",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 61.48,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.92
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.67
-      }
-    },
-    {
-      "node": "n343",
-      "area": "C",
-      "diameter_m": 0.01,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 43.79,
-      "residual": {
-        "detected": true,
-        "ttd_h": 6.92
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n343",
-      "area": "C",
-      "diameter_m": 0.02,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 43.9,
-      "residual": {
-        "detected": true,
-        "ttd_h": 4.42
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n343",
-      "area": "C",
-      "diameter_m": 0.03,
-      "start": "2018-12-18T06:50:00+00:00",
-      "leak_flow_m3h": 44.08,
-      "residual": {
-        "detected": true,
-        "ttd_h": 2.42
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 2.92
-      }
-    },
-    {
-      "node": "n433",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 5.65,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n433",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 22.55,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n433",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 50.41,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n440",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 5.96,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n440",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 23.78,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n440",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 53.1,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n761",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 6.83,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n761",
-      "area": "A",
-      "diameter_m": 0.02,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 27.24,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 1.08
-      }
-    },
-    {
-      "node": "n761",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 60.89,
-      "residual": {
-        "detected": true,
-        "ttd_h": 0.58
-      },
-      "residual_ci": {
-        "detected": true,
-        "ttd_h": 0.58
-      }
-    },
-    {
-      "node": "n665",
-      "area": "A",
-      "diameter_m": 0.01,
-      "start": "2018-12-23T00:10:00+00:00",
+      "start": "2018-12-07T08:55:00+00:00",
       "leak_flow_m3h": 6.5,
       "residual": {
         "detected": false,
@@ -2667,44 +1556,56 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
-      "node": "n665",
+      "node": "n744",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 25.85,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 25.81,
       "residual": {
-        "detected": false,
-        "ttd_h": null
+        "detected": true,
+        "ttd_h": 0.83
       },
       "residual_ci": {
-        "detected": false,
-        "ttd_h": null
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 14.58
       }
     },
     {
-      "node": "n665",
+      "node": "n744",
       "area": "A",
       "diameter_m": 0.03,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 57.02,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 56.83,
       "residual": {
         "detected": true,
-        "ttd_h": 0.58
+        "ttd_h": 0.33
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.58
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
       }
     },
     {
-      "node": "n80",
+      "node": "n558",
       "area": "A",
       "diameter_m": 0.01,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 6.43,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 6.9,
       "residual": {
         "detected": false,
         "ttd_h": null
@@ -2712,43 +1613,1537 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
-      "node": "n80",
+      "node": "n558",
       "area": "A",
       "diameter_m": 0.02,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 25.63,
-      "residual": {
-        "detected": false,
-        "ttd_h": null
-      },
-      "residual_ci": {
-        "detected": false,
-        "ttd_h": null
-      }
-    },
-    {
-      "node": "n80",
-      "area": "A",
-      "diameter_m": 0.03,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 57.08,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 27.47,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.58
+        "ttd_h": 2.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 14.58
       }
     },
     {
-      "node": "n13",
+      "node": "n558",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 61.01,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n624",
+      "area": "B",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 5.84,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
+      }
+    },
+    {
+      "node": "n624",
+      "area": "B",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 23.09,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n624",
+      "area": "B",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 50.02,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.83
+      }
+    },
+    {
+      "node": "n207",
+      "area": "B",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 5.86,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
+      }
+    },
+    {
+      "node": "n207",
+      "area": "B",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 23.08,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n207",
+      "area": "B",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 49.24,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.83
+      }
+    },
+    {
+      "node": "n184",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 6.42,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n184",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 25.59,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.33
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n184",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T08:55:00+00:00",
+      "leak_flow_m3h": 57.0,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n64",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 5.93,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n64",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 23.64,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n64",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 54.68,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n586",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 6.63,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n586",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 26.39,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.58
+      }
+    },
+    {
+      "node": "n586",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 60.43,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n212",
+      "area": "B",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 5.84,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n212",
+      "area": "B",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 23.19,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.83
+      }
+    },
+    {
+      "node": "n212",
+      "area": "B",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 52.65,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.83
+      }
+    },
+    {
+      "node": "n718",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 6.36,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n718",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 25.3,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.33
+      }
+    },
+    {
+      "node": "n718",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 55.85,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.58
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n253",
+      "area": "B",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 5.84,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.83
+      }
+    },
+    {
+      "node": "n253",
+      "area": "B",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 22.78,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n253",
+      "area": "B",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 49.09,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.83
+      }
+    },
+    {
+      "node": "n721",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 6.38,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n721",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 25.35,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.83
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.08
+      }
+    },
+    {
+      "node": "n721",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-07T20:40:00+00:00",
+      "leak_flow_m3h": 55.58,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.33
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.08
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.83
+      }
+    },
+    {
+      "node": "n66",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 5.98,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n66",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 23.89,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 13.25
+      }
+    },
+    {
+      "node": "n66",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 53.44,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n157",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 6.93,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n157",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 27.69,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 3.25
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.5
+      }
+    },
+    {
+      "node": "n157",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 62.13,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n161",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 6.87,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n161",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 27.42,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.5
+      }
+    },
+    {
+      "node": "n161",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 61.21,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.0
+      }
+    },
+    {
+      "node": "n404",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 5.25,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n404",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 20.73,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.75
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n404",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 44.75,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.25
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.0
+      }
+    },
+    {
+      "node": "n155",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 6.54,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n155",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 26.09,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.5
+      }
+    },
+    {
+      "node": "n155",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 58.23,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n580",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 6.91,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n580",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 27.52,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.5
+      }
+    },
+    {
+      "node": "n580",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-11T23:30:00+00:00",
+      "leak_flow_m3h": 61.06,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n382",
       "area": "C",
       "diameter_m": 0.01,
-      "start": "2018-12-23T00:10:00+00:00",
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": -0.0,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n382",
+      "area": "C",
+      "diameter_m": 0.02,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 43.97,
+      "residual": {
+        "detected": true,
+        "ttd_h": 3.75
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.75
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.5
+      }
+    },
+    {
+      "node": "n382",
+      "area": "C",
+      "diameter_m": 0.03,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 44.12,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.75
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.25
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.0
+      }
+    },
+    {
+      "node": "n146",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 6.81,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n146",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 27.18,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 21.5
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n146",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 60.86,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n468",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 6.5,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n468",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 25.88,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.5
+      }
+    },
+    {
+      "node": "n468",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 57.35,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.75
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.25
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.0
+      }
+    },
+    {
+      "node": "n407",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 6.13,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n407",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 24.34,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.75
+      }
+    },
+    {
+      "node": "n407",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 53.63,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.5
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n220",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 6.2,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n220",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 24.72,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n220",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 55.32,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n347",
+      "area": "C",
+      "diameter_m": 0.01,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": -0.0,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 17.75
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n347",
+      "area": "C",
+      "diameter_m": 0.02,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 43.96,
+      "residual": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.25
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.0
+      }
+    },
+    {
+      "node": "n347",
+      "area": "C",
+      "diameter_m": 0.03,
+      "start": "2018-12-12T16:45:00+00:00",
+      "leak_flow_m3h": 44.09,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.25
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.0
+      }
+    },
+    {
+      "node": "n4",
+      "area": "C",
+      "diameter_m": 0.01,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 0.0,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.92
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n4",
+      "area": "C",
+      "diameter_m": 0.02,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 46.06,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.92
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.17
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.92
+      }
+    },
+    {
+      "node": "n4",
+      "area": "C",
+      "diameter_m": 0.03,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 46.2,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.42
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.17
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 7.92
+      }
+    },
+    {
+      "node": "n477",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 6.62,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n477",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 26.36,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.67
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.67
+      }
+    },
+    {
+      "node": "n477",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 60.7,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.67
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.42
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
+      }
+    },
+    {
+      "node": "n620",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 7.08,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n620",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 30.22,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.92
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.42
+      }
+    },
+    {
+      "node": "n620",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 64.15,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.92
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.42
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
+      }
+    },
+    {
+      "node": "n447",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 6.15,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n447",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 26.48,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.92
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.67
+      }
+    },
+    {
+      "node": "n447",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 55.8,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.92
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.42
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
+      }
+    },
+    {
+      "node": "n160",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 6.91,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n160",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 27.59,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.42
+      }
+    },
+    {
+      "node": "n160",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 63.83,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.92
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.67
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.17
+      }
+    },
+    {
+      "node": "n343",
+      "area": "C",
+      "diameter_m": 0.01,
+      "start": "2018-12-17T17:05:00+00:00",
       "leak_flow_m3h": 0.0,
       "residual": {
         "detected": false,
@@ -2757,38 +3152,392 @@
       "residual_ci": {
         "detected": false,
         "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
       }
     },
     {
-      "node": "n13",
+      "node": "n343",
       "area": "C",
       "diameter_m": 0.02,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 44.01,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 46.07,
+      "residual": {
+        "detected": true,
+        "ttd_h": 20.92
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n343",
+      "area": "C",
+      "diameter_m": 0.03,
+      "start": "2018-12-17T17:05:00+00:00",
+      "leak_flow_m3h": 46.25,
+      "residual": {
+        "detected": true,
+        "ttd_h": 2.67
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 3.17
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 11.17
+      }
+    },
+    {
+      "node": "n433",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 5.62,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n433",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 22.39,
       "residual": {
         "detected": false,
         "ttd_h": null
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 1.08
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n433",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 49.97,
+      "residual": {
+        "detected": true,
+        "ttd_h": 19.75
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n440",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 5.93,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n440",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 23.63,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.25
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n440",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 52.68,
+      "residual": {
+        "detected": true,
+        "ttd_h": 19.5
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.5
+      }
+    },
+    {
+      "node": "n761",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 6.8,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n761",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 27.13,
+      "residual": {
+        "detected": true,
+        "ttd_h": 3.5
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n761",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 60.58,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n665",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 6.47,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n665",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 25.72,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n665",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 56.68,
+      "residual": {
+        "detected": true,
+        "ttd_h": 0.75
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n80",
+      "area": "A",
+      "diameter_m": 0.01,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 6.4,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n80",
+      "area": "A",
+      "diameter_m": 0.02,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 25.49,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 1.0
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n80",
+      "area": "A",
+      "diameter_m": 0.03,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 56.69,
+      "residual": {
+        "detected": true,
+        "ttd_h": 2.75
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.5
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.25
+      }
+    },
+    {
+      "node": "n13",
+      "area": "C",
+      "diameter_m": 0.01,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 0.0,
+      "residual": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "residual_ci": {
+        "detected": false,
+        "ttd_h": null
+      },
+      "rebaselined": {
+        "detected": false,
+        "ttd_h": null
+      }
+    },
+    {
+      "node": "n13",
+      "area": "C",
+      "diameter_m": 0.02,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 43.96,
+      "residual": {
+        "detected": true,
+        "ttd_h": 2.75
+      },
+      "residual_ci": {
+        "detected": true,
+        "ttd_h": 0.75
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.5
       }
     },
     {
       "node": "n13",
       "area": "C",
       "diameter_m": 0.03,
-      "start": "2018-12-23T00:10:00+00:00",
-      "leak_flow_m3h": 44.2,
+      "start": "2018-12-22T08:45:00+00:00",
+      "leak_flow_m3h": 44.15,
       "residual": {
         "detected": true,
-        "ttd_h": 0.83
+        "ttd_h": 0.75
       },
       "residual_ci": {
         "detected": true,
-        "ttd_h": 0.33
+        "ttd_h": 0.25
+      },
+      "rebaselined": {
+        "detected": true,
+        "ttd_h": 8.0
       }
     }
   ],
-  "wall_s": 130.8
+  "wall_s": 131.2
 }
