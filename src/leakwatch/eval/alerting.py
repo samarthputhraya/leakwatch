@@ -2,7 +2,8 @@
 
 - :func:`tune_persistence`: the smallest m (consecutive windows above τ) whose false alarms per
   week on the 2018 *validation* days stay within ``bdt.max_false_alarms_per_week`` (2019 is never
-  used for tuning);
+  used for tuning); given an official 2018 scorer, the m with the best official BattLeDIM 2018
+  score within that limit instead (the rule of the re-baselined K-Means, D-038);
 - :func:`threshold_sweep`: thresholds from low quantiles of the threshold-day scores up to
   multiples of their maximum, wide enough that every detector's curve spans the same
   false-alarm range;
@@ -14,7 +15,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 import numpy as np
@@ -67,8 +68,13 @@ def tune_persistence(
     model: str,
     window_s: int,
     slide_s: int,
+    official: Callable[[pd.DataFrame], Mapping[str, Any]] | None = None,
 ) -> tuple[int, list[dict[str, Any]]]:
-    """Choose m on the training year (see module docstring); returns m and the table."""
+    """Choose m on the training year (see module docstring); returns m and the table.
+
+    ``official``: alerts -> official score of the training year (``eval.battledim_score``); when
+    given, each candidate gets ``official_<year>`` and m is the best-scoring one within the limit.
+    """
     bdt = cfg["bdt"]
     year = int(bdt["train_year"])
     val_starts = scored.loc[validation_normal, "window_start"]
@@ -94,6 +100,11 @@ def tune_persistence(
                 "median_ttd_h_train_year": det["time_to_detection_h"]["median"],
             }
         )
+        if official is not None:
+            sc = official(alerts)
+            rows[-1][f"official_{year}"] = {
+                k: sc[k] for k in ("total_score_eur", "true_positives", "false_positives")
+            }
     limit = float(bdt["max_false_alarms_per_week"])
     ok = [
         r
@@ -101,7 +112,9 @@ def tune_persistence(
         if r["validation_false_alarms_per_week"] is not None
         and r["validation_false_alarms_per_week"] <= limit
     ]
-    if ok:
+    if ok and official is not None:
+        chosen = max(ok, key=lambda r: (r[f"official_{year}"]["total_score_eur"], -r["m"]))
+    elif ok:
         chosen = min(ok, key=lambda r: r["m"])
     else:
         chosen = min(rows, key=lambda r: r["validation_false_alarms_per_week"] or np.inf)

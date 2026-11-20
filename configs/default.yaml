@@ -118,6 +118,7 @@ dl:
   # PRD §8 (Phase 5). CPU-only; laptop-safe defaults.
   lstm:
     input: rebaselined             # D-038: residual minus its median of the previous week
+    persistence_rule: official_2018   # m as for the live K-Means: best 2018 official score within the FA limit (D-041)
     seq_steps: 72                  # 6 h of 5-minute residuals (PRD §8.1)
     hidden: 64
     latent: 16

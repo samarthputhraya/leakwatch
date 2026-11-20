@@ -7,7 +7,9 @@
 2. Train on normal 2018 sequences (D-015; every step normal), split by UTC day exactly like the
    K-Means detector (train / threshold / validation days); early stopping on threshold-day loss.
 3. Score = mean squared reconstruction error; τ = ``bdt.threshold_quantile`` of threshold-day
-   scores; m tuned on 2018 validation days with the same rule as K-Means (``eval.alerting``).
+   scores; m chosen on 2018 with the same rule as the live K-Means (``eval.alerting``; with
+   ``dl.lstm.persistence_rule: official_2018`` the best official 2018 score within the 2018
+   false-alarm limit, D-038, D-041).
 4. Evaluate 2019 with ``eval.detection`` (+ chance level), and compare with K-Means at matched
    false-alarm rates (``dl.comparison``): every detector's detection rate, false alarms per week
    and chance level over the same threshold levels at its own m; at each false-alarm budget the
@@ -234,6 +236,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     in_train = year == train_year
     validation_normal = (base & (roles == "validation"))[in_train]
+
+    # Official BattLeDIM scoring of LSTM-AE alerts, placed at the most-dropped pressure sensor.
+    from leakwatch.bdt.report import sensor_drop_detections
+    from leakwatch.eval.battledim_score import YearScorer
+
+    feats = pd.concat([load_features(train_year), load_features(eval_year)], ignore_index=True)
+    official_scorer = YearScorer(cfg)
+    placement = feature_view(feats, spec, "rebaselined", cfg)
+
+    def official_score(found: pd.DataFrame, y: int) -> dict[str, Any]:
+        dets = sensor_drop_detections(found, placement, spec, official_scorer.dist)
+        return official_scorer.score(dets, y)
+
+    by_official = str(dl.get("persistence_rule", "false_alarms")) == "official_2018"
     m, tuning = tune_persistence(
         tau,
         scored[in_train].reset_index(drop=True),
@@ -248,6 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         "lstm_ae",
         spec.window_s,
         spec.slide_s,
+        (lambda found: official_score(found, train_year)) if by_official else None,
     )
     rule = make_rule(tau, m, cfg, areas, "lstm_ae")
     alerts = run_alerts(scored, shares, series, rule)
@@ -298,7 +315,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     curves = {"LSTM-AE": lstm_curve}
     comparison: dict[str, Any] = {}
-    feats = pd.concat([load_features(train_year), load_features(eval_year)], ignore_index=True)
     labels = {
         "kmeans": "K-Means (all PRD features)",
         "kmeans_residual": "K-Means (residual features)",
@@ -362,17 +378,9 @@ def main(argv: list[str] | None = None) -> int:
             }
     figure = plot_comparison(curves, eval_year)
 
-    # Official BattLeDIM score of the LSTM-AE alerts, placed at the most-dropped pressure sensor.
-    from leakwatch.bdt.report import sensor_drop_detections
-    from leakwatch.eval.battledim_score import YearScorer
-
-    official_scorer = YearScorer(cfg)
-    placement = feature_view(feats, spec, "rebaselined", cfg)
     official = {}
     for y in (train_year, eval_year):
-        sc = official_scorer.score(
-            sensor_drop_detections(alerts, placement, spec, official_scorer.dist), y
-        )
+        sc = official_score(alerts, y)
         official[str(y)] = {
             k: sc[k]
             for k in ("total_score_eur", "true_positives", "false_positives", "leaks", "detections")
@@ -387,6 +395,7 @@ def main(argv: list[str] | None = None) -> int:
         "training": {"epochs_run": len(history), "history": history},
         "threshold": tau,
         "persistence_windows": m,
+        "persistence_rule": "official_2018" if by_official else "false_alarms",
         "persistence_tuning": tuning,
         "eval_2019": ev,
         "windows_above_threshold_2019": round(float((scores[eval_mask] > tau).mean()), 4),
