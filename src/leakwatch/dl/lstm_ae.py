@@ -1,7 +1,9 @@
 """``make lstm-ae``: LSTM autoencoder detector and the K-Means comparison (PRD §8.1, Phase 5).
 
 1. Residual sequences (``dl.sequences``): 6 h (72 steps) × 37 channels (33 pressure, 3 flow,
-   1 level), standardized with means/stds of normal 2018 training steps.
+   1 level), standardized with means/stds of normal 2018 training steps. With
+   ``dl.lstm.input: rebaselined`` (D-038) each channel is first re-baselined like the K-Means
+   features (minus its own median of the previous week, ``features.rebaseline``).
 2. Train on normal 2018 sequences (D-015; every step normal), split by UTC day exactly like the
    K-Means detector (train / threshold / validation days); early stopping on threshold-day loss.
 3. Score = mean squared reconstruction error; τ = ``bdt.threshold_quantile`` of threshold-day
@@ -10,6 +12,8 @@
    false-alarm rates (``dl.comparison``): every detector's detection rate, false alarms per week
    and chance level over the same threshold levels at its own m; at each false-alarm budget the
    best point within it (``eval.alerting.best_within``).
+5. Score its alerts with the official BattLeDIM rules on 2018 (development) and 2019 (test),
+   placed at the most-dropped pressure sensor like the K-Means variants (``bdt.report``).
 
 Writes ``reports/metrics/dl_lstm_ae.json``, ``data/models/lstm_ae/``, and a comparison figure.
 """
@@ -181,6 +185,14 @@ def main(argv: list[str] | None = None) -> int:
     train_year, eval_year = int(bdt["train_year"]), int(bdt["eval_year"])
 
     resid = residual_matrix([train_year, eval_year], series)
+    input_kind = str(dl.get("input", "residual"))
+    if input_kind == "rebaselined":
+        from leakwatch.features.rebaseline import Rebaseline, rebaselined
+
+        frame = rebaselined(
+            resid.rename_axis("ts").reset_index(), series, Rebaseline.from_config(cfg), "ts"
+        )
+        resid = frame.set_index("ts")[series]
     intervals = intervals_from_config(gt, cfg["normal"], rule="main")
     step_normal = is_normal(resid.index, intervals)
     in_train_year = resid.index.year == train_year
@@ -291,13 +303,14 @@ def main(argv: list[str] | None = None) -> int:
         "kmeans": "K-Means (all PRD features)",
         "kmeans_residual": "K-Means (residual features)",
         "kmeans_residual_ci": "K-Means (residual, combined index)",
+        "kmeans_rebaselined": "K-Means (re-baselined, combined index)",
     }
     for model_name, label in labels.items():
         km_dir = model_dir(model_name)
         if not (km_dir / "params.json").exists():
             continue
         params = KMeansParams.load(km_dir)
-        rows = feature_view(feats, spec, str(params.meta.get("feature_view", "absolute")))
+        rows = feature_view(feats, spec, str(params.meta.get("feature_view", "absolute")), cfg)
         km_scorer = KMeansScorer(params)
         km_scored, km_shares = km_scorer.score_frame(rows)
         km_normal = is_normal(km_scored["window_start"], intervals) & is_normal(
@@ -349,10 +362,27 @@ def main(argv: list[str] | None = None) -> int:
             }
     figure = plot_comparison(curves, eval_year)
 
+    # Official BattLeDIM score of the LSTM-AE alerts, placed at the most-dropped pressure sensor.
+    from leakwatch.bdt.report import sensor_drop_detections
+    from leakwatch.eval.battledim_score import YearScorer
+
+    official_scorer = YearScorer(cfg)
+    placement = feature_view(feats, spec, "rebaselined", cfg)
+    official = {}
+    for y in (train_year, eval_year):
+        sc = official_scorer.score(
+            sensor_drop_detections(alerts, placement, spec, official_scorer.dist), y
+        )
+        official[str(y)] = {
+            k: sc[k]
+            for k in ("total_score_eur", "true_positives", "false_positives", "leaks", "detections")
+        }
+
     payload = {
         "series": len(series),
         "sequence_steps": int(dl["seq_steps"]),
         "sequences": {"total": len(seqs), "train": len(train), "threshold": len(thr_set)},
+        "input": input_kind,
         "standardization": "per-channel mean/std of normal 2018 training steps",
         "training": {"epochs_run": len(history), "history": history},
         "threshold": tau,
@@ -363,6 +393,7 @@ def main(argv: list[str] | None = None) -> int:
         "operating_points_2019": curves,
         "matched_false_alarm_comparison": comparison,
         "lstm_ae_vs_kmeans": versus,
+        "official_score_sensor_drop": official,
         "comparison_config": comp_cfg,
         "figures": [figure],
         "model_dir": str(out_dir),

@@ -116,6 +116,7 @@ bdt:
 dl:
   # PRD §8 (Phase 5). CPU-only; laptop-safe defaults.
   lstm:
+    input: rebaselined             # D-038: residual minus its median of the previous week
     seq_steps: 72                  # 6 h of 5-minute residuals (PRD §8.1)
     hidden: 64
     latent: 16

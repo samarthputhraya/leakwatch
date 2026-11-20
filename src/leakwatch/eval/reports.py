@@ -489,7 +489,25 @@ def dl_report() -> str:
             f"- Input: {lstm['sequence_steps']}-step (6 h) sequences of {lstm['series']} standardized residual channels; "
             f"trained on {num(lstm['sequences']['train'], 0)} normal 2018 sequences, {lstm['training']['epochs_run']} epochs "
             f"({src('dl_lstm_ae', lstm)}).",
-            f"- τ = {num(lstm['threshold'], 4)} (p99 of threshold-day errors), m = {lstm['persistence_windows']}.",
+            f"- τ = {num(lstm['threshold'], 4)} (p99 of threshold-day errors), m = {lstm['persistence_windows']}"
+            + (
+                "; inputs re-baselined (minus each channel's median of the previous week, D-038)."
+                if lstm.get("input") == "rebaselined"
+                else "."
+            ),
+            *(
+                [
+                    "- Official BattLeDIM score of its alerts (placed at the most-dropped pressure sensor): "
+                    + "; ".join(
+                        f"{y} €{num(o['total_score_eur'], 0)} ({o['true_positives']} of {o['leaks']} leaks, "
+                        f"{o['false_positives']} false positives)"
+                        for y, o in lstm["official_score_sensor_drop"].items()
+                    )
+                    + "."
+                ]
+                if lstm.get("official_score_sensor_drop")
+                else []
+            ),
             f"- 2019: {e['detection']['overall']['detected']}/{e['detection']['overall']['leaks']} leaks within 7 days "
             f"(chance level {num(e.get('chance_level', {}).get('mean_rate'), 3, pct=True)}), {e['alerts']['total']} alerts, "
             f"precision {num(e['precision'], 3)}, {num(e['false_alarms_per_week'])} false alarms/week, "
