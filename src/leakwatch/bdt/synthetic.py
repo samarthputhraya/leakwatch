@@ -119,7 +119,9 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
     nodes = list(rng.choice(junctions, int(scfg["junctions"]), replace=False))
     diameters = [float(d) for d in scfg["diameters_m"]]
     hours = float(scfg["hours"])
-    horizon = pd.Timedelta(hours=hours)
+    # the leak keeps running after its simulated hours (signature held at its last value); a
+    # detector gets ``observe_hours`` to fire (D-038: the re-baselined variant waits 8 h)
+    horizon = pd.Timedelta(hours=float(scfg.get("observe_hours", hours)))
     # starts: on the 5-minute grid, far enough from the period's ends
     grid = pd.date_range(
         lo + pd.Timedelta(hours=3), hi - horizon - pd.Timedelta(hours=3), freq="5min"

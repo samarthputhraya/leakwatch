@@ -111,7 +111,8 @@ bdt:
     junctions: 60
     diameters_m: [0.01, 0.02, 0.03]
     starts: 10                     # random leak start times (junctions are spread over them)
-    hours: 6
+    hours: 6                       # EPANET signature length; held at its last value after
+    observe_hours: 24              # how long a detector has to fire (D-038: m = 32 windows = 8 h)
 
 dl:
   # PRD §8 (Phase 5). CPU-only; laptop-safe defaults.
