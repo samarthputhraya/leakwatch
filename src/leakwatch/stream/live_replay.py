@@ -1,7 +1,7 @@
 """``make live-replay``: replay part of 2019 through Kafka at demo speed with live K-Means alerts.
 
 Phase 3 Definition of Done: alerts appear live when replaying 2019. This job replays a slice of
-BattLeDIM 2019 (default: around the abrupt leak on p523, 2019-01-15 23:00) at a paced speed
+BattLeDIM 2019 (default: 17 h around the abrupt leak on p523, 2019-01-15 23:00) at a paced speed
 (default 360×) into a throwaway topic, runs the feature stream with live scoring
 (``stream.features_stream`` + ``bdt.live``) into a scratch lake under ``data/bench/live``, and
 records when each alert is committed.
@@ -59,7 +59,8 @@ def main(argv: list[str] | None = None) -> int:
     """Run the paced live replay and write its metrics."""
     parser = argparse.ArgumentParser(description="Live 2019 replay with K-Means alerts.")
     parser.add_argument("--start", default="2019-01-15 17:00", help="first simulated timestamp")
-    parser.add_argument("--hours", type=float, default=14.0, help="simulated hours to replay")
+    # 17 h: 6 h before the leak, then room for the live model's 8 h persistence (m = 32, D-038)
+    parser.add_argument("--hours", type=float, default=17.0, help="simulated hours to replay")
     parser.add_argument("--speed", type=float, default=360.0, help="simulated s per wall s")
     parser.add_argument("--leak", default="L2019_p523", help="leak whose start is in the slice")
     parser.add_argument("--keep", action="store_true", help="keep the scratch lake afterwards")
