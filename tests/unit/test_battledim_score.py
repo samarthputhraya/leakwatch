@@ -173,3 +173,138 @@ def test_placement_is_chosen_on_2018_with_the_localizer_on_ties():
     assert bs.choose_placement({"localizer": 20.0, "sensor_drop": 10.0}) == "localizer"
     assert bs.choose_placement({"localizer": 5.0, "sensor_drop": 5.0}) == "localizer"
     assert bs.PLACEMENTS == ("localizer", "sensor_drop")
+
+
+# Gaps found by mutation testing (D-040).
+
+
+def test_rank_at_ties_and_edges():
+    top = max(t["score_eur"] for t in bs.LEADERBOARD)
+    last = min(t["score_eur"] for t in bs.LEADERBOARD)
+    tie = bs.rank(260_562)  # equal to the 2nd team: placed beside it, not below
+    assert tie["rank_among_top6"] == 2 and not tie["above_all_tabulated"]
+    assert bs.rank(top)["above_all_tabulated"] and bs.rank(top)["rank_among_top6"] == 1
+    at_last = bs.rank(last)
+    assert at_last["rank_among_top6"] == 6 and not at_last["below_tabulated"]
+    below = bs.rank(last - 1)
+    assert below["rank_among_top6"] is None and below["below_tabulated"]
+    assert below["sixth_place_eur"] == last and below["teams_in_competition"] == 18
+
+
+def test_bounds_of_the_year_and_of_a_leak_are_inclusive(dist):
+    leaks = [leak("p1", 100, 1_000)]
+    on_end = bs.score_detections(
+        pd.DataFrame({"link_id": ["p1"], "ts": [at(1_000)]}), leaks, dist, PARAMS
+    )
+    assert on_end["true_positives"] == 1  # still running on its end step
+    after = bs.score_detections(
+        pd.DataFrame({"link_id": ["p1"], "ts": [at(1_001)]}), leaks, dist, PARAMS
+    )
+    assert after["false_positives"] == 1
+    last_step = bs.to_step(bs.year_bounds(2019)[1])
+    late = [leak("p1", 100, last_step)]
+    r = bs.score_detections(
+        pd.DataFrame({"link_id": ["p1"], "ts": [at(last_step)]}), late, dist, PARAMS
+    )
+    assert r["detections"] == 1 and r["true_positives"] == 1
+
+
+def test_per_detection_rows(dist):
+    leaks = [leak("p1", 100, 2_000)]
+    det = pd.DataFrame({"link_id": ["p1", "p1", "p4"], "ts": [at(110), at(120), at(5)]})
+    r = bs.score_detections(det, leaks, dist, PARAMS)
+    fp, tp, rep = r["per_detection"]  # in time order
+    assert fp == {
+        "link_id": "p4",
+        "ts": at(5).isoformat(),
+        "leak": None,
+        "distance_m": None,
+        "score_eur": -500.0,
+        "label": "fp",
+    }  # before the leak started
+    assert tp["leak"] == "p1" and tp["distance_m"] == 0.0 and tp["label"] == "tp"
+    assert tp["delay_h"] == pytest.approx(10 * 5 / 60, abs=0.01)
+    assert rep == {
+        "link_id": "p1",
+        "ts": at(120).isoformat(),
+        "leak": None,
+        "distance_m": None,
+        "score_eur": 0.0,
+        "label": "repeat",
+    }
+    assert r["repeated_detections"] == 1 and r["missed_leaks"] == []
+    assert r["detected_leaks"] == ["p1"] and r["tp_rate"] == 1.0
+
+
+def test_official_leaks_of_a_year(tmp_path):
+    first, last = bs.year_bounds(2019)
+    gt = pd.DataFrame(
+        {
+            "leak_id": ["ended_at_start", "ended_before", "starts_last", "open", "next_year"],
+            "pipe_id": ["p1", "p2", "p3", "p4", "p2"],
+            "start_ts": [
+                first - pd.Timedelta(days=30),
+                first - pd.Timedelta(days=30),
+                last,
+                first + pd.Timedelta(days=3),
+                last + bs.STEP,
+            ],
+            "end_ts": [first, first - bs.STEP, pd.NaT, pd.NaT, pd.NaT],
+        }
+    )
+    gt["end_ts"] = pd.to_datetime(gt["end_ts"], utc=True)
+    flows = pd.DataFrame(
+        {p: np.full(YEAR_STEPS, i + 1.0) for i, p in enumerate(["p1", "p2", "p3", "p4"])}
+    )
+    leaks = bs.official_leaks(gt, flows)  # 2019 by default
+    assert [lk.link_id for lk in leaks] == ["p1", "p4", "p3"]  # start order; two left out
+    assert leaks[0].end_step == 0 and leaks[0].start_step < 0
+    assert leaks[1].end_step == bs.to_step(last) and leaks[1].start_step == 3 * 288
+    assert leaks[2].start_step == bs.to_step(last)
+    assert leaks[1].flow_m3h.dtype == np.float64 and leaks[1].flow_m3h[0] == 4.0
+
+
+def test_perfect_detections_put_old_leaks_at_the_first_step():
+    leaks = [leak("p1", -500, 3_000), leak("p3", 0, 3_000), leak("p4", 7, 3_000)]
+    det = bs.perfect_detections(leaks)
+    assert list(det["ts"]) == [at(1), at(1), at(7)]
+
+
+class _Net:
+    """b - a - c with a 0.5 m pipe a-c and a 10 m pipe a-b."""
+
+    node_name_list = ("a", "b", "c")
+
+    def links(self):
+        for name, s, e, length in (("zz_short", "a", "c", 0.5), ("aa_long", "a", "b", 10.0)):
+            yield (
+                name,
+                SimpleNamespace(
+                    start_node_name=s, end_node_name=e, link_type="Pipe", length=length
+                ),
+            )
+
+
+def test_short_pipes_are_edges_and_the_shortest_incident_pipe_wins():
+    d = bs.LinkDistances(_Net())
+    assert d.link_at_node("a") == "zz_short"  # shortest, though not first by name
+    assert d.link_at_node("c") == "zz_short" and d.link_at_node("b") == "aa_long"
+    assert d.node_distance[d.index["b"], d.index["c"]] == pytest.approx(10.5)
+    assert d.node_distance[d.index["c"], d.index["b"]] == pytest.approx(10.5)
+    assert d.nodes == ["a", "b", "c"]
+
+
+def test_localizer_candidates_as_plain_ids_or_objects(dist):
+    alerts = pd.DataFrame(
+        {
+            "alert_id": ["x", "y"],
+            "start_ts": [at(1), at(2)],
+            "gnn_top5": [["b"], [SimpleNamespace(node_id="e", prob=0.3)]],
+            "top_sensors": [[], []],
+        }
+    )
+    det = bs.detections_from_alerts(alerts, dist)
+    assert list(det.columns) == ["alert_id", "ts", "link_id", "how"]
+    assert list(det["link_id"]) == ["p1", "p4"] and list(det["ts"]) == [at(1), at(2)]
+    empty = bs.detections_from_alerts(alerts.iloc[:0], dist)
+    assert list(empty.columns) == ["alert_id", "ts", "link_id", "how"] and empty.empty

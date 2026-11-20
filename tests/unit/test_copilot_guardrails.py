@@ -164,3 +164,110 @@ def test_section_numbers_match_exactly():
 def test_correction_messages_name_the_problem():
     assert "7, 9" in g.number_correction_message(["7", "9", "7"])
     assert "LeakWatch SOP" in g.citation_correction_message(PASSAGES)
+
+
+# Gaps found by mutation testing (D-040).
+
+
+def mention(text: str) -> g.NumberMention:
+    (m,) = g.extract(text).numbers
+    return m
+
+
+@pytest.mark.parametrize(
+    ("text", "value", "tol"),
+    [
+        ("7", 7.0, 0.5),
+        ("0", 0.0, 0.5),
+        ("10", 10.0, 5.0),
+        ("1200", 1200.0, 50.0),
+        ("1,000", 1000.0, 500.0),
+        ("1.50", 1.5, 0.01),
+        ("-3", 3.0, 0.5),
+        ("1.2e3", 1200.0, 100.0),
+        ("1.2E3", 1200.0, 100.0),
+        ("5e2", 500.0, 50.0),
+        ("2 million", 2e6, 5e5),
+        ("2.5 crore", 2.5e7, 1e6),
+        ("3 lakh", 3e5, 5e4),
+    ],
+)
+def test_value_and_tolerance_follow_what_was_written(text, value, tol):
+    m = mention(text)
+    assert m.value == pytest.approx(value) and m.tolerance == pytest.approx(tol)
+    assert m.text == text.split()[0]
+
+
+def test_times_and_days_out_of_range_are_not_times_or_dates():
+    assert g.extract("24:00 and 12:60").times == set()
+    assert g.extract("at 23:59").times == {"23:59"}
+    assert g.extract("12:30 am, 12:30 pm and 1:05 pm").times == {"00:30", "12:30", "13:05"}
+    assert g.extract("32 March 2019 and 0 March").dates == set()
+    assert g.extract("31 March 2019").dates == {"2019-03-31"}
+    assert g.extract("1 March").month_days == {"03-01"}
+
+
+def test_years_are_skipped_only_in_their_range():
+    assert numbers("In 1900, 2100, 1899 and 2101 the share was 2019%.") == ["1899", "2101", "2019"]
+
+
+def test_prefixes_of_known_ids_are_identifiers():
+    src = json.dumps({"alert_id": "11111111-aaaa-bbbb-cccc-dddddddddddd", "windows": 5})
+    assert g.check_numbers("Alert 11111111 had 5 windows.", [src]).ok
+    bad = g.check_numbers("Alert 11111111 had 5 windows.", [json.dumps({"windows": 5})])
+    assert bad.unsupported == ["11111111"]
+    assert bad.checked == ["11111111", "5"]
+
+
+def test_dates_and_percent_in_the_result():
+    check = g.check_numbers("In 2019-03, 45% of 7 alerts.", ['{"month": "2019-03"}'])
+    assert check.unsupported == ["45%", "7"] and check.checked == ["45", "7", "2019-03"]
+    assert g.check_numbers("In 2019-04.", ['{"month": "2019-03"}']).unsupported == ["2019-04"]
+    assert g.check_numbers("On 14 March.", ['{"d": "2019-03-14"}']).ok
+    assert not g.check_numbers("On 14 March 2018.", ['{"d": "2019-03-14"}']).ok
+
+
+def test_citation_forms():
+    exact = {"citation": "[Ref A1]", "doc_short": "Zed", "section": "", "page": None}
+    assert g.check_citations("Do it [Ref A1].", [exact]).ok
+    by_title = {"doc_title": "Water Manual", "section": "§3.4 Valves", "page": None}
+    assert g.citation_matches("Water Manual, §3.4", by_title)
+    assert g.citation_matches("Water Manual, Valves", by_title)
+    by_id = {"doc_id": "wm_1999", "section": "§3.4 Valves", "page": None}
+    assert g.citation_matches("wm_1999 3.4", by_id)
+    assert not g.citation_matches("wm_1999 3.5", by_id)
+    paged = {"doc_short": "WM", "section": "", "page": 382}
+    assert g.citation_matches("WM, page 382", paged) and g.citation_matches("WM p382", paged)
+    assert not g.citation_matches("WM, p. 383", paged)
+    assert not g.citation_matches("WM, p. n/a", {"doc_short": "WM", "section": "", "page": "n/a"})
+    assert not g.citation_matches("WM", {"doc_short": "WM", "section": "", "page": ""})
+
+
+def test_not_covered_variants_and_result_fields():
+    for answer in (
+        "The indexed manuals do not cover this question",
+        "Sorry, the manuals don't cover this.",
+        "The documents do not cover it.",
+    ):
+        res = g.check_citations(answer, PASSAGES)
+        assert res.ok and res.not_covered and res.cited == [] and res.valid == []
+    cited = g.check_citations(
+        "Listen [LeakWatch SOP, 6. Confirm the leak before digging].", PASSAGES
+    )
+    assert cited.cited == ["LeakWatch SOP, 6. Confirm the leak before digging"]
+    assert cited.valid == cited.cited and not cited.not_covered
+
+
+def test_empty_inputs():
+    assert g.find_citations(None) == [] and not g.is_refusal(None)
+    assert g.extract(None).numbers == []
+    assert g.section_number(None) is None and g.section_number("Intro") is None
+    assert g.section_number("§15.10 Leakage") == "15.10"
+
+
+def test_correction_messages_say_what_to_do():
+    msg = g.number_correction_message(["7"])
+    assert "YYYY-MM-DD HH:MM UTC" in msg and "run_sql" in msg
+    many = [{"citation": f"[C{i}]"} for i in range(5)]
+    text = g.citation_correction_message(many)
+    assert "[C0]; [C1]; [C2]" in text and "[C3]" not in text and g.NOT_COVERED_TEXT in text

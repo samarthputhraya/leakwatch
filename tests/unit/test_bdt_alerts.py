@@ -121,3 +121,60 @@ def test_run_alerts_batch_groups_by_scenario():
     assert out.iloc[0]["scenario_id"] == "s1"
     assert out.iloc[0]["area"] == "C"
     assert out.iloc[0]["est_loss_m3h"] == 1.5
+
+
+# Gaps found by mutation testing (D-040).
+
+
+def test_alert_id_depends_on_every_field_and_treats_no_scenario_as_empty():
+    import uuid
+
+    from leakwatch.bdt.alerts import ALERT_NAMESPACE
+
+    base = ("batch", "kmeans", "battledim", None, T0)
+    assert alert_id_for(*base) == str(uuid.uuid5(ALERT_NAMESPACE, f"batch|kmeans|battledim||{T0}"))
+    assert alert_id_for(*base) == alert_id_for("batch", "kmeans", "battledim", "", T0)
+    for i, other in enumerate(("stream", "lstm_ae", "sim", "s1", T0 + 900)):
+        changed = list(base)
+        changed[i] = other
+        assert alert_id_for(*changed) != alert_id_for(*base)
+
+
+def test_rule_allows_closing_after_one_window():
+    assert rule(m=1, close=1).close_after_windows == 1
+    with pytest.raises(ValueError):
+        rule(m=1, close=0)
+
+
+def test_epoch_seconds_floors_and_reads_naive_as_utc():
+    from leakwatch.bdt.alerts import epoch_seconds
+
+    aware = pd.Series(pd.to_datetime(["2019-01-01 00:00:01.900"], utc=True))
+    naive = pd.Series(pd.to_datetime(["2019-01-01 00:00:01.900"]))
+    assert epoch_seconds(aware).tolist() == [T0 + 1] == epoch_seconds(naive).tolist()
+
+
+def test_run_alerts_keeps_each_groups_source_scenario_and_id():
+    n = 6
+    starts = pd.date_range("2019-01-01", periods=n, freq="15min", tz="UTC")
+    block = {
+        "window_start": list(starts),
+        "window_end": list(starts + pd.Timedelta(hours=1)),
+        "score": [2.0] * n,
+    }
+    sim = pd.DataFrame({"source": "sim", "scenario_id": "s2", **block})
+    bd = pd.DataFrame({"source": "battledim", "scenario_id": None, **block})
+    scored = pd.concat([sim, bd], ignore_index=True).iloc[::-1]  # any order
+    shares = np.tile([0.6, 0.3, 0.1], (len(scored), 1))
+    out = run_alerts(scored, shares, SERIES, rule(m=3), ["flow__p1__residual"], None)
+    assert list(out.columns) == list(ALERT_LAKE_COLUMNS)
+    got = {(r.source, r.scenario_id): r for r in out.itertuples(index=False)}
+    assert set(got) == {("sim", "s2"), ("battledim", None)}
+    start_s = int(starts[2].timestamp()) + 3600  # m-th window's end
+    for (source, scenario), r in got.items():
+        assert r.alert_id == alert_id_for("batch", "kmeans", source, scenario, start_s)
+        assert r.est_loss_m3h is None  # no feature rows: no excess inflow
+    # feature rows with every inflow value missing give no estimate either (not 0)
+    feats = pd.DataFrame({"flow__p1__residual": [np.nan] * len(scored)})
+    out2 = run_alerts(scored, shares, SERIES, rule(m=3), ["flow__p1__residual"], feats)
+    assert out2["est_loss_m3h"].isna().all()
