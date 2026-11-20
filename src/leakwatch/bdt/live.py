@@ -3,7 +3,10 @@
 :class:`LiveScoring` is plugged into the feature stream's ``foreachBatch`` writer
 (``stream.features_stream``). For each micro-batch it receives the newly emitted feature rows and
 
-1. scores them with :class:`~leakwatch.bdt.scorer.KMeansScorer` (the batch evaluation's code);
+1. for a re-baselined detector (D-038), replaces each residual by its re-baselined value, using
+   the stream's own recent windows as reference (seeded from the batch feature table for the days
+   before the stream starts), then scores them with :class:`~leakwatch.bdt.scorer.KMeansScorer`
+   (the batch evaluation's code);
 2. runs one :class:`~leakwatch.bdt.alerts.AlertTracker` per (source, scenario), resuming from the
    state committed with the previous batch;
 3. returns score rows and changed alert versions, which the writer stages next to the features
@@ -30,6 +33,8 @@ from leakwatch.bdt.scorer import KMeansParams, KMeansScorer
 from leakwatch.common.schemas import ALERT_LAKE_COLUMNS, SCORE_COLUMNS
 
 Localizer = Callable[[dict[str, Any], pd.DataFrame], list[dict[str, Any]] | None]
+#: (first window start of a stream, how far back) -> earlier feature rows to use as reference
+Seeder = Callable[[pd.Timestamp, pd.Timedelta], pd.DataFrame]
 UTC_US = pa.timestamp("us", tz="UTC")
 
 
@@ -79,6 +84,11 @@ class LiveScoring:
     refine_hours: float = 0.0
     history_windows: int = 16  # feature rows kept per stream for the localizer (4 h at 15 min)
     recent: dict[str, pd.DataFrame] = field(default_factory=dict)
+    # D-038: re-baselined residuals (None = score the features as they arrive)
+    rebaseline: Any = None  # features.rebaseline.Rebaseline
+    rebaseline_columns: Sequence[str] = ()
+    seed: Seeder | None = None
+    reference: dict[str, pd.DataFrame] = field(default_factory=dict)
 
     @classmethod
     def from_model_dir(
@@ -108,7 +118,38 @@ class LiveScoring:
         gnn = cfg.get("dl", {}).get("gnn", {})
         if "live_refine_hours" in gnn:
             live.refine_hours = float(gnn["live_refine_hours"])
+        if params.meta.get("feature_view") == "rebaselined":
+            from leakwatch.features.rebaseline import Rebaseline
+
+            live.rebaseline = Rebaseline.from_config(cfg)
+            live.rebaseline_columns = list(params.feature_columns)
+            live.seed = batch_seeder(live.rebaseline_columns)
         return live
+
+    def _rebaselined(self, key: str, part: pd.DataFrame) -> pd.DataFrame:
+        """``part`` with its residual columns re-baselined against this stream's history."""
+        from leakwatch.features.rebaseline import rebaselined
+
+        cols = list(self.rebaseline_columns)
+        hist = self.reference.get(key)
+        if hist is None:
+            hist = pd.DataFrame(columns=["window_start", *cols])
+            if self.seed is not None:
+                first = pd.Timestamp(part["window_start"].min())
+                seeded = self.seed(first, self.rebaseline.history)
+                if not seeded.empty:
+                    hist = seeded[["window_start", *cols]]
+        raw = part[["window_start", *cols]]
+        both = pd.concat([hist, raw], ignore_index=True)
+        both["window_start"] = pd.to_datetime(both["window_start"], utc=True)
+        both = both.drop_duplicates("window_start", keep="last").sort_values("window_start")
+        out = rebaselined(both, cols, self.rebaseline).set_index("window_start")
+        cutoff = both["window_start"].max() - self.rebaseline.history
+        self.reference[key] = both[both["window_start"] >= cutoff].reset_index(drop=True)
+        new = part.copy()
+        starts = pd.to_datetime(new["window_start"], utc=True)
+        new[cols] = out.loc[starts, cols].fillna(0.0).to_numpy()  # no reference yet -> no change
+        return new
 
     def _history(self, key: str, part: pd.DataFrame) -> pd.DataFrame:
         """This stream's latest feature rows including ``part`` (in memory, for the localizer)."""
@@ -137,6 +178,15 @@ class LiveScoring:
         features = features.sort_values(["source", "scenario_id", "window_start"]).reset_index(
             drop=True
         )
+        if self.rebaseline is not None:
+            keys0 = features["scenario_id"].fillna("")
+            parts = [
+                self._rebaselined(f"{source}|{scenario}", features.loc[np.asarray(idx)])
+                for (source, scenario), idx in features.groupby(
+                    [features["source"], keys0]
+                ).groups.items()
+            ]
+            features = pd.concat(parts).sort_index()
         scored, shares = self.scorer.score_frame(features)
         excess_all = (
             features[list(self.inflow_columns)].sum(axis=1, min_count=1)
@@ -170,6 +220,27 @@ class LiveScoring:
         self.stats["windows"] += len(scored)
         self.stats["alerts"] += len(rows)
         return scored, rows, new_state
+
+
+def batch_seeder(columns: Sequence[str]) -> Seeder:
+    """Reference rows from the batch feature table (BattLeDIM) before a stream's first window."""
+
+    def seed(first: pd.Timestamp, back: pd.Timedelta) -> pd.DataFrame:
+        from leakwatch.common import lake
+
+        col_sql = ", ".join(f'"{c}"' for c in columns)
+        lo, hi = (first - back).isoformat(), first.isoformat()
+        try:
+            return lake.query_df(
+                lake.connect(),
+                f"SELECT window_start, {col_sql} FROM features WHERE source = 'battledim' "
+                f"AND window_start >= TIMESTAMPTZ '{lo}' AND window_start < TIMESTAMPTZ '{hi}' "
+                "ORDER BY window_start",
+            )
+        except Exception:  # no batch features (fresh lake): the stream builds its own history
+            return pd.DataFrame(columns=["window_start", *columns])
+
+    return seed
 
 
 def write_scores_staged(scored: pd.DataFrame, stage: Path, model: str, origin: str) -> int:

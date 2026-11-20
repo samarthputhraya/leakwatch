@@ -192,3 +192,30 @@ def test_open_alert_is_refined_during_its_first_hours_then_kept(tmp_path):
     assert versions == list(range(1, len(versions) + 1)) and len(versions) == 5
     assert [n for _, n in seen][-1] == 9  # the localizer sees the stream's recent windows
     assert rows[-1]["gnn_top5"] == [{"node_id": "n5", "prob": 0.5}]  # last refinement is kept
+
+
+def test_live_rebaseline_seeds_from_history_and_keeps_its_own():
+    """D-038: a step in a live residual shows as a change against the seeded reference."""
+    from leakwatch.bdt.live import LiveScoring
+    from leakwatch.features.rebaseline import Rebaseline
+
+    cols = ["pressure__n1__residual"]
+    calls = []
+
+    def seed(first, back):
+        calls.append((first, back))
+        ts = pd.date_range(first - back, first, freq="15min", tz="UTC", inclusive="left")
+        return pd.DataFrame({"window_start": ts, cols[0]: 1.0})
+
+    live = LiveScoring(None, None, [])  # type: ignore[arg-type]
+    live.rebaseline, live.rebaseline_columns, live.seed = Rebaseline(2, 1), cols, seed
+    start = pd.Timestamp("2018-11-19 00:00", tz="UTC")
+    part = pd.DataFrame(
+        {"window_start": pd.date_range(start, periods=4, freq="15min", tz="UTC"), cols[0]: -2.0}
+    )
+    out = live._rebaselined("battledim|", part)
+    assert np.allclose(out[cols[0]], -3.0)  # -2 against a reference of +1
+    later = part.assign(window_start=part["window_start"] + pd.Timedelta(hours=1))
+    live._rebaselined("battledim|", later)
+    assert len(calls) == 1  # the stream keeps its own history after the first batch
+    assert live.reference["battledim|"]["window_start"].max() == later["window_start"].max()
