@@ -220,3 +220,61 @@ def test_demo_distances_show_refined_and_first_localization():
         "n1 44 m / n2 n/a m" in text and "(at the alert, before refinement: 900 m / n/a m)" in text
     )
     assert reports.demo_distances({"runs": [{"node": "n1"}]}) == ""
+
+
+def test_official_score_row_and_report_section(metrics_dir):
+    year = {
+        "role": "test (official)",
+        "total_score_eur": 230_000.0,
+        "true_positives": 10,
+        "leaks": 23,
+        "false_positives": 4,
+        "alerts": 30,
+        "rank_among_top6": 3,
+        "sixth_place_eur": 127_626,
+    }
+    write(
+        metrics_dir,
+        "battledim_score",
+        {
+            "detector": "kmeans_rebaselined",
+            "years": {"2019": year},
+            "leaderboard_top6": [{"team": "Tongji-Team", "score_eur": 264_873}],
+        },
+    )
+    row = next(r for r in reports.readme_results().splitlines() if "official score" in r)
+    assert "€230,000: 10 of 23 leaks, 4 false positives; would rank 3" in row
+    text = reports.bdt_report()
+    assert "## Official BattLeDIM 2020 score" in text and "rank **3**" in text
+
+
+def test_real_leak_localization_table(metrics_dir):
+    loc = {"median_distance_top1_m": 250.0, "within_m_top1": 0.5, "within_m_best_of_top5": 0.75}
+    write(
+        metrics_dir,
+        "dl_gnn",
+        {
+            "models": {
+                "gcn_sens": {
+                    "test": {
+                        "top1": 0.1,
+                        "top5": 0.3,
+                        "mean_distance_top1_m": 400,
+                        "within_m_best_of_top5": 0.8,
+                    }
+                }
+            },
+            "chosen_model": "gcn_sens",
+            "gnn_beats_mlp_top5": True,
+            "dataset": {"test": 10, "unseen_sizes": 0, "unseen_diameter_m": [0.014, 0.017]},
+            "real_leaks": {
+                y: {"leaks": 14, "localizers": {"nearest_sensor": loc, "gcn_sens": loc}}
+                for y in ("2018", "2019")
+            },
+        },
+    )
+    text = reports.dl_report()
+    assert "Recorded BattLeDIM leaks (D-038)" in text
+    assert "| gcn_sens | 250 | 50.0% | 75.0% | 250 | 50.0% | 75.0% |" in text
+    row = next(r for r in reports.readme_results().splitlines() if "2019 BattLeDIM leaks" in r)
+    assert "median 250 m" in row

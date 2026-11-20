@@ -369,6 +369,7 @@ def bdt_report() -> str:
         "`make features` → `make bdt-train` → `make bdt-eval` → `make bdt-synthetic` → `make live-replay` → "
         "`LEAKWATCH_CONFIG=configs/full.yaml make sim-scale` → `make sim-ingest` → `make bdt-scaling` → `make reports`.",
     ]
+    lines += official_score_lines()
     return "\n".join(lines) + "\n"
 
 
@@ -379,6 +380,8 @@ def gnn_inputs(name: str, spec: dict[str, Any] | None) -> str:
     """What a localizer variant sees, for the model table."""
     if name == "nearest_sensor":
         return "heuristic: pipe distance to the sensor with the largest pressure drop"
+    if name == "sensitivity_corr":
+        return "classic: cosine with each node's sensitivity signature (no learning)"
     if not spec or spec.get("kind") == "mlp":
         return "sensor residuals only (no graph)"
     parts = [f"{spec['kind'].upper()}, residuals at sensor nodes"]
@@ -386,7 +389,79 @@ def gnn_inputs(name: str, spec: dict[str, Any] | None) -> str:
         parts.append("closeness to each sensor")
     if spec.get("context", True):
         parts.append("global sensor context")
+    if spec.get("sensitivity", False):
+        parts.append("sensitivity cosines")
     return " + ".join(parts)
+
+
+def official_score_lines() -> list[str]:
+    """Official BattLeDIM score: each detector variant alone and the full system (D-037, D-038)."""
+    ev, sys_score = load("bdt_kmeans_2019"), load("battledim_score")
+    lines = [
+        "",
+        "## Official BattLeDIM 2020 score (D-037)",
+        "",
+        "The competition's own scoring code (KIOS-Research/BattLeDIM), ported and checked against "
+        "its distance matrix, leak list and perfect score (€523,154): a report is a pipe and a time; "
+        "it is worth the water the leak loses from then on (€0.80/m³) minus a crew cost up to €500 if "
+        "it lands within 300 m of a running leak, and costs €500 otherwise. 2018 (rules applied to "
+        "its leaks) is the development year; 2019 is the competition year.",
+    ]
+    rows = []
+    for name, r in ((ev or {}).get("models") or {}).items():
+        o = r.get("official_score_sensor_drop") or {}
+        if not o:
+            continue
+        rows.append(
+            [name, r.get("feature_view"), r.get("persistence_windows")]
+            + [
+                f"€{num(_get(o, y, 'total_score_eur'), 0)} ({_get(o, y, 'true_positives')} TP, "
+                f"{_get(o, y, 'false_positives')} FP)"
+                for y in ("2018", "2019")
+            ]
+        )
+    if rows:
+        lines += [
+            "",
+            "Detector alone (each alert placed at the pressure sensor that dropped most, `bdt.report`; "
+            f"{src('bdt_kmeans_2019', ev)}):",
+            "",
+            table(["variant", "features", "m", "2018 (development)", "2019 (test)"], rows),
+        ]
+    if sys_score:
+        rows = []
+        for year, y in (sys_score.get("years") or {}).items():
+            rows.append(
+                [
+                    year,
+                    y.get("role"),
+                    f"€{num(y['total_score_eur'], 0)}",
+                    f"{y['true_positives']} / {y['leaks']}",
+                    y["false_positives"],
+                    y.get("alerts"),
+                ]
+            )
+        y19 = _get(sys_score, "years", "2019") or {}
+        lines += [
+            "",
+            f"Full system (live detector `{sys_score.get('detector')}` + localizer, one report per "
+            f"alert; {src('battledim_score', sys_score)}):",
+            "",
+            table(["year", "role", "score", "leaks found", "false positives", "alerts"], rows),
+            "",
+            "Competition results (Vrachimis et al. 2022, Table 4, top 6 of 18 teams): "
+            + "; ".join(
+                f"{t['team']} €{num(t['score_eur'], 0)}"
+                for t in sys_score.get("leaderboard_top6", [])
+            )
+            + ". "
+            + (
+                f"LeakWatch 2019 would rank **{y19['rank_among_top6']}** among them."
+                if y19.get("rank_among_top6")
+                else "LeakWatch 2019 is below the six tabulated teams."
+            ),
+        ]
+    return lines if (rows or sys_score) else []
 
 
 def medium_large_top5(model: dict[str, Any]) -> float | None:
@@ -474,12 +549,31 @@ def dl_report() -> str:
     else:
         lines.append(MISSING.format(cmd="make lstm-ae"))
     lines += ["", "## 2. GNN leak localizer", ""]
+    lines += gnn_lines(gnn, ds)
+    lines += MODEL_CARDS
+    return "\n".join(lines) + "\n"
+
+
+def gnn_lines(gnn: dict[str, Any] | None, ds: dict[str, Any] | None) -> list[str]:
+    """The GNN section of the DL report."""
+    lines: list[str] = []
     if ds:
         lines.append(
-            f"- Training data: {num(ds['scenarios'], 0)} single-leak scenarios over {ds['junctions']} junctions "
+            f"- Training data: {num(ds['scenarios'], 0)} leak scenarios over {ds['junctions']} junctions "
             f"(leak diameter {ds['leak_diameter_m'][0] * 1000:.0f}–{ds['leak_diameter_m'][1] * 1000:.0f} mm, ±{ds['demand_noise'] * 100:.0f}% demand noise, "
             f"{ds['sensor_noise_m'] * 100:.0f} cm sensor noise) ({src('gnn_dataset', ds)})."
         )
+        if ds.get("worlds"):
+            bl = ds.get("background_leaks") or [0, 0]
+            lines.append(
+                f"- Each scenario runs on one of {ds['worlds']} perturbed networks (D-038): pipe roughness "
+                f"× U(1 ± {num(ds.get('roughness_noise'), 2)}), {bl[0]}–{bl[1]} small background leaks already "
+                f"running, whole-network demand × N(1, {num(ds.get('day_demand_noise'), 2)}) per run; the "
+                f"reference is the median of {ds.get('reference_runs')} leak-free runs of the same network. "
+                f"A sensitivity matrix (one {num((ds.get('sensitivity_diameter_m') or 0) * 1000, 0)} mm leak per "
+                "junction on the nominal model) gives each node the cosine between the observed residuals "
+                "and its own signature."
+            )
     if gnn:
         variants, training = gnn.get("variants") or {}, gnn.get("training") or {}
         models = gnn["models"]
@@ -548,7 +642,8 @@ def dl_report() -> str:
                 ],
             ),
             "",
-            f"Chosen by validation top-5: **{gnn['chosen_model']}**. GNN beats MLP on top-5: {gnn['gnn_beats_mlp_top5']}.",
+            f"Chosen ({gnn.get('chosen_by', 'validation top-5')}): **{gnn['chosen_model']}**. "
+            f"GNN beats MLP on top-5: {gnn['gnn_beats_mlp_top5']}.",
         ]
         chosen = models.get(gnn["chosen_model"]) or {}
         ml = medium_large_top5(chosen)
@@ -577,65 +672,132 @@ def dl_report() -> str:
                 )
                 + " (D-029).",
             ]
-        b = gnn["battledim_2019"]
-        lines += [
-            "",
-            f"**BattLeDIM 2019 benchmark ({b.get('model', gnn['chosen_model'])}):** {b['leaks_localized']} leaks with a batch "
-            f"alert of the live detector starting within 7 days after the leak; localized at the first such alert. Median distance from the top-1 node to the "
-            f"leaking pipe {num(b['median_distance_top1_m'], 0)} m (nearest of top 5: "
-            f"{num(b['median_distance_best_of_top5_m'], 0)} m); nearest-sensor heuristic top-1: "
-            f"{num(b['nearest_sensor_median_distance_top1_m'], 0)} m; within 300 m (best of top 5): "
-            f"{num(b['within_m_best_of_top5'], 3, pct=True)}. On 2019 the trained localizer is "
-            f"{'worse' if b['median_distance_top1_m'] > b['nearest_sensor_median_distance_top1_m'] else 'better'} "
-            "than the nearest-sensor heuristic: it was trained on one leak at a time on the nominal model, while "
-            "2019 has many leaks running at once and a real network that differs from the model.",
-        ]
-        per = b.get("per_leak") or []
-        if per:
+        if "gcn" in top5 and "gcn_sens" in top5:
             lines += [
                 "",
-                table(
-                    [
-                        "leak",
-                        "type",
-                        "peak outflow (m³/h)",
-                        "alert start (UTC)",
-                        "top-1 distance (m)",
-                        "best of top 5 (m)",
-                        "nearest sensor top-1 (m)",
-                    ],
-                    [
-                        [
-                            p.get("leak_id"),
-                            p.get("type"),
-                            num(p.get("peak_outflow_m3h"), 1),
-                            str(p.get("alert_start", ""))[:16].replace("T", " "),
-                            num(p.get("distance_top1_m"), 0),
-                            num(p.get("distance_best_of_top5_m"), 0),
-                            num(p.get("nearest_sensor_distance_top1_m"), 0),
-                        ]
-                        for p in per
-                    ],
-                ),
+                f"**Ablation (sensitivity input, test top-5):** GCN {num(top5['gcn'], 3)}; with the "
+                f"sensitivity cosines {num(top5['gcn_sens'], 3)}"
+                + (
+                    f"; with them but without the global context {num(top5['gcn_sens_no_context'], 3)}"
+                    if "gcn_sens_no_context" in top5
+                    else ""
+                )
+                + (
+                    f"; the cosine alone, no learning {num(top5['sensitivity_corr'], 3)}"
+                    if "sensitivity_corr" in top5
+                    else ""
+                )
+                + " (D-038).",
             ]
+        lines += real_leak_lines(gnn) if gnn.get("real_leaks") else legacy_2019_lines(gnn)
     else:
         lines.append(MISSING.format(cmd="make gnn"))
+    return lines
+
+
+def real_leak_lines(gnn: dict[str, Any]) -> list[str]:
+    """Localization of the recorded BattLeDIM leaks by every localizer, 2018 and 2019 (D-038)."""
+    real = gnn["real_leaks"]
+    names = list(_get(real, "2018", "localizers") or {})
+    rows = []
+    for name in names:
+        row = [name]
+        for year in ("2018", "2019"):
+            s = _get(real, year, "localizers", name) or {}
+            row += [
+                num(s.get("median_distance_top1_m"), 0),
+                num(s.get("within_m_top1"), 3, pct=True),
+                num(s.get("within_m_best_of_top5"), 3, pct=True),
+            ]
+        rows.append(row)
+    return [
+        "",
+        "**Recorded BattLeDIM leaks (D-038).** Every leak is localized 2 h after its outflow first "
+        "reaches half its peak, from re-baselined pressure residuals. 2018 "
+        f"({_get(real, '2018', 'leaks')} leaks) is the development set the live localizer is chosen "
+        f"on; 2019 ({_get(real, '2019', 'leaks')} leaks) is only reported. Distance: top-1 node to the "
+        "leaking pipe.",
+        "",
+        table(
+            [
+                "localizer",
+                "2018 median (m)",
+                "2018 ≤ 300 m",
+                "2018 ≤ 300 m (best of 5)",
+                "2019 median (m)",
+                "2019 ≤ 300 m",
+                "2019 ≤ 300 m (best of 5)",
+            ],
+            rows,
+        ),
+    ]
+
+
+def legacy_2019_lines(gnn: dict[str, Any]) -> list[str]:
+    """The alert-based 2019 benchmark of metrics written before D-038."""
+    lines: list[str] = []
+    if "battledim_2019" not in gnn:
+        return lines
+    b = gnn["battledim_2019"]
     lines += [
         "",
-        "## 3. Model cards",
-        "",
-        "**LSTM-AE** — data: BattLeDIM 2018 normal periods (D-015); intended use: anomaly score per 1 h "
-        "window alongside K-Means; limits: trained on one year of one benchmark network; drift in "
-        "accumulated leakage raises scores like K-Means.",
-        "",
-        "**GNN localizer** — data: EPANET single-leak scenarios on nominal L-Town (D-024); inputs: two "
-        "hourly pressure residuals at the 33 sensor nodes, each junction's closeness (pipe distance) to "
-        "every sensor, and a global context vector computed from all sensor residuals (D-029); output: "
-        "probability per junction; limits: one leak at a time, nominal model (the real network differs "
-        "by about ±10%), junction leaks (pipe leaks are scored by the nearer pipe end); see the 2019 "
-        "benchmark above for how it transfers to the recorded data.",
+        f"**BattLeDIM 2019 benchmark ({b.get('model', gnn['chosen_model'])}):** {b['leaks_localized']} leaks with a batch "
+        f"alert of the live detector starting within 7 days after the leak; localized at the first such alert. Median distance from the top-1 node to the "
+        f"leaking pipe {num(b['median_distance_top1_m'], 0)} m (nearest of top 5: "
+        f"{num(b['median_distance_best_of_top5_m'], 0)} m); nearest-sensor heuristic top-1: "
+        f"{num(b['nearest_sensor_median_distance_top1_m'], 0)} m; within 300 m (best of top 5): "
+        f"{num(b['within_m_best_of_top5'], 3, pct=True)}. On 2019 the trained localizer is "
+        f"{'worse' if b['median_distance_top1_m'] > b['nearest_sensor_median_distance_top1_m'] else 'better'} "
+        "than the nearest-sensor heuristic: it was trained on one leak at a time on the nominal model, while "
+        "2019 has many leaks running at once and a real network that differs from the model.",
     ]
-    return "\n".join(lines) + "\n"
+    per = b.get("per_leak") or []
+    if per:
+        lines += [
+            "",
+            table(
+                [
+                    "leak",
+                    "type",
+                    "peak outflow (m³/h)",
+                    "alert start (UTC)",
+                    "top-1 distance (m)",
+                    "best of top 5 (m)",
+                    "nearest sensor top-1 (m)",
+                ],
+                [
+                    [
+                        p.get("leak_id"),
+                        p.get("type"),
+                        num(p.get("peak_outflow_m3h"), 1),
+                        str(p.get("alert_start", ""))[:16].replace("T", " "),
+                        num(p.get("distance_top1_m"), 0),
+                        num(p.get("distance_best_of_top5_m"), 0),
+                        num(p.get("nearest_sensor_distance_top1_m"), 0),
+                    ]
+                    for p in per
+                ],
+            ),
+        ]
+    return lines
+
+
+MODEL_CARDS = [
+    "",
+    "## 3. Model cards",
+    "",
+    "**LSTM-AE** — data: BattLeDIM 2018 normal periods (D-015); intended use: anomaly score per 1 h "
+    "window alongside K-Means; limits: trained on one year of one benchmark network; drift in "
+    "accumulated leakage raises scores like K-Means.",
+    "",
+    "**GNN localizer** — data: EPANET leak scenarios on perturbed copies of L-Town (roughness, "
+    "background leaks, day-to-day demand; D-024, D-038); inputs: two hourly re-baselined pressure "
+    "residuals at the 33 sensor nodes, each junction's closeness (pipe distance) to every sensor, the "
+    "cosine with its sensitivity signature, and a global context vector computed from all sensor "
+    "residuals (D-029); output: probability per junction; limits: one new leak at a time, junction "
+    "leaks (pipe leaks are scored by the nearer pipe end); the recorded-leak table above shows how it "
+    "transfers to the BattLeDIM data.",
+]
 
 
 # -------------------------------------------------------------------------------------- PE
@@ -1042,13 +1204,42 @@ def readme_results() -> str:
             "dl_gnn",
             m,
         )
-        b = _get(m, "battledim_2019")
+        r19 = _get(m, "real_leaks", "2019", "localizers")
+        name = m.get("chosen_model")
+        if r19 and name in r19:
+            add(
+                f"Localizer on the 2019 BattLeDIM leaks ({_get(m, 'real_leaks', '2019', 'leaks')}, D-038)",
+                f"median {num(r19[name]['median_distance_top1_m'], 0)} m from the top-1 junction to the "
+                f"leaking pipe, {num(r19[name]['within_m_top1'], 3, pct=True)} within 300 m; nearest-sensor "
+                f"heuristic {num(_get(r19, 'nearest_sensor', 'median_distance_top1_m'), 0)} m, "
+                f"sensitivity cosine {num(_get(r19, 'sensitivity_corr', 'median_distance_top1_m'), 0)} m",
+                "dl_gnn",
+                m,
+            )
+        else:
+            b = _get(m, "battledim_2019")
+            add(
+                "Localizer on BattLeDIM 2019 leaks",
+                f"median {num(_get(b, 'median_distance_top1_m'), 0)} m from the top-1 junction to the "
+                f"leaking pipe vs {num(_get(b, 'nearest_sensor_median_distance_top1_m'), 0)} m for the "
+                f"nearest-sensor heuristic ({_get(b, 'leaks_localized')} leaks)",
+                "dl_gnn",
+                m,
+            )
+    m = load("battledim_score")
+    y19 = _get(m, "years", "2019")
+    if m and y19:
+        rank = y19.get("rank_among_top6")
+        place = (
+            f"would rank {rank} of the 6 tabulated teams (of 18; winner €264,873)"
+            if rank
+            else f"below the 6 tabulated teams (6th €{num(y19.get('sixth_place_eur'), 0)})"
+        )
         add(
-            "Localizer on BattLeDIM 2019 leaks",
-            f"median {num(_get(b, 'median_distance_top1_m'), 0)} m from the top-1 junction to the leaking "
-            f"pipe vs {num(_get(b, 'nearest_sensor_median_distance_top1_m'), 0)} m for the nearest-sensor "
-            f"heuristic ({_get(b, 'leaks_localized')} leaks)",
-            "dl_gnn",
+            "BattLeDIM 2020 official score, 2019 (D-037)",
+            f"€{num(y19['total_score_eur'], 0)}: {y19['true_positives']} of {y19['leaks']} leaks, "
+            f"{y19['false_positives']} false positives; {place}",
+            "battledim_score",
             m,
         )
     m = load("pe_eval_v3")
