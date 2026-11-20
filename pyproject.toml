@@ -132,7 +132,9 @@ pytest_add_cli_args_test_selection = [
     "-m",
     "not slow and not spark and not needs_data and not needs_lake and not needs_features",
 ]
-# the code finds configs, prompts' question set and the knowledge base relative to the repo root
-also_copy = ["configs/", "evals/", "docs/", "reports/"]
+# every repo-root path the code and the unit tests read (paths.REPO_ROOT resolves to mutants/)
+also_copy = [
+    "configs/", "evals/", "docs/", "reports/", "scripts/", "notebooks/", "pyproject.toml", "README.md",
+]
 pytest_add_cli_args = ["-p", "no:warnings", "-q", "-p", "no:cacheprovider"]
 do_not_mutate_patterns = ['log\.\w+\(', 'raise \w+', '"""']
