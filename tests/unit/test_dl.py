@@ -17,7 +17,9 @@ from leakwatch.dl.gnn import (  # noqa: E402
     distance_metrics,
     forward,
     nearest_sensor_scores,
+    posterior,
     sensitivity_scores,
+    sensor_prior,
     topk_accuracy,
 )
 from leakwatch.dl.lstm_ae import LSTMAutoencoder, reconstruction  # noqa: E402
@@ -128,6 +130,39 @@ def test_graph_distances_and_nearest_sensor():
     assert m["within_m_top1"] == 1.0
     assert topk_accuracy(scores, np.array([0]), 5) == 0.0  # node 0 is the 6th nearest
     assert topk_accuracy(scores, np.array([0]), 6) == 1.0
+
+
+def test_posterior_with_a_flat_prior_is_the_network():
+    g = line_graph()
+    probs = np.array([[0.1, 0.5, 0.1, 0.1, 0.1, 0.1]])
+    x = np.zeros((1, 3, 2), dtype="float32")
+    x[0, 0] = -1.0
+    np.testing.assert_allclose(posterior(probs, g, x, None), probs, atol=1e-6)
+    assert not sensor_prior(g, x, None).any()
+
+
+def test_posterior_pulls_the_top_node_towards_the_most_dropped_sensor():
+    g = line_graph()  # sensors at nodes 0, 3, 5; 100 m pipes
+    probs = np.array([[0.05, 0.05, 0.05, 0.05, 0.4, 0.4]])  # network: torn between 4 and 5
+    x = np.zeros((1, 3, 2), dtype="float32")
+    x[0, 1] = -1.0  # the sensor at node 3 fell most
+    prior = sensor_prior(g, x, 100.0)
+    np.testing.assert_allclose(prior[0], [-3.0, -2.0, -1.0, 0.0, -1.0, -2.0])
+    p = posterior(probs, g, x, 100.0)
+    np.testing.assert_allclose(p.sum(axis=1), 1.0)
+    assert int(np.argmax(p[0])) == 4  # the network's node nearer the sensor wins
+    strong = posterior(probs, g, x, 10.0)
+    assert int(np.argmax(strong[0])) == 3  # a very short prior is the sensor alone
+
+
+def test_posterior_never_picks_a_non_junction():
+    g = line_graph()
+    g.is_junction = np.array([True, True, True, False, True, True])
+    probs = np.full((1, 6), 1 / 6)
+    x = np.zeros((1, 3, 2), dtype="float32")
+    x[0, 1] = -1.0  # the sensor sits on node 3, which is not a junction here
+    p = posterior(probs, g, x, 50.0)
+    assert p[0, 3] == 0.0 and int(np.argmax(p[0])) in (2, 4)
 
 
 @pytest.mark.parametrize("kind", ["mlp", "gcn", "gat"])

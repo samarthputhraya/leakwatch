@@ -168,6 +168,11 @@ dl:
     threads: 12                        # torch CPU threads while training
     sensor_distance_scale_m: 500       # node feature exp(-pipe distance to each sensor / this)
     live_refine_hours: 2               # live: re-localize an open alert during its first 2 h (D-033)
+    # D-042 posterior localizer: network x exp(-pipe distance to the most-dropped sensor / L).
+    # `make gnn-prior` picks L on the official 2018 score; null = the network alone.
+    sensor_prior_grid_m: [1200, 600, 300, 150, 75, 37.5]
+    sensor_prior_m: null
+    bootstrap_draws: 2000              # paired bootstrap over real leaks (gnn-prior)
     # D-029, D-038; the MLP baseline is always trained. The earlier closeness/context ablation
     # (no closeness, local-only first design) is in D-029; this run ablates the sensitivity input.
     variants:
@@ -196,6 +201,11 @@ battledim_score:
   max_distance_m: 300.0            # SP.xmax: pipe distance from the leak for a true positive
   cost_water_eur_m3: 0.80          # SP.costWater
   cost_crew_eur: 500.0             # SP.costCrew: a false positive costs this much
+  # Ours, not the competition's (D-042): dispatch rules applied to the system's reports, and a
+  # random-timing baseline.
+  revisit_days_grid: [0, 3, 7, 14, 30]  # no second crew to a pipe within d days; d chosen on 2018
+  carry_forward: true              # 2018 reports no repair explains -> open work orders on 1 Jan 2019
+  random_baseline_draws: 200       # random alert times (same count, placement and rules) per year
 
 network:
   # Zones you get by cutting L-Town at its pump and PRVs are named by one node inside each

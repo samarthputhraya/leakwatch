@@ -36,6 +36,10 @@ then; the distance from the predicted nodes to the leaking pipe (nearer end) is 
 localizer. The live localizer is the trained variant with the smallest median distance on the
 2018 leaks (ties: validation top-5); 2019 is only reported.
 
+Posterior localizer (D-042): the candidates written to alerts and used live are the chosen
+network's probabilities times a prior ``exp(-d / sensor_prior_m)`` around the most-dropped
+pressure sensor (:func:`posterior`); ``make gnn-prior`` picks the prior length on 2018.
+
 Writes ``reports/metrics/dl_gnn.json``, ``data/models/gnn/``, and adds ``gnn_top5`` to the batch
 alerts (new alert versions).
 """
@@ -363,6 +367,28 @@ def sensitivity_scores(g: GraphData, x: np.ndarray) -> np.ndarray:
     return scores
 
 
+def sensor_prior(g: GraphData, x: np.ndarray, length_m: float | None) -> np.ndarray:
+    """Log-prior (B, N): −(pipe distance to the most-dropped sensor) / ``length_m`` (D-042).
+
+    The physics half of the posterior localizer: a leak is most likely near the pressure sensor
+    that fell most, with an exponential fall-off of ``length_m`` metres along the pipes. ``None``
+    or 0 gives a flat prior (the network alone).
+    """
+    if not length_m:
+        return np.zeros((x.shape[0], g.n))
+    sensor = g.sensor_idx[np.argmin(x.mean(axis=2), axis=1)]
+    return -g.dist[sensor] / float(length_m)
+
+
+def posterior(probs: np.ndarray, g: GraphData, x: np.ndarray, length_m: float | None) -> np.ndarray:
+    """The network's node probabilities times :func:`sensor_prior`, renormalized (B, N)."""
+    logits = np.log(probs + 1e-9) + sensor_prior(g, x, length_m)
+    logits[:, ~g.is_junction] = -np.inf
+    logits = logits - logits.max(axis=1, keepdims=True)
+    p = np.exp(logits)
+    return p / p.sum(axis=1, keepdims=True)
+
+
 def topk_accuracy(scores: np.ndarray, y: np.ndarray, k: int) -> float:
     """Share of rows whose label is among the k highest scores."""
     top = np.argsort(-scores, axis=1)[:, :k]
@@ -654,6 +680,7 @@ def main(argv: list[str] | None = None) -> int:
         "gnn_beats_mlp_top5": max(results[n]["test"]["top5"] for n in gnn_names)
         > results["mlp"]["test"]["top5"],
         "real_leaks": real,
+        "sensor_prior_m": prior_length(cfg),
         "alerts_with_gnn_top5": None,
         "wall_s": round(time.perf_counter() - t_start, 1),
     }
@@ -682,8 +709,34 @@ def apply_only() -> int:
     from leakwatch.data import network
 
     cfg = load_config()
-    model_dir = paths.models_dir() / "gnn"
-    meta = json.loads((model_dir / "meta.json").read_text(encoding="utf-8"))
+    loaded = load_localizer()
+    if loaded is None:
+        raise FileNotFoundError("no saved localizer: run `make gnn` first")
+    g, model, scale, meta = loaded
+    best = str(meta["model"])
+    sensors = network.parse_sensor_config()["pressure"]
+    payload = read_metrics("dl_gnn")
+    payload.pop("meta", None)
+    payload["alerts_with_gnn_top5"] = write_gnn_top5(cfg, g, model, best, scale, sensors)
+    payload["sensor_prior_m"] = prior_length(cfg)
+    path = write_metrics("dl_gnn", payload)
+    log.info("re-localized %s alerts with %s -> %s", payload["alerts_with_gnn_top5"], best, path)
+    return 0
+
+
+def prior_length(cfg: Mapping[str, Any]) -> float | None:
+    """``dl.gnn.sensor_prior_m``: the posterior localizer's prior length (None: GNN alone)."""
+    value = cfg["dl"]["gnn"].get("sensor_prior_m")
+    return float(value) if value else None
+
+
+def load_localizer(model_dir: Any = None) -> tuple[GraphData, nn.Module, float, dict] | None:
+    """The saved localizer: graph, model (eval mode), input scale and ``meta.json`` (or None)."""
+    model_dir = model_dir or paths.models_dir() / "gnn"
+    meta_path = model_dir / "meta.json"
+    if not meta_path.exists():
+        return None
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
     g = GraphData(
         np.load(paths.sim_dir() / "gnn" / "graph.npz", allow_pickle=False),
         float(meta["config"].get("sensor_distance_scale_m", 500.0)),
@@ -691,14 +744,25 @@ def apply_only() -> int:
     spec = meta.get("variant") or {"kind": meta["model"], "closeness": False, "context": False}
     model = build_model(spec, g, len(g.sensor_idx) * 2, meta["config"])
     model.load_state_dict(torch.load(model_dir / "model.pt", map_location="cpu", weights_only=True))
-    scale, best = float(meta["scale"]), str(meta["model"])
-    sensors = network.parse_sensor_config()["pressure"]
-    payload = read_metrics("dl_gnn")
-    payload.pop("meta", None)
-    payload["alerts_with_gnn_top5"] = write_gnn_top5(cfg, g, model, best, scale, sensors)
-    path = write_metrics("dl_gnn", payload)
-    log.info("re-localized %s alerts with %s -> %s", payload["alerts_with_gnn_top5"], best, path)
-    return 0
+    model.eval()
+    return g, model, float(meta["scale"]), meta
+
+
+def localize_times(
+    times: list[pd.Timestamp], length_m: float | None, loaded: Any = None
+) -> list[str]:
+    """Top-1 node of the posterior localizer at each time (BattLeDIM re-baselined inputs)."""
+    from leakwatch.data import network
+
+    loaded = loaded or load_localizer()
+    if loaded is None:
+        raise FileNotFoundError("no saved localizer: run `make gnn` first")
+    g, model, scale, _ = loaded
+    if not times:
+        return []
+    x = benchmark_inputs(g, times, network.parse_sensor_config()["pressure"])
+    p = posterior(predict(model, g, x, scale), g, x, length_m)
+    return [g.nodes[j] for j in np.argmax(p, axis=1)]
 
 
 def write_gnn_top5(
@@ -709,7 +773,11 @@ def write_gnn_top5(
     scale: float,
     sensors: list[str],
 ) -> int:
-    """Append alert versions with ``gnn_top5`` for every current batch alert."""
+    """Append alert versions with ``gnn_top5`` for every current batch alert.
+
+    The candidates are the posterior localizer's (network × sensor prior, ``dl.gnn.sensor_prior_m``,
+    D-042); ``prob`` is the posterior probability.
+    """
     from leakwatch.bdt.data import write_alerts
     from leakwatch.stream.spark import get_spark
 
@@ -722,7 +790,7 @@ def write_gnn_top5(
     if alerts.empty:
         return 0
     xb = benchmark_inputs(g, list(alerts["start_ts"]), sensors)
-    probs = predict(model, g, xb, scale)
+    probs = posterior(predict(model, g, xb, scale), g, xb, prior_length(cfg))
     top = np.argsort(-probs, axis=1)[:, :5]
     now = pd.Timestamp(datetime.now(UTC))
     alerts["gnn_top5"] = [
@@ -750,23 +818,13 @@ def make_localizer(model_dir: Any = None) -> Any:
     """
     from leakwatch.data import network
 
-    model_dir = model_dir or paths.models_dir() / "gnn"
-    meta_path = model_dir / "meta.json"
-    if not meta_path.exists():
+    loaded = load_localizer(model_dir)
+    if loaded is None:
         return None
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    cfg = meta["config"]
-    g = GraphData(
-        np.load(paths.sim_dir() / "gnn" / "graph.npz", allow_pickle=False),
-        float(cfg.get("sensor_distance_scale_m", 500.0)),
-    )
-    spec = meta.get("variant") or {"kind": meta["model"], "closeness": False, "context": False}
-    model = build_model(spec, g, len(g.sensor_idx) * 2, cfg)
-    model.load_state_dict(torch.load(model_dir / "model.pt", map_location="cpu", weights_only=True))
-    model.eval()
+    g, model, scale, _ = loaded
+    length_m = prior_length(load_config())
     sensors = network.parse_sensor_config()["pressure"]
     cols = [f"pressure__{s}__residual" for s in sensors]
-    scale = float(meta["scale"])
 
     def localize(alert: Mapping[str, Any], features: pd.DataFrame) -> list[dict[str, Any]] | None:
         if not set(cols) <= set(features.columns):
@@ -783,7 +841,8 @@ def make_localizer(model_dir: Any = None) -> Any:
         x = rows[cols].to_numpy(dtype="float32").T  # (sensors, windows)
         if x.shape[1] == 1:
             x = np.repeat(x, 2, axis=1)
-        probs = predict(model, g, np.nan_to_num(x)[None], scale)[0]
+        xb = np.nan_to_num(x)[None]
+        probs = posterior(predict(model, g, xb, scale), g, xb, length_m)[0]
         top = np.argsort(-probs)[:5]
         return [{"node_id": g.nodes[j], "prob": round(float(probs[j]), 4)} for j in top]
 

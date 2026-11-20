@@ -24,6 +24,17 @@ every design choice is made on 2018 and simulated leaks; 2019 is scored as the b
 with two placements — the pipe at the localizer's top candidate, and the pipe at the pressure
 sensor that dropped most (``bdt.report``) — and reports the system with the one that scores better
 on 2018 (D-041); also the perfect submission (a self-check: the paper's Table 4 gives €523,154).
+
+Then two dispatch rules (D-042, ``bdt.report``): no second crew to a pipe within ``d`` days (``d``
+from ``battledim_score.revisit_days_grid``, best 2018 score, ties to the shorter window), and the
+2018 reports that no repair in the utility's 2018 repair report explains carried into 2019 as open
+work orders on 1 January. The carry-forward has nothing to tune and cannot be tried on 2018 (there
+is no 2017); the 2019 score is reported with and without it (``steps_2019``).
+
+Random-timing baseline: ``random_baseline_draws`` sets of alert times drawn uniformly from each
+year (as many as the real alerts), placed and filtered by the same rules, without the backlog.
+The one-sided p-value says how often chance timing scores at least as well as the system.
+
 Writes ``reports/metrics/battledim_score.json``.
 """
 
@@ -312,6 +323,18 @@ class YearScorer:
         """Official score of ``detections`` (``link_id``, ``ts``) in ``year``."""
         return score_detections(detections, self.leaks[year], self.dist, self.params, year)
 
+    def detections(
+        self,
+        alerts: pd.DataFrame,
+        year: int,
+        place: Callable[[pd.DataFrame], pd.DataFrame] | None = None,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """The alerts that start in ``year`` and their detections (one per alert)."""
+        first, last = year_bounds(year)
+        in_year = alerts[(alerts["start_ts"] >= first) & (alerts["start_ts"] <= last)]
+        dets = place(in_year) if place is not None else detections_from_alerts(in_year, self.dist)
+        return in_year, dets
+
     def score_alerts(
         self,
         alerts: pd.DataFrame,
@@ -323,9 +346,7 @@ class YearScorer:
         ``place`` turns alerts into detections; default :func:`detections_from_alerts` (the
         localizer's top candidate, else the top sensor).
         """
-        first, last = year_bounds(year)
-        in_year = alerts[(alerts["start_ts"] >= first) & (alerts["start_ts"] <= last)]
-        dets = place(in_year) if place is not None else detections_from_alerts(in_year, self.dist)
+        in_year, dets = self.detections(alerts, year, place)
         out = self.score(dets, year)
         out["alerts"] = len(in_year)
         how = dets["how"] if "how" in dets else pd.Series(["sensor_drop"] * len(dets))
@@ -342,19 +363,44 @@ def choose_placement(scores_2018: Mapping[str, float]) -> str:
     return max(PLACEMENTS, key=lambda p: (scores_2018[p], p == "localizer"))
 
 
+def choose_revisit_days(scores_2018: Mapping[float, float]) -> float:
+    """The revisit window with the best 2018 score; ties go to the shorter window."""
+    return max(scores_2018, key=lambda d: (scores_2018[d], -d))
+
+
+def random_alert_times(year: int, n: int, rng: np.random.Generator) -> pd.DataFrame:
+    """``n`` distinct alert start times drawn uniformly from the year's 15-minute grid."""
+    first, last = year_bounds(year)
+    slots = int((last - first) / pd.Timedelta(minutes=15))  # slots 1..slots, never 00:00 1 Jan
+    k = np.sort(rng.choice(np.arange(1, slots + 1), size=min(n, slots), replace=False))
+    return pd.DataFrame(
+        {
+            "alert_id": [f"random-{i}" for i in range(len(k))],
+            "start_ts": first + pd.to_timedelta(k * 15, unit="min"),
+        }
+    )
+
+
+def empirical_p_value(observed: float, draws: Sequence[float]) -> float:
+    """One-sided p of ``observed`` against random draws: (1 + #draws ≥ observed) / (n + 1)."""
+    return (1 + sum(d >= observed for d in draws)) / (len(draws) + 1)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Score the lake's batch alerts of 2018 and 2019 and the perfect submission."""
     parser = argparse.ArgumentParser(description="Official BattLeDIM score of the alerts.")
     parser.parse_args(argv)
     from leakwatch.bdt.data import load_features
-    from leakwatch.bdt.report import sensor_drop_detections
+    from leakwatch.bdt.report import carry_forward, revisit_filter, sensor_drop_detections
     from leakwatch.bdt.train import feature_view
     from leakwatch.common import lake
     from leakwatch.common.config import load_config
     from leakwatch.common.metrics import write_metrics
+    from leakwatch.data.battledim import read_fixed_leakages
     from leakwatch.features.spec import load_feature_spec
 
     cfg = load_config()
+    bcfg = cfg["battledim_score"]
     scorer = YearScorer(cfg)
     perfect = scorer.score(perfect_detections(scorer.leaks[2019]), 2019)
     alerts = lake.query_df(
@@ -374,14 +420,40 @@ def main(argv: list[str] | None = None) -> int:
         for p in PLACEMENTS
     }
     chosen = choose_placement({p: results[p][2018]["total_score_eur"] for p in PLACEMENTS})
+
+    # Dispatch rules (D-042): the revisit window on 2018, then the 2018 backlog into 2019.
+    placed = {year: scorer.detections(alerts, year, place[chosen]) for year in (2018, 2019)}
+    grid = [float(d) for d in bcfg["revisit_days_grid"]]
+    revisit_2018 = {
+        d: scorer.score(revisit_filter(placed[2018][1], d), 2018)["total_score_eur"] for d in grid
+    }
+    days = choose_revisit_days(revisit_2018)
+    final = {2018: revisit_filter(placed[2018][1], days)}
+    no_carry_2019 = revisit_filter(placed[2019][1], days)
+    carry: dict[str, Any] = {"enabled": bool(bcfg["carry_forward"])}
+    carried = pd.DataFrame(columns=["ts", "link_id"])
+    if carry["enabled"]:
+        carried, summary = carry_forward(
+            final[2018],
+            read_fixed_leakages(),
+            scorer.dist.between,
+            scorer.params.max_distance_m,
+            year_bounds(2019)[0] + STEP,
+        )
+        carry.update(summary)
+    final[2019] = revisit_filter(pd.concat([carried, placed[2019][1]], ignore_index=True), days)
+
     years = {}
     for year in (2018, 2019):
-        res = dict(results[chosen][year])
+        res = scorer.score(final[year], year)
         per = res.pop("per_detection")
         years[str(year)] = {
             "role": "development (rules applied to 2018)" if year == 2018 else "test (official)",
             "placement": chosen,
+            "revisit_days": days,
             **res,
+            "alerts": len(placed[year][0]),
+            "carried_forward": len(carried) if year == 2019 else 0,
             **(rank(res["total_score_eur"]) if year == 2019 else {}),
             "per_detection": per,
         }
@@ -389,6 +461,35 @@ def main(argv: list[str] | None = None) -> int:
     placements = {
         p: {str(y): {k: results[p][y][k] for k in keep} for y in (2018, 2019)} for p in PLACEMENTS
     }
+    steps_2019 = {
+        "placement_only": results[chosen][2019]["total_score_eur"],
+        "with_revisit_rule": scorer.score(no_carry_2019, 2019)["total_score_eur"],
+        "with_carry_forward": years["2019"]["total_score_eur"],
+    }
+
+    # Random-timing baseline: same number of alerts, same placement and revisit rule, no backlog.
+    draws = int(bcfg["random_baseline_draws"])
+    rng = np.random.default_rng(int(cfg["project"]["seed"]))
+    observed = {2018: years["2018"]["total_score_eur"], 2019: steps_2019["with_revisit_rule"]}
+    random_baseline: dict[str, Any] = {}
+    for year in (2018, 2019):
+        n = len(placed[year][0])
+        sets = [random_alert_times(year, n, rng) for _ in range(draws)]
+        if chosen == "sensor_drop":
+            dets = [place["sensor_drop"](s) for s in sets]
+        else:
+            dets = _localize_random(sets, scorer.dist, cfg)
+        totals = [scorer.score(revisit_filter(d, days), year)["total_score_eur"] for d in dets]
+        random_baseline[str(year)] = {
+            "draws": draws,
+            "alerts_per_draw": n,
+            "mean_eur": round(float(np.mean(totals)), 2),
+            "p95_eur": round(float(np.percentile(totals, 95)), 2),
+            "max_eur": round(float(np.max(totals)), 2),
+            "system_eur": observed[year],
+            "p_value": round(empirical_p_value(observed[year], totals), 4),
+        }
+
     payload = {
         "source": "KIOS-Research/BattLeDIM Scoring_Algorithm.m, ported (D-037)",
         "params": scorer.params.__dict__,
@@ -401,17 +502,27 @@ def main(argv: list[str] | None = None) -> int:
         "placement_rule": "the placement with the best 2018 score (localizer on a tie), D-041",
         "placements": placements,
         "placement": chosen,
+        "revisit_rule": {
+            "rule": "no second report at a pipe within d days of the last one kept there; d with "
+            "the best 2018 score, ties to the shorter window (D-042)",
+            "scores_2018": {f"{d:g}": v for d, v in revisit_2018.items()},
+            "chosen_days": days,
+        },
+        "carry_forward": carry,
+        "steps_2019": steps_2019,
+        "random_baseline": random_baseline,
         "years": years,
     }
     path = write_metrics("battledim_score", payload)
     for year, r in years.items():
         log.info(
-            "%s: %.0f EUR, TP %d of %d, FP %d",
+            "%s: %.0f EUR, TP %d of %d, FP %d (random timing p = %s)",
             year,
             r["total_score_eur"],
             r["true_positives"],
             r["leaks"],
             r["false_positives"],
+            random_baseline[year]["p_value"],
         )
     log.info(
         "perfect 2019 %.0f EUR (paper %d) -> %s",
@@ -420,6 +531,27 @@ def main(argv: list[str] | None = None) -> int:
         path,
     )
     return 0
+
+
+def _localize_random(
+    sets: Sequence[pd.DataFrame], dist: LinkDistances, cfg: Mapping[str, Any]
+) -> list[pd.DataFrame]:
+    """Detections at the posterior localizer's top node for each set of random alert times."""
+    from leakwatch.dl import gnn
+
+    loaded = gnn.load_localizer()
+    times = [t for s in sets for t in s["start_ts"]]
+    nodes = gnn.localize_times(times, gnn.prior_length(cfg), loaded)
+    out, i = [], 0
+    for s in sets:
+        rows = []
+        for ts in s["start_ts"]:
+            link = dist.link_at_node(nodes[i])
+            i += 1
+            if link is not None:
+                rows.append({"ts": ts, "link_id": link})
+        out.append(pd.DataFrame(rows, columns=["ts", "link_id"]))
+    return out
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ PY_DIRS := src tests scripts notebooks
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
 	demo-check bdt-scaling reports test-report prepare llm-local llm-check bdt-synthetic gnn-apply \
-	battledim-score mutation
+	gnn-prior battledim-score mutation
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -120,6 +120,9 @@ gnn: ## nearest-sensor / MLP / GCN / GAT localizers, 2019 test, gnn_top5 into al
 
 gnn-apply: ## re-localize the current batch alerts with the saved localizer (after bdt-eval)
 	$(RUN) python -m leakwatch.dl.gnn --apply-only
+
+gnn-prior: ## posterior localizer: pick the sensor-prior length on 2018 (D-042) -> dl_gnn_prior.json
+	$(RUN) python -m leakwatch.dl.gnn_prior
 
 bdt-scaling: ## batch features + K-Means scoring at 12.5M / 50M / 100M+ readings -> bdt_scaling.json
 	$(RUN) python -m leakwatch.bdt.scaling

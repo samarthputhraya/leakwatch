@@ -179,6 +179,24 @@ def read_leak_flows(year: int, raw_dir: Path | None = None) -> pd.DataFrame:
     return read_battledim_csv(raw_dir / f"{year}_Leakages.csv")
 
 
+def read_fixed_leakages(raw_dir: Path | None = None) -> pd.DataFrame:
+    """The 2018 repair report every BattLeDIM team had: ``link_id, end_ts`` (UTC), D-042.
+
+    ``2018_Fixed_Leakages_Report.txt`` lists the pipes the utility repaired in 2018 and when
+    (``- p461, 2018-04-02 11:40``). Leaks still running at the end of 2018 are not in it.
+    """
+    raw_dir = raw_dir or paths.battledim_raw_dir()
+    text = (raw_dir / "2018_Fixed_Leakages_Report.txt").read_text(encoding="utf-8")
+    rows = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("-"):
+            continue  # comments (#) and blank lines
+        link, ts = (part.strip() for part in line.lstrip("- ").split(",", 1))
+        rows.append({"link_id": link, "end_ts": pd.Timestamp(ts, tz="UTC")})
+    return pd.DataFrame(rows, columns=["link_id", "end_ts"])
+
+
 def sensor_catalog(columns: Iterable[str]) -> pd.DataFrame:
     """Describe wide-table columns: ``column, sensor_type, sensor_id, unit``."""
     rows = []

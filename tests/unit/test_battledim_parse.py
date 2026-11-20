@@ -105,3 +105,13 @@ def test_fixture_md5s_match_published(official_config: Path, fixed_report: Path)
 def test_steps_per_year():
     idx = pd.date_range("2019-01-01", "2019-12-31 23:55", freq="5min")
     assert len(idx) == battledim.STEPS_PER_YEAR == 105_120
+
+
+def test_fixed_leakages_report_is_parsed(tmp_path: Path):
+    (tmp_path / "2018_Fixed_Leakages_Report.txt").write_bytes(
+        b"# HISTORICAL DATASET\n# FIXED LEAKAGES\n# linkID, endTime\n"
+        b"- p461, 2018-04-02 11:40\n- p31,  2018-08-12 17:30\n\n"
+    )
+    fixed = battledim.read_fixed_leakages(tmp_path)
+    assert list(fixed["link_id"]) == ["p461", "p31"]
+    assert fixed["end_ts"].iloc[1] == pd.Timestamp("2018-08-12 17:30", tz="UTC")

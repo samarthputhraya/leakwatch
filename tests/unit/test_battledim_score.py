@@ -308,3 +308,24 @@ def test_localizer_candidates_as_plain_ids_or_objects(dist):
     assert list(det["link_id"]) == ["p1", "p4"] and list(det["ts"]) == [at(1), at(2)]
     empty = bs.detections_from_alerts(alerts.iloc[:0], dist)
     assert list(empty.columns) == ["alert_id", "ts", "link_id", "how"] and empty.empty
+
+
+def test_revisit_window_is_chosen_on_2018_with_the_shorter_one_on_ties():
+    assert bs.choose_revisit_days({0.0: 10.0, 7.0: 30.0, 14.0: 20.0}) == 7.0
+    assert bs.choose_revisit_days({0.0: 30.0, 7.0: 30.0, 14.0: 30.0}) == 0.0
+
+
+def test_random_alert_times_are_distinct_on_the_grid_and_inside_the_year():
+    a = bs.random_alert_times(2019, 50, np.random.default_rng(0))
+    b = bs.random_alert_times(2019, 50, np.random.default_rng(0))
+    assert a.equals(b) and len(a) == 50 and a["start_ts"].is_unique
+    first, last = bs.year_bounds(2019)
+    assert (a["start_ts"] > first).all() and (a["start_ts"] <= last).all()
+    assert (a["start_ts"].dt.minute % 15 == 0).all()
+    assert a["start_ts"].is_monotonic_increasing
+
+
+def test_empirical_p_value_counts_draws_at_least_as_good():
+    assert bs.empirical_p_value(10.0, [1.0, 2.0, 3.0]) == pytest.approx(0.25)
+    assert bs.empirical_p_value(2.0, [1.0, 2.0, 3.0]) == pytest.approx(0.75)
+    assert bs.empirical_p_value(5.0, []) == 1.0
