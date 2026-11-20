@@ -4,7 +4,10 @@ At each scale, one Spark job reads raw readings from the lake (BattLeDIM 2019; t
 BattLeDIM years plus the first simulated scenarios; then everything), runs the shared feature
 function (``features.windows.window_features``: cleaning, 1 h windows every 15 min, 228 features
 per (source, scenario, window)) and scores every window with the live K-Means model inside Spark
-(``mapInPandas`` with the numpy scorer), writing scores to a scratch directory. Recorded per
+(``mapInPandas`` with the numpy scorer), writing scores to a scratch directory. A model trained on
+re-baselined residuals (D-038) gets them here too: each (source, scenario) series is re-baselined
+against its own history in one task (``groupBy`` + ``applyInPandas``), the rows without a full
+reference are dropped as in training, and the rest are scored. Recorded per
 scale: readings, windows, wall time, readings/s, and the peak resident memory of the whole
 process tree (Python driver + Spark JVM + Python workers), sampled every second.
 
@@ -25,6 +28,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import pandas as pd
 import psutil
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
@@ -43,6 +47,7 @@ from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
 from leakwatch.common.metrics import write_metrics
 from leakwatch.features.baselines import read_baselines
+from leakwatch.features.rebaseline import Rebaseline, rebaselined
 from leakwatch.features.spec import load_feature_spec
 from leakwatch.features.windows import window_features
 from leakwatch.stream.spark import get_spark
@@ -107,6 +112,37 @@ def partition_scorer(params: KMeansParams) -> Any:
     return score_partitions
 
 
+def series_scorer(params: KMeansParams, rb: Rebaseline) -> Any:
+    """An ``applyInPandas`` function: one series' feature rows -> re-baselined ``SCORE_SCHEMA``."""
+    cols = list(params.feature_columns)
+
+    def score_series(pdf: pd.DataFrame) -> pd.DataFrame:
+        empty = pd.DataFrame(
+            {
+                "source": pd.Series(dtype="object"),
+                "scenario_id": pd.Series(dtype="object"),
+                "window_start": pd.Series(dtype="datetime64[ns, UTC]"),
+                "score": pd.Series(dtype="float64"),
+                "cluster": pd.Series(dtype="int32"),
+                "above": pd.Series(dtype="bool"),
+            }
+        )
+        if pdf.empty:
+            return empty
+        rows = rebaselined(pdf, cols, rb)
+        rows = rows[rows[cols].notna().all(axis=1)]
+        if rows.empty:
+            return empty
+        scored, _ = KMeansScorer(params).score_frame(rows)
+        out = rows[["source", "scenario_id", "window_start"]].reset_index(drop=True)
+        out["score"] = scored["score"].to_numpy()
+        out["cluster"] = scored["cluster"].astype("int32").to_numpy()
+        out["above"] = scored["above"].to_numpy()
+        return out
+
+    return score_series
+
+
 def scale_filters(spark: Any) -> list[tuple[str, Any, int]]:
     """(label, raw-lake filter, readings) for the three scales, from the lake's actual content."""
     raw = spark.read.parquet(str(paths.lake_raw_dir()))
@@ -160,6 +196,8 @@ def main(argv: list[str] | None = None) -> int:
     out_root = paths.data_dir() / "bench" / "scaling"
     cols = list(params.feature_columns)
     score_partitions = partition_scorer(params)
+    view = str(params.meta.get("feature_view", "absolute"))
+    score_series = series_scorer(params, Rebaseline.from_config(cfg))
     results = []
     for label, cond, readings in scale_filters(spark):
         shutil.rmtree(out_root, ignore_errors=True)
@@ -170,9 +208,13 @@ def main(argv: list[str] | None = None) -> int:
             feats = window_features(raw, baselines, spec).select(
                 "source", "scenario_id", "window_start", *cols
             )
-            feats.mapInPandas(score_partitions, SCORE_SCHEMA).write.mode("overwrite").parquet(
-                str(out_root)
-            )
+            if view == "rebaselined":
+                scores = feats.groupBy("source", "scenario_id").applyInPandas(
+                    score_series, SCORE_SCHEMA
+                )
+            else:
+                scores = feats.mapInPandas(score_partitions, SCORE_SCHEMA)
+            scores.write.mode("overwrite").parquet(str(out_root))
         wall = time.perf_counter() - t0
         scored = spark.read.parquet(str(out_root))
         stats = scored.agg(
@@ -212,9 +254,15 @@ def main(argv: list[str] | None = None) -> int:
         "bdt_scaling",
         {
             "pipeline": (
-                "raw lake -> clean -> 1 h windows (228 features) -> K-Means score (mapInPandas)"
+                "raw lake -> clean -> 1 h windows (228 features) -> "
+                + (
+                    "re-baselined per series (applyInPandas) -> K-Means score"
+                    if view == "rebaselined"
+                    else "K-Means score (mapInPandas)"
+                )
             ),
             "model": model,
+            "feature_view": view,
             "spark": {k: cfg["spark"][k] for k in ("master", "driver_memory", "shuffle_partitions")}
             | ({"master": args.master} if args.master else {}),
             "machine": {
