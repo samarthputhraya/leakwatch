@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T23:29:48+00:00",
-    "git_commit": "f3bbb4f",
+    "generated_at": "2026-11-20T17:25:20+00:00",
+    "git_commit": "758379a",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -24,17 +24,34 @@
     18,
     21
   ],
-  "baseline_runs_per_start": 5,
+  "worlds": 120,
+  "roughness_noise": 0.1,
+  "background_leaks": [
+    0,
+    6
+  ],
+  "background_diameter_m": [
+    0.003,
+    0.01
+  ],
+  "reference_runs": 3,
+  "references": 954,
+  "day_demand_noise": 0.05,
+  "sensitivity_diameter_m": 0.015,
+  "sensitivity_start_hours": [
+    3,
+    15
+  ],
   "demand_noise": 0.1,
   "sensor_noise_m": 0.02,
-  "wall_s": 1944.9,
-  "baseline_wall_s": 23.6,
-  "scenario_wall_s_mean": 1.533,
-  "workers": 4,
+  "wall_s": 815.4,
+  "reference_and_sensitivity_wall_s": 460.5,
+  "scenario_wall_s_mean": 0.563,
+  "workers": 8,
   "residual_m": {
-    "abs_mean_all": 0.1049,
-    "max_abs_per_scenario_median": 0.1694
+    "abs_mean_all": 0.1333,
+    "max_abs_per_scenario_median": 0.2204
   },
-  "unique_leak_nodes": 781,
+  "unique_leak_nodes": 782,
   "output": "/root/leakwatch-data/sim/gnn"
 }
