@@ -135,7 +135,15 @@ dl:
     step_s: 300
     leak_diameter_m: [0.005, 0.03]  # log-uniform: small to large leaks
     start_hours: [0, 3, 6, 9, 12, 15, 18, 21]   # time of day the leak starts
-    baseline_runs: 5               # noisy leak-free runs per start time (median = baseline)
+    reference_runs: 3              # leak-free runs per world and start time (median = reference)
+    # D-038: scenarios on perturbed copies of the network, like the real one in 2019
+    worlds: 120                    # perturbed networks; each scenario runs on one of them
+    roughness_noise: 0.10          # every pipe's H-W roughness x U(0.9, 1.1) per world
+    background_leaks: [0, 6]       # small leaks already running in a world (reference and leak run)
+    background_diameter_m: [0.003, 0.010]
+    day_demand_noise: 0.05         # whole-network demand factor N(1, 0.05) per run
+    sensitivity_diameter_m: 0.015  # sensitivity matrix: one leak per junction, nominal model
+    sensitivity_start_hours: [3, 15]
     demand_noise: 0.10
     sensor_noise_m: 0.02
     discharge_coeff: 0.75
