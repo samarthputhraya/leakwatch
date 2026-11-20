@@ -157,9 +157,7 @@ def _check_functions(tree: exp.Expression) -> None:
 
 
 def _enforce_limit(tree: exp.Query, max_rows: int) -> tuple[exp.Query, bool]:
-    limit = tree.args.get("limit")
-    if tree.args.get("fetch") is not None:
-        limit = tree.args["fetch"]
+    limit = tree.args.get("limit")  # sqlglot keeps FETCH FIRST here too, as an exp.Fetch
     if limit is None:
         return tree.limit(max_rows, copy=True), True
     value = limit.args.get("expression")

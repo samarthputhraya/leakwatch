@@ -10,8 +10,10 @@ own reference for ``gap_days`` + ``window_days`` / 2 days):
     rebaselined(t) = residual(t) − median{residual(s) : t − gap − window ≤ s < t − gap}
 
 Rows are 15-minute windows; the reference needs at least half of its rows, else it is missing.
-The same function serves batch training, the localizer's inputs and the live stream (which keeps
-the last ``gap_days + window_days`` of windows in memory).
+It is also missing when ``t − gap`` falls in a hole in the data (more than one step after the last
+row): an old reference is never carried forward. The same function serves batch training, the
+localizer's inputs and the live stream (which keeps the last ``gap_days + window_days`` of windows
+in memory).
 """
 
 from __future__ import annotations
@@ -59,14 +61,15 @@ def rebaselined(
     values = sorted_f[list(columns)].astype("float64")
     values.index = t
     window = pd.Timedelta(days=rb.window_days)
-    step = (t[1:] - t[:-1]).min() if len(t) > 1 else pd.Timedelta(minutes=15)
+    u = t.unique()  # a repeated timestamp must not make the step zero
+    step = (u[1:] - u[:-1]).min() if len(u) > 1 else pd.Timedelta(minutes=15)
     min_rows = max(1, int(window / max(step, pd.Timedelta(minutes=1)) // 2))
     med = values.rolling(window, closed="left", min_periods=min_rows).median()
     # reference for t = median over [t - gap - window, t - gap): the rolling value at t - gap
     shifted = med.copy()
     shifted.index = shifted.index + pd.Timedelta(days=rb.gap_days)
     shifted = shifted[~shifted.index.duplicated(keep="last")]
-    ref = shifted.reindex(t, method="ffill", tolerance=step if len(t) > 1 else None)
+    ref = shifted.reindex(t, method="ffill", tolerance=step if len(u) > 1 else None)
     out = sorted_f.copy()
     out[list(columns)] = values.to_numpy() - ref.to_numpy()
     back = np.empty_like(order)

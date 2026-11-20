@@ -99,3 +99,49 @@ def test_guarded_sql_runs_on_duckdb_and_caps_rows():
         {"alerts"},
     )
     assert con.execute(cte.sql).fetchall() == [("A", 50)]
+
+
+# Gaps found by mutation testing (D-040): each case below kills a mutant that survived before.
+
+
+def test_limit_changed_flag_and_boundary():
+    added = guard_sql("SELECT * FROM alerts", VIEWS, max_rows=10)
+    assert added.limit_changed
+    assert added.original == "SELECT * FROM alerts" and added.max_rows == 10
+    at_cap = guard_sql("SELECT * FROM alerts LIMIT 10", VIEWS, max_rows=10)
+    assert at_cap.sql.endswith("LIMIT 10") and not at_cap.limit_changed
+    wrapped = guard_sql("SELECT * FROM alerts LIMIT 2 + 3", VIEWS, max_rows=10)
+    assert wrapped.limit_changed
+    assert " AS q " in wrapped.sql  # the wrapped query gets a stable alias
+
+
+def test_fetch_first_is_capped_on_duckdb():
+    con = duckdb.connect()
+    con.execute("CREATE VIEW alerts AS SELECT range AS i FROM range(50)")
+    guarded = guard_sql(
+        "SELECT i FROM alerts ORDER BY i FETCH FIRST 40 ROWS ONLY", {"alerts"}, max_rows=7
+    )
+    assert guarded.limit_changed
+    assert len(con.execute(guarded.sql).fetchall()) == 7
+
+
+def test_non_integer_literal_limit_is_wrapped():
+    wrapped = guard_sql("SELECT * FROM alerts LIMIT '5'", VIEWS, max_rows=10)
+    assert wrapped.sql.startswith("SELECT * FROM (") and wrapped.limit_changed
+
+
+def test_catalog_qualified_and_unknown_tables_name_the_views():
+    with pytest.raises(SQLGuardError, match="unqualified"):
+        guard_sql("SELECT * FROM lake.main.alerts", VIEWS)
+    with pytest.raises(SQLGuardError, match="available views: alerts, baselines, clean_readings"):
+        guard_sql("SELECT * FROM nope", VIEWS)
+    with pytest.raises(SQLGuardError, match="available views: none"):
+        guard_sql("SELECT * FROM nope", set())
+
+
+def test_every_table_function_is_checked():
+    # an allowed table function first must not end the check of the tables after it
+    with pytest.raises(SQLGuardError, match="read_csv"):
+        guard_sql("SELECT * FROM range(3) r, read_csv('x.csv') c", VIEWS)
+    with pytest.raises(SQLGuardError, match="unknown table"):
+        guard_sql("SELECT * FROM range(3) r, nope n", VIEWS)
