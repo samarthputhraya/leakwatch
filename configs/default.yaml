@@ -85,7 +85,7 @@ bdt:
   model: kmeans
   # Model used for live alerts and the lake's batch alerts: the residual-feature variant, chosen on
   # 2018 validation leak onsets (D-020); `kmeans` is the PRD §7.2 all-feature baseline.
-  live_model: kmeans_residual_ci   # D-030: chosen on simulated leaks on normal 2018 (bdt-synthetic)
+  live_model: kmeans_rebaselined   # D-038: best official BattLeDIM score on 2018 (D-030: residual_ci)
   train_year: 2018
   eval_year: 2019
   # Time-blocked split of normal 2018 windows (overlapping windows: never split at random):
