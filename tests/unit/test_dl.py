@@ -17,6 +17,7 @@ from leakwatch.dl.gnn import (  # noqa: E402
     distance_metrics,
     forward,
     nearest_sensor_scores,
+    sensitivity_scores,
     topk_accuracy,
 )
 from leakwatch.dl.lstm_ae import LSTMAutoencoder, reconstruction  # noqa: E402
@@ -90,12 +91,18 @@ def test_threshold_sweep_extends_past_the_largest_normal_score():
     assert sweep[0][1] == pytest.approx(50.5) and sweep[-1][1] == pytest.approx(200.0)
 
 
-def line_graph(n: int = 6) -> GraphData:
+def line_graph(n: int = 6, sensitivity: bool = False) -> GraphData:
     """Junctions 0..n-1 in a line, 100 m pipes; sensors at both ends and the middle."""
     src = list(range(n - 1)) + list(range(1, n))
     dst = list(range(1, n)) + list(range(n - 1))
+    extra = {}
+    if sensitivity:  # pressure change at each sensor for a leak at each node: decays with distance
+        sensors = np.array([0, n // 2, n - 1])
+        d = np.abs(np.arange(n)[:, None] - sensors[None, :]) * 100.0
+        extra["sensitivity"] = (-np.exp(-d / 150.0)).astype("float32")
     return GraphData(
         {
+            **extra,
             "nodes": np.array([f"j{i}" for i in range(n)]),
             "edge_index": np.array([src, dst]),
             "edge_length_m": np.full(len(src), 100.0, dtype="float32"),
@@ -147,6 +154,30 @@ def test_sensor_closeness_tells_far_nodes_apart():
     assert feats.shape == (2, g.n, g.node_dim()) and g.node_dim() == 2 + 3 + 3
     assert feats[0, 1, 0] == 0.0 and feats[0, 3, 0] == 1.0  # residuals only at sensor nodes
     assert g.node_features(np.ones((1, 3, 2), "float32"), 1.0, closeness=False).shape[2] == 5
+
+
+def test_sensitivity_correlation_finds_the_matching_node():
+    g = line_graph(sensitivity=True)
+    s = np.array([0, 3, 5])
+    for leak in range(g.n):
+        x = np.repeat((-np.exp(-np.abs(leak - s) * 100.0 / 150.0))[None, :, None], 2, axis=2)
+        scores = sensitivity_scores(g, x.astype("float32"))
+        assert int(np.argmax(scores[0])) == leak
+    corr = g.sensitivity_corr(np.ones((2, 3, 2), dtype="float32"))
+    assert corr.shape == (2, g.n, 3) and np.all(corr <= 1.0 + 1e-6)
+    assert g.node_dim(sensitivity=True) == g.node_dim() + 3
+    with pytest.raises(ValueError, match="sensitivity"):
+        line_graph().sensitivity_corr(np.ones((1, 3, 2), dtype="float32"))
+
+
+def test_sensitivity_variant_builds_and_runs():
+    torch.manual_seed(0)
+    g = line_graph(sensitivity=True)
+    spec = {"kind": "gcn", "closeness": True, "context": True, "sensitivity": True}
+    model = build_model(spec, g, 6, {"hidden": 8, "layers": 2, "heads": 2})
+    assert model.sensitivity
+    out = forward(model, g, np.ones((3, 3, 2), dtype="float32"), scale=1.0)
+    assert out.shape == (3, g.n) and torch.isfinite(out).all()
 
 
 @pytest.mark.parametrize("closeness", [True, False])

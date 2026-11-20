@@ -6,8 +6,9 @@
 2. runs the alert rule over the two years as one stream (alerts may span New Year);
 3. writes the main model's scores and alerts to the lake (``origin=batch``) for the copilot and
    dashboard;
-4. evaluates 2019 with the event-based metrics of ``eval.detection`` for the main model and the
-   strict-normal ablation, plus 2018 in-sample numbers for reference;
+4. evaluates 2019 with the event-based metrics of ``eval.detection`` for every variant, plus
+   2018 in-sample numbers for reference, and the official BattLeDIM score of each variant's alerts
+   on 2018 (development) and 2019 (test), placed by the detector alone (``bdt.report``, D-038);
 5. draws the 2019 score timeline with leak bands and a per-leak detection chart;
 6. writes ``reports/metrics/bdt_kmeans_2019.json``.
 """
@@ -30,6 +31,7 @@ import pandas as pd
 
 from leakwatch.bdt.alerts import AlertRule, run_alerts
 from leakwatch.bdt.data import load_features, series_area_map, write_alerts, write_scores
+from leakwatch.bdt.report import sensor_drop_detections
 from leakwatch.bdt.scorer import KMeansParams, KMeansScorer
 from leakwatch.bdt.train import MODELS, feature_view, inflow_residual_columns, model_dir
 from leakwatch.common import paths
@@ -37,6 +39,7 @@ from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
 from leakwatch.common.metrics import write_metrics
 from leakwatch.data.ground_truth import load_ground_truth
+from leakwatch.eval.battledim_score import YearScorer
 from leakwatch.eval.detection import chance_detection, evaluate_detections, onset_contrast
 from leakwatch.features.spec import load_feature_spec
 from leakwatch.stream.spark import get_spark
@@ -174,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     horizon = float(cfg["bdt"]["detection_horizon_days"])
     results: dict[str, Any] = {}
     figures: list[str] = []
+    scorer_official = None
     for rule, name in MODELS.items():
         directory = model_dir(name)
         if not (directory / "params.json").exists():
@@ -181,8 +185,25 @@ def main(argv: list[str] | None = None) -> int:
             continue
         params = KMeansParams.load(directory)
         view = str(params.meta.get("feature_view", "absolute"))
-        rows = feature_view(features, spec, view)
+        rows = feature_view(features, spec, view, cfg)
         scored, alerts = score_and_alert(params, rows, cfg, areas, now)
+        official = {}
+        if view in ("residual", "rebaselined"):
+            if scorer_official is None:
+                scorer_official = YearScorer(cfg)
+            for year in (train_year, eval_year):
+                dets = sensor_drop_detections(alerts, rows, spec, scorer_official.dist)
+                sc = scorer_official.score(dets, year)
+                official[str(year)] = {
+                    k: sc[k]
+                    for k in (
+                        "total_score_eur",
+                        "true_positives",
+                        "false_positives",
+                        "leaks",
+                        "detections",
+                    )
+                }
         ev = evaluate_detections(alerts, gt, *year_bounds(eval_year), horizon)
         ev_train = evaluate_detections(alerts, gt, *year_bounds(train_year), horizon)
         ev["onset_contrast_24h"] = onset_contrast(scored, gt, *year_bounds(eval_year))
@@ -214,8 +235,9 @@ def main(argv: list[str] | None = None) -> int:
             "windows_above_threshold_by_month": {
                 k: round(float(v), 4) for k, v in monthly.groupby("m")["above"].mean().items()
             },
+            "official_score_sensor_drop": official or None,
         }
-        if rule in ("main", "delta", "residual"):
+        if rule in ("main", "delta", "residual", "rebaselined"):
             suffix = "" if rule == "main" else f"_{rule}"
             figures += [
                 plot_timeline(scored, alerts, gt, float(params.threshold), eval_year, suffix),

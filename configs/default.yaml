@@ -30,6 +30,9 @@ features:
   window_minutes: 60
   slide_minutes: 15
   stats: [mean, std, min, max, slope, residual]
+  rebaseline:                      # D-038: residual minus its own median of the previous week
+    window_days: 7                 # chosen on 2018 (official rules applied to 2018), never 2019
+    gap_days: 1                    # a new leak stays visible for >= 1 day + half the window
   sensor_types: [pressure, flow, level]   # one series per sensor; AMRs enter as a sum per area
   exclude_out_of_range: true        # flagged values do not enter stats or AMR sums
   stream:
@@ -97,7 +100,7 @@ bdt:
   kmeans_init_steps: 5
   threshold_quantile: 0.99         # tau = this quantile of held-out normal scores
   persistence_windows: 3           # m: alert after m consecutive windows above tau (tuned on 2018)
-  persistence_candidates: [1, 2, 3, 4, 6, 8, 12]
+  persistence_candidates: [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48]   # 48 windows = 12 h
   max_false_alarms_per_week: 2.0   # PRD §10 aim; constraint when tuning m on 2018
   close_after_windows: 4           # an alert closes after 4 windows (1 h) back below tau
   detection_horizon_days: 7        # PRD §7.4: alert within [leak start, start + 7 days]
@@ -162,12 +165,13 @@ dl:
     threads: 12                        # torch CPU threads while training
     sensor_distance_scale_m: 500       # node feature exp(-pipe distance to each sensor / this)
     live_refine_hours: 2               # live: re-localize an open alert during its first 2 h (D-033)
-    variants:                          # D-029; the MLP baseline is always trained
+    # D-029, D-038; the MLP baseline is always trained. The earlier closeness/context ablation
+    # (no closeness, local-only first design) is in D-029; this run ablates the sensitivity input.
+    variants:
       gcn: {kind: gcn, closeness: true, context: true}
-      gat: {kind: gat, closeness: true, context: true}
-      gcn_no_context: {kind: gcn, closeness: true, context: false}
-      gcn_no_closeness: {kind: gcn, closeness: false, context: true}
-      gcn_local_only: {kind: gcn, closeness: false, context: false}   # the first design
+      gcn_sens: {kind: gcn, closeness: true, context: true, sensitivity: true}
+      gat_sens: {kind: gat, closeness: true, context: true, sensitivity: true}
+      gcn_sens_no_context: {kind: gcn, closeness: true, context: false, sensitivity: true}
 
 demo:
   # PRD §16 live demo (Phase 7): BattLeDIM background + simulated leak signatures (D-025).

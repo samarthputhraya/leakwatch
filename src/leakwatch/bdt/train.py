@@ -8,7 +8,9 @@
 4. τ = ``threshold_quantile`` of the scores on the threshold days.
 5. Tune the persistence m on 2018 only: the smallest m whose false alarms per week on the
    validation days stay within ``max_false_alarms_per_week``; 2018 leak detection is reported for
-   each candidate.
+   each candidate. The re-baselined variant (D-038) instead takes, among the m within that
+   false-alarm limit, the one with the best official BattLeDIM score on 2018 (its alerts placed at
+   the most-dropped pressure sensor, ``bdt.report``).
 6. Save the model (``data/models/kmeans*/``), figures and ``reports/metrics/bdt_kmeans_train.json``.
 """
 
@@ -51,14 +53,17 @@ log = get_logger("leakwatch.bdt.train")
 #: Detector variants: model directory, D-015 rule for "normal", feature view, PCA variance and
 #: score. ``absolute`` = all PRD §7.2 features; ``weekly_change`` = each window minus the same
 #: window 7 days earlier; ``residual`` = only the residual statistic of each series (value minus
-#: its hour-of-week baseline, D-020). Score ``distance`` = distance to the nearest centre in PCA
-#: space; ``combined`` = that distance plus the PCA reconstruction error (D-030). ``None`` = config.
+#: its hour-of-week baseline, D-020); ``rebaselined`` = that residual minus its own median of the
+#: previous week (``features.rebaseline``, D-038). Score ``distance`` = distance to the nearest
+#: centre in PCA space; ``combined`` = that distance plus the PCA reconstruction error (D-030).
+#: ``None`` = config.
 MODELS = {
     "main": "kmeans",
     "strict": "kmeans_strict",
     "delta": "kmeans_delta",
     "residual": "kmeans_residual",
     "residual_ci": "kmeans_residual_ci",
+    "rebaselined": "kmeans_rebaselined",
 }
 VARIANTS: dict[str, tuple[str, str, float | None, str]] = {
     "main": ("main", "absolute", None, "distance"),
@@ -66,7 +71,10 @@ VARIANTS: dict[str, tuple[str, str, float | None, str]] = {
     "delta": ("main", "weekly_change", None, "distance"),
     "residual": ("main", "residual", 0.99, "distance"),
     "residual_ci": ("main", "residual", 0.99, "combined"),
+    "rebaselined": ("main", "rebaselined", 0.99, "combined"),
 }
+#: Variants whose persistence m maximizes the official 2018 score (within the false-alarm limit).
+OFFICIAL_M = {"rebaselined"}
 
 
 def model_dir(name: str):  # -> Path
@@ -89,8 +97,13 @@ def tune_persistence(
     cfg: Mapping[str, Any],
     gt: pd.DataFrame,
     areas: Mapping[str, str],
+    official: Any = None,
 ) -> tuple[int, list[dict[str, Any]]]:
-    """Pick m on 2018 (see module docstring); returns m and the per-candidate table."""
+    """Pick m on 2018 (see module docstring); returns m and the per-candidate table.
+
+    ``official``: a ``YearScorer``; when given, each candidate also gets its official 2018 score
+    and m is the best-scoring candidate within the false-alarm limit.
+    """
     bdt = cfg["bdt"]
     val_starts = features.loc[validation_normal, "window_start"]
     val_weeks = validation_normal.sum() * spec.slide_s / (7 * 86400)
@@ -134,6 +147,14 @@ def tune_persistence(
                 "median_ttd_h_2018": det["time_to_detection_h"]["median"],
             }
         )
+        if official is not None:
+            from leakwatch.bdt.report import sensor_drop_detections
+
+            dets = sensor_drop_detections(alerts, features, spec, official.dist)
+            sc = official.score(dets, 2018)
+            rows[-1]["official_2018"] = {
+                k: sc[k] for k in ("total_score_eur", "true_positives", "false_positives")
+            }
         log.info("m=%d: %s", m, rows[-1])
     limit = float(bdt["max_false_alarms_per_week"])
     ok = [
@@ -142,26 +163,42 @@ def tune_persistence(
         if r["validation_false_alarms_per_week"] is not None
         and r["validation_false_alarms_per_week"] <= limit
     ]
-    chosen = (
-        min(ok, key=lambda r: r["m"])
-        if ok
-        else min(rows, key=lambda r: r["validation_false_alarms_per_week"])
-    )
+    if ok and official is not None:
+        chosen = max(ok, key=lambda r: (r["official_2018"]["total_score_eur"], -r["m"]))
+    elif ok:
+        chosen = min(ok, key=lambda r: r["m"])
+    else:
+        chosen = min(rows, key=lambda r: r["validation_false_alarms_per_week"])
     return int(chosen["m"]), rows
 
 
 def view_columns(spec: FeatureSpec, view: str) -> list[str]:
     """Model input columns of a feature view."""
     cols = spec.feature_columns()
-    return [c for c in cols if c.endswith("__residual")] if view == "residual" else cols
+    if view in ("residual", "rebaselined"):
+        return [c for c in cols if c.endswith("__residual")]
+    return cols
 
 
-def feature_view(features: pd.DataFrame, spec: FeatureSpec, view: str) -> pd.DataFrame:
-    """The feature rows a variant sees: as stored, residuals only, or week-over-week change."""
+def feature_view(
+    features: pd.DataFrame, spec: FeatureSpec, view: str, cfg: Mapping[str, Any] | None = None
+) -> pd.DataFrame:
+    """The feature rows a variant sees.
+
+    As stored, residuals only, week-over-week change, or re-baselined residuals (rows without a
+    full reference are dropped).
+    """
     if view in ("absolute", "residual"):
         return features
     if view == "weekly_change":
         return weekly_change(features, spec.feature_columns())
+    if view == "rebaselined":
+        from leakwatch.features.rebaseline import Rebaseline, rebaselined
+
+        cols = view_columns(spec, view)
+        rb = Rebaseline.from_config(cfg or load_config())
+        out = rebaselined(features, cols, rb)
+        return out[out[cols].notna().all(axis=1)].reset_index(drop=True)
     raise ValueError(f"unknown feature view {view!r}")
 
 
@@ -224,13 +261,14 @@ def train_one(
     cfg: Mapping[str, Any],
     gt: pd.DataFrame,
     areas: Mapping[str, str],
+    official: Any = None,
 ) -> dict[str, Any]:
     """Train, threshold, tune and save one detector variant (see ``VARIANTS``)."""
     t0 = time.perf_counter()
     bdt = cfg["bdt"]
     variant = rule
     rule, view, variance, score_kind = VARIANTS[variant]
-    features = feature_view(features, spec, view)
+    features = feature_view(features, spec, view, cfg)
     columns = view_columns(spec, view)
     if variance is not None:
         bdt = {**bdt, "pca_variance": variance}
@@ -261,7 +299,16 @@ def train_one(
     scored, shares = scorer.score_frame(features)
     validation_normal = normal & (roles == "validation")
     m, table = tune_persistence(
-        scorer, features, scored, shares, validation_normal, spec, cfg, gt, areas
+        scorer,
+        features,
+        scored,
+        shares,
+        validation_normal,
+        spec,
+        cfg,
+        gt,
+        areas,
+        official if variant in OFFICIAL_M else None,
     )
     params = base.with_threshold(tau, m)
     params.meta.update(
@@ -307,6 +354,9 @@ def train_one(
             else None,
         },
         "persistence_windows": m,
+        "persistence_chosen_by": "best official 2018 score within the false-alarm limit"
+        if variant in OFFICIAL_M
+        else "smallest m within the false-alarm limit",
         "persistence_tuning": table,
         "figures": [
             plot_k_curve(trained.curve, trained.k, variant),
@@ -326,8 +376,16 @@ def main(argv: list[str] | None = None) -> int:
     gt = load_ground_truth()
     areas = series_area_map(spec)
     features = load_features(int(cfg["bdt"]["train_year"]))
+    official = None
+    if OFFICIAL_M & set(args.rules):
+        from leakwatch.eval.battledim_score import YearScorer
+
+        official = YearScorer(cfg)
     spark = get_spark(cfg["spark"], "leakwatch-bdt-train")
-    results = {rule: train_one(spark, rule, features, spec, cfg, gt, areas) for rule in args.rules}
+    results = {
+        rule: train_one(spark, rule, features, spec, cfg, gt, areas, official)
+        for rule in args.rules
+    }
     path = write_metrics(
         "bdt_kmeans_train",
         {

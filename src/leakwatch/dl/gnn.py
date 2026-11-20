@@ -10,24 +10,31 @@ nodes many hops from any sensor can still be told apart. The GNNs also get a *gl
 context*: an MLP embedding of all 33×2 residuals, broadcast to every node before message passing.
 A 3-layer GNN with residuals only at sensor nodes (the first design) cannot see a sensor more
 than 3 hops away; ablation variants switch each addition off (``dl.gnn.variants``).
+*Sensitivity features* (D-038, ``sensitivity: true``): each node also gets the cosine between the
+observed sensor residuals (hour 1, hour 2, their mean) and that node's column of the sensitivity
+matrix (``dl.gnn_data``) — the classic model-based method, given to the GNN as evidence to refine.
 
 Models, evaluated identically on the same splits:
 
 1. *nearest sensor*: rank nodes by pipe distance to the sensor with the largest pressure drop;
-2. *MLP*: the 33×2 sensor residuals → one logit per node;
-3. *GCN* (PyTorch Geometric ``GCNConv``, edge weight ∝ diameter / length);
-4. *GAT* (``GATConv`` with edge features length and diameter);
-5. ablations: GCN without the global context, without the sensor closeness, and without both.
+2. *sensitivity correlation*: rank nodes by that cosine alone (no learning);
+3. *MLP*: the 33×2 sensor residuals → one logit per node;
+4. *GCN* (PyTorch Geometric ``GCNConv``, edge weight ∝ diameter / length) and *GAT* (``GATConv``
+   with edge features length and diameter), with and without the sensitivity features;
+5. ablation: GCN with sensitivity but without the global context.
 
 Splits: scenarios whose leak diameter is in ``unseen_diameter_m`` are held out ("unseen sizes");
 the rest are split at random 70/15/15 (fixed seed). Metrics: top-1 / top-5 accuracy, mean
 shortest-path distance (m) from the top-1 node to the leak, share within ``within_m`` (top-1 and
 best of top 5), per leak-size bucket.
 
-BattLeDIM 2019 test: for each 2019 leak's first true-positive K-Means alert, the input is the
-week-over-week change of each pressure sensor's ``residual`` feature in the two 1 h windows
-before the alert fires (accumulated older leaks cancel out); the distance from the predicted
-nodes to the leaking pipe (nearest end) is reported.
+Real leaks (D-038): every BattLeDIM leak of 2018 (development) and 2019 (test) is localized at a
+fixed time after it starts — 2 h after its outflow first reaches half its peak (at once for abrupt
+leaks, later for slowly growing ones) — from each pressure sensor's *re-baselined* residual
+(``features.rebaseline``: minus its median of the previous week) in the two 1 h windows ending
+then; the distance from the predicted nodes to the leaking pipe (nearer end) is reported for every
+localizer. The live localizer is the trained variant with the smallest median distance on the
+2018 leaks (ties: validation top-5); 2019 is only reported.
 
 Writes ``reports/metrics/dl_gnn.json``, ``data/models/gnn/``, and adds ``gnn_top5`` to the batch
 alerts (new alert versions).
@@ -96,20 +103,43 @@ class GraphData:
         d = np.where(np.isfinite(d), d, d[np.isfinite(d)].max())
         self.sensor_closeness = np.exp(-d / float(sensor_distance_scale_m)).astype("float32")
         self.node_static = np.concatenate([self.static, self.sensor_closeness], axis=1)
+        # (N, sensors): unit sensitivity vector per node (0 for tanks/reservoirs), if generated
+        self.sensitivity: np.ndarray | None = None
+        if "sensitivity" in graph:
+            s = np.asarray(graph["sensitivity"], dtype="float64")
+            norm = np.linalg.norm(s, axis=1, keepdims=True)
+            self.sensitivity = (s / np.where(norm > 0, norm, 1.0)).astype("float32")
 
-    def node_dim(self, closeness: bool = True) -> int:
-        """Node feature width: 2 residuals + static features (+ sensor closeness)."""
+    def sensitivity_corr(self, x: np.ndarray) -> np.ndarray:
+        """(B, sensors, 2) residuals -> (B, N, 3) cosines with each node's sensitivity vector.
+
+        The three cosines use hour 1, hour 2 and the mean of both hours.
+        """
+        if self.sensitivity is None:
+            raise ValueError("graph.npz has no sensitivity matrix: run `make gnn-data`")
+        out = []
+        for v in (x[:, :, 0], x[:, :, 1], x.mean(axis=2)):
+            norm = np.linalg.norm(v, axis=1, keepdims=True)
+            out.append((v / np.where(norm > 0, norm, 1.0)) @ self.sensitivity.T)
+        return np.stack(out, axis=2).astype("float32")
+
+    def node_dim(self, closeness: bool = True, sensitivity: bool = False) -> int:
+        """Node feature width: 2 residuals + static features (+ closeness) (+ 3 cosines)."""
         static = self.node_static if closeness else self.static
-        return 2 + static.shape[1]
+        return 2 + static.shape[1] + (3 if sensitivity else 0)
 
-    def node_features(self, x: np.ndarray, scale: float, closeness: bool = True) -> np.ndarray:
+    def node_features(
+        self, x: np.ndarray, scale: float, closeness: bool = True, sensitivity: bool = False
+    ) -> np.ndarray:
         """(B, sensors, 2) residuals -> (B, N, node_dim) node features."""
         b = x.shape[0]
         feats = np.zeros((b, self.n, x.shape[2]), dtype="float32")
         feats[:, self.sensor_idx, :] = x / scale
         base = self.node_static if closeness else self.static
-        static = np.broadcast_to(base, (b, self.n, base.shape[1]))
-        return np.concatenate([feats, static], axis=2)
+        parts = [feats, np.broadcast_to(base, (b, self.n, base.shape[1]))]
+        if sensitivity:
+            parts.append(self.sensitivity_corr(x))
+        return np.concatenate(parts, axis=2)
 
 
 # ----------------------------------------------------------------------------------- models
@@ -154,12 +184,14 @@ class GNNLocalizer(nn.Module):
         heads: int,
         closeness: bool = True,
         context: bool = True,
+        sensitivity: bool = False,
     ) -> None:
         super().__init__()
         from torch_geometric.nn import GATConv, GCNConv
 
         self.kind = kind
         self.closeness = closeness
+        self.sensitivity = sensitivity
         self.use_context = context
         self.node_in = nn.Linear(node_dim, hidden)
         self.context = (
@@ -213,19 +245,21 @@ class GNNLocalizer(nn.Module):
 def build_model(
     spec: Mapping[str, Any], g: GraphData, sensor_dim: int, gcfg: Mapping[str, Any]
 ) -> nn.Module:
-    """A localizer from a variant spec: ``{kind: mlp|gcn|gat, closeness, context}``."""
+    """A localizer from a variant spec: ``{kind: mlp|gcn|gat, closeness, context, sensitivity}``."""
     if spec["kind"] == "mlp":
         return MLPLocalizer(sensor_dim, g.n, int(gcfg["hidden"]))
     closeness = bool(spec.get("closeness", True))
+    sensitivity = bool(spec.get("sensitivity", False))
     return GNNLocalizer(
         str(spec["kind"]),
-        g.node_dim(closeness),
+        g.node_dim(closeness, sensitivity),
         sensor_dim,
         int(gcfg["hidden"]),
         int(gcfg["layers"]),
         int(gcfg["heads"]),
         closeness=closeness,
         context=bool(spec.get("context", True)),
+        sensitivity=sensitivity,
     )
 
 
@@ -241,7 +275,11 @@ def masked(logits: torch.Tensor, is_junction: np.ndarray) -> torch.Tensor:
 def forward(model: nn.Module, g: GraphData, x: np.ndarray, scale: float) -> torch.Tensor:
     """Logits (B, N) for residual inputs (B, sensors, 2)."""
     sensor_x = torch.from_numpy(x / scale)
-    node_x = torch.from_numpy(g.node_features(x, scale, getattr(model, "closeness", True)))
+    node_x = torch.from_numpy(
+        g.node_features(
+            x, scale, getattr(model, "closeness", True), getattr(model, "sensitivity", False)
+        )
+    )
     out = model(
         sensor_x=sensor_x,
         node_x=node_x,
@@ -318,6 +356,13 @@ def nearest_sensor_scores(g: GraphData, x: np.ndarray) -> np.ndarray:
     return scores
 
 
+def sensitivity_scores(g: GraphData, x: np.ndarray) -> np.ndarray:
+    """Classic method: cosine between the mean residuals and each node's sensitivity vector."""
+    scores = g.sensitivity_corr(x)[:, :, 2].astype("float64")
+    scores[:, ~g.is_junction] = -np.inf
+    return scores
+
+
 def topk_accuracy(scores: np.ndarray, y: np.ndarray, k: int) -> float:
     """Share of rows whose label is among the k highest scores."""
     top = np.argsort(-scores, axis=1)[:, :k]
@@ -360,30 +405,42 @@ def by_bucket(
     }
 
 
-# -------------------------------------------------------------------- BattLeDIM 2019 inputs
+# ------------------------------------------------------------------- BattLeDIM leak inputs
+
+_FEATURES: dict[tuple[str, ...], pd.DataFrame] = {}  # re-baselined pressure residuals, by columns
+
+
+def rebaselined_pressure(sensors: list[str]) -> pd.DataFrame:
+    """Re-baselined pressure residuals of 2018–2019 (``features.rebaseline``), by window end."""
+    from leakwatch.features.rebaseline import Rebaseline, rebaselined
+
+    cols = [f"pressure__{s}__residual" for s in sensors]
+    key = tuple(cols)
+    if key not in _FEATURES:
+        col_sql = ", ".join(f'"{c}"' for c in cols)
+        feats = lake.query_df(
+            lake.connect(),
+            f"SELECT window_start, window_end, {col_sql} FROM features WHERE source = 'battledim'",
+        )
+        rb = Rebaseline.from_config(load_config())
+        _FEATURES[key] = rebaselined(feats, cols, rb).set_index("window_end").sort_index()
+    return _FEATURES[key]
 
 
 def benchmark_inputs(g: GraphData, times: list[pd.Timestamp], sensors: list[str]) -> np.ndarray:
-    """Inputs for real alerts: (n, sensors, 2) week-over-week residual changes.
+    """Inputs at real times: (n, sensors, 2) re-baselined residuals (D-038).
 
-    For each time, the change of each pressure sensor's ``residual`` feature over 7 days, in the
-    two 1 h windows ending at that time (features table).
+    For each time, each pressure sensor's re-baselined ``residual`` in the two 1 h windows ending
+    one hour apart at that time (missing values -> 0).
     """
+    feats = rebaselined_pressure(sensors)
     cols = [f"pressure__{s}__residual" for s in sensors]
-    col_sql = ", ".join(f'"{c}"' for c in cols)
-    con = lake.connect()
-    feats = lake.query_df(
-        con, f"SELECT window_end, {col_sql} FROM features WHERE source = 'battledim'"
-    )
-    feats = feats.set_index("window_end").sort_index()
-    week, hour = pd.Timedelta(days=7), pd.Timedelta(hours=1)
+    hour = pd.Timedelta(hours=1)
     out = np.full((len(times), len(sensors), 2), np.nan, dtype="float32")
     for i, t in enumerate(times):
         for j, end in enumerate((t - hour, t)):
-            if end in feats.index and end - week in feats.index:
-                out[i, :, j] = (
-                    feats.loc[end, cols].to_numpy() - feats.loc[end - week, cols].to_numpy()
-                )
+            if end in feats.index:
+                out[i, :, j] = feats.loc[[end], cols].to_numpy()[-1]
     return np.nan_to_num(out, nan=0.0)
 
 
@@ -394,83 +451,79 @@ def pipe_distance(g: GraphData, wn: Any, node_idx: np.ndarray, pipe: str) -> np.
     return np.min(g.dist[np.ix_(node_idx, ends)], axis=1)
 
 
-def benchmark_2019(
-    g: GraphData, model: nn.Module, best: str, scale: float, within: float, sensors: list[str]
-) -> dict[str, Any]:
-    """Localize each 2019 leak at its first detecting batch alert; distances to the pipe."""
-    from leakwatch.data import network
+def localization_times(year: int) -> pd.DataFrame:
+    """Leaks starting in ``year`` and when to localize them.
+
+    The time is 2 h after the outflow first reaches half its peak, on the 15-minute grid.
+    """
     from leakwatch.data.ground_truth import load_ground_truth
 
-    wn = network.load_network()
     gt = load_ground_truth()
-    con = lake.connect()
-    alerts = lake.query_df(
-        con,
-        "SELECT alert_id, start_ts, version FROM alerts "
-        "WHERE origin = 'batch' AND model = 'kmeans'",
-    )
-    bench = []
-    new_2019 = gt[gt["start_ts"].dt.year == 2019]
-    for leak in new_2019.itertuples(index=False):
-        hit = alerts[
-            (alerts["start_ts"] >= leak.start_ts)
-            & (alerts["start_ts"] <= leak.start_ts + pd.Timedelta(days=7))
-        ]
-        if hit.empty:
-            continue
-        t = hit["start_ts"].min()
-        xb = benchmark_inputs(g, [t], sensors)
-        sc = (
-            predict(model, g, xb, scale)[0]
-            if best != "nearest_sensor"
-            else nearest_sensor_scores(g, xb)[0]
-        )
-        top = np.argsort(-sc)[:5]
-        d = pipe_distance(g, wn, top, leak.pipe_id)
-        heur = np.argsort(-nearest_sensor_scores(g, xb)[0])[:5]
-        dh = pipe_distance(g, wn, heur, leak.pipe_id)
-        bench.append(
+    flows = pd.read_parquet(paths.battledim_parquet_dir() / f"leak_flows_{year}.parquet")
+    rows = []
+    for leak in gt[gt["start_ts"].dt.year == year].itertuples(index=False):
+        f = flows[leak.pipe_id]
+        f = f[f.index >= leak.start_ts]
+        half = f[f >= 0.5 * f.max()]
+        t_half = half.index[0] if len(half) else leak.start_ts
+        rows.append(
             {
                 "leak_id": leak.leak_id,
                 "pipe_id": leak.pipe_id,
                 "type": leak.type,
+                "start": leak.start_ts,
+                "localize_at": (t_half + pd.Timedelta(hours=2)).ceil("15min"),
                 "peak_outflow_m3h": float(leak.peak_outflow_m3h),
-                "alert_start": t.isoformat(),
-                "top5_nodes": [g.nodes[i] for i in top],
-                "distance_top1_m": round(float(d[0]), 1),
-                "distance_best_of_top5_m": round(float(d.min()), 1),
-                "nearest_sensor_distance_top1_m": round(float(dh[0]), 1),
-                "nearest_sensor_distance_best_of_top5_m": round(float(dh.min()), 1),
             }
         )
-    bench_df = pd.DataFrame(bench)
-    benchmark = {
-        "leaks_localized": len(bench_df),
-        "model": best,
-        "within_m_top1": round(float((bench_df["distance_top1_m"] <= within).mean()), 4)
-        if len(bench_df)
-        else None,
-        "within_m_best_of_top5": round(
-            float((bench_df["distance_best_of_top5_m"] <= within).mean()), 4
-        )
-        if len(bench_df)
-        else None,
-        "median_distance_top1_m": float(bench_df["distance_top1_m"].median())
-        if len(bench_df)
-        else None,
-        "median_distance_best_of_top5_m": float(bench_df["distance_best_of_top5_m"].median())
-        if len(bench_df)
-        else None,
-        "nearest_sensor_median_distance_top1_m": float(
-            bench_df["nearest_sensor_distance_top1_m"].median()
-        )
-        if len(bench_df)
-        else None,
-        "per_leak": bench,
-        "input": "week-over-week change of pressure residual features, "
-        "two 1 h windows before the alert",
+    return pd.DataFrame(rows)
+
+
+def real_leak_benchmark(
+    year: int,
+    g: GraphData,
+    localizers: Mapping[str, Any],
+    within: float,
+    sensors: list[str],
+) -> dict[str, Any]:
+    """Localize every leak of ``year`` with each localizer (``name -> scores(x)``)."""
+    from leakwatch.data import network
+
+    wn = network.load_network()
+    times = localization_times(year)
+    if times.empty:
+        return {"leaks": 0}
+    x = benchmark_inputs(g, list(times["localize_at"]), sensors)
+    per_leak = [
+        {k: (v.isoformat() if isinstance(v, pd.Timestamp) else v) for k, v in r.items()}
+        for r in times.to_dict("records")
+    ]
+    summary: dict[str, Any] = {}
+    for name, scores_fn in localizers.items():
+        sc = scores_fn(x)
+        d1, d5 = [], []
+        for i, leak in enumerate(times.itertuples(index=False)):
+            top = np.argsort(-sc[i])[:5]
+            d = pipe_distance(g, wn, top, leak.pipe_id)
+            d1.append(float(d[0]))
+            d5.append(float(d.min()))
+            per_leak[i][f"{name}_top1"] = g.nodes[top[0]]
+            per_leak[i][f"{name}_distance_top1_m"] = round(d1[-1], 1)
+        summary[name] = {
+            "median_distance_top1_m": round(float(np.median(d1)), 1),
+            "mean_distance_top1_m": round(float(np.mean(d1)), 1),
+            "within_m_top1": round(float(np.mean(np.array(d1) <= within)), 4),
+            "within_m_best_of_top5": round(float(np.mean(np.array(d5) <= within)), 4),
+        }
+    return {
+        "year": year,
+        "role": "development" if year == 2018 else "test (reported only)",
+        "leaks": len(times),
+        "input": "re-baselined pressure residuals (D-038), two 1 h windows ending 2 h after the "
+        "outflow first reaches half its peak",
+        "localizers": summary,
+        "per_leak": per_leak,
     }
-    return benchmark
 
 
 # ------------------------------------------------------------------------------------- main
@@ -515,6 +568,12 @@ def main(argv: list[str] | None = None) -> int:
     scores["nearest_sensor"] = {
         s: nearest_sensor_scores(g, x[ix]) for s, ix in (("test", te), ("unseen", un), ("val", va))
     }
+    heuristics = ["nearest_sensor"]
+    if g.sensitivity is not None:
+        scores["sensitivity_corr"] = {
+            s: sensitivity_scores(g, x[ix]) for s, ix in (("test", te), ("unseen", un), ("val", va))
+        }
+        heuristics.append("sensitivity_corr")
     variants: dict[str, dict[str, Any]] = {"mlp": {"kind": "mlp"}, **gcfg["variants"]}
     for name, spec in variants.items():
         t0 = time.perf_counter()
@@ -538,7 +597,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     results = {}
-    for name in ["nearest_sensor", *variants]:
+    for name in [*heuristics, *variants]:
         results[name] = {
             "test": distance_metrics(g, scores[name]["test"], y[te], within),
             "unseen_sizes": distance_metrics(g, scores[name]["unseen"], y[un], within)
@@ -547,7 +606,17 @@ def main(argv: list[str] | None = None) -> int:
             "test_by_size": by_bucket(g, scores[name]["test"], y[te], diam[te], edges, within),
             "val_top5": round(topk_accuracy(scores[name]["val"], y[va], 5), 4),
         }
-    best = max(variants, key=lambda m: results[m]["val_top5"])
+    from leakwatch.data import network
+
+    sensors = network.parse_sensor_config()["pressure"]
+    localizers: dict[str, Any] = {"nearest_sensor": lambda xb: nearest_sensor_scores(g, xb)}
+    if g.sensitivity is not None:
+        localizers["sensitivity_corr"] = lambda xb: sensitivity_scores(g, xb)
+    for name in variants:
+        localizers[name] = lambda xb, m=models[name]: predict(m, g, xb, scale)
+    real = {str(y): real_leak_benchmark(y, g, localizers, within, sensors) for y in (2018, 2019)}
+    dev = real["2018"]["localizers"]
+    best = min(variants, key=lambda m: (dev[m]["median_distance_top1_m"], -results[m]["val_top5"]))
 
     # Save the chosen model.
     out_dir = paths.ensure_dir(paths.models_dir() / "gnn")
@@ -566,11 +635,6 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    from leakwatch.data import network
-
-    sensors = network.parse_sensor_config()["pressure"]
-    benchmark = benchmark_2019(g, models[best], best, scale, within, sensors)
-
     gnn_names = [n for n, s in variants.items() if s["kind"] != "mlp"]
     payload = {
         "dataset": {
@@ -586,10 +650,10 @@ def main(argv: list[str] | None = None) -> int:
         "models": results,
         "training": histories,
         "chosen_model": best,
-        "chosen_by": "validation top-5 accuracy",
+        "chosen_by": "median top-1 distance on the 2018 BattLeDIM leaks (ties: validation top-5)",
         "gnn_beats_mlp_top5": max(results[n]["test"]["top5"] for n in gnn_names)
         > results["mlp"]["test"]["top5"],
-        "battledim_2019": benchmark,
+        "real_leaks": real,
         "alerts_with_gnn_top5": None,
         "wall_s": round(time.perf_counter() - t_start, 1),
     }
@@ -598,27 +662,26 @@ def main(argv: list[str] | None = None) -> int:
     payload["alerts_with_gnn_top5"] = write_gnn_top5(cfg, g, models[best], best, scale, sensors)
     path = write_metrics("dl_gnn", payload)
     log.info(
-        "chosen %s; test top5 %s; 2019 within %s m: %s -> %s",
+        "chosen %s; test top5 %s; 2018 median %s m; 2019 median %s m -> %s",
         best,
         results[best]["test"]["top5"],
-        within,
-        benchmark["within_m_best_of_top5"],
+        dev[best]["median_distance_top1_m"],
+        real["2019"]["localizers"][best]["median_distance_top1_m"],
         path,
     )
     return 0
 
 
 def apply_only() -> int:
-    """Re-run the 2019 benchmark and ``gnn_top5`` with the saved model (after ``make bdt-eval``).
+    """Re-localize the batch alerts with the saved model (after ``make bdt-eval``).
 
-    ``make bdt-eval`` rewrites the batch alerts; this refreshes the localizer's part without
-    retraining and updates ``battledim_2019`` and ``alerts_with_gnn_top5`` in ``dl_gnn.json``.
+    ``make bdt-eval`` rewrites the batch alerts; this refreshes their ``gnn_top5`` without
+    retraining and updates ``alerts_with_gnn_top5`` in ``dl_gnn.json``.
     """
     from leakwatch.common.metrics import read_metrics
     from leakwatch.data import network
 
     cfg = load_config()
-    gcfg = cfg["dl"]["gnn"]
     model_dir = paths.models_dir() / "gnn"
     meta = json.loads((model_dir / "meta.json").read_text(encoding="utf-8"))
     g = GraphData(
@@ -632,9 +695,6 @@ def apply_only() -> int:
     sensors = network.parse_sensor_config()["pressure"]
     payload = read_metrics("dl_gnn")
     payload.pop("meta", None)
-    payload["battledim_2019"] = benchmark_2019(
-        g, model, best, scale, float(gcfg["within_m"]), sensors
-    )
     payload["alerts_with_gnn_top5"] = write_gnn_top5(cfg, g, model, best, scale, sensors)
     path = write_metrics("dl_gnn", payload)
     log.info("re-localized %s alerts with %s -> %s", payload["alerts_with_gnn_top5"], best, path)
