@@ -444,7 +444,7 @@ def official_score_lines() -> list[str]:
         y19 = _get(sys_score, "years", "2019") or {}
         placements = sys_score.get("placements") or {}
         names = {"localizer": "localizer top-1", "sensor_drop": "most-dropped pressure sensor"}
-        chosen = sys_score.get("placement")
+        chosen = str(sys_score.get("placement") or "localizer")  # files before D-041: localizer
         how = (
             [
                 "",
@@ -462,7 +462,7 @@ def official_score_lines() -> list[str]:
         lines += [
             "",
             f"Full system (live detector `{sys_score.get('detector')}`, one report per alert, "
-            f"placed at the {names.get(chosen, 'localizer top-1')}; "
+            f"placed at the {names.get(chosen, chosen)}; "
             f"{src('battledim_score', sys_score)}):",
             "",
             table(["year", "role", "score", "leaks found", "false positives", "alerts"], rows),
@@ -1098,8 +1098,46 @@ def st_report() -> str:
         "- **Simulator as oracle:** a large simulated leak on real background raises an alert and the "
         "localizer ranks nearby junctions.",
         "- **Integration:** replayer → Kafka → Spark → lake, and the Kafka feature stream vs batch.",
+        "- **Property-based** (`tests/unit/test_properties.py`, hypothesis, D-040): the official "
+        "score does not depend on submission order and its bookkeeping adds up; pipe distances are "
+        "symmetric; re-baselining ignores a constant offset; the SQL guard never passes a write; "
+        "the number guardrail accepts every value it was given.",
     ]
+    lines += mutation_lines()
     return "\n".join(lines) + "\n"
+
+
+def mutation_lines() -> list[str]:
+    """Mutation testing of the modules behind the reported numbers (D-040)."""
+    m = load("st_mutation")
+    if not m:
+        return ["", "## Mutation testing (D-040)", "", MISSING.format(cmd="make mutation")]
+    by = m.get("by_status") or {}
+    rows = [
+        [
+            f"`{f}`",
+            v.get("killed", 0),
+            v.get("survived", 0),
+            v.get("timeout", 0),
+            v.get("no tests", 0),
+            num(v.get("mutation_score"), 3, pct=True),
+        ]
+        for f, v in sorted((m.get("files") or {}).items())
+    ]
+    return [
+        "",
+        "## Mutation testing (D-040)",
+        "",
+        f"{m.get('tool')} changed the code one small edit at a time and reran the unit tests: "
+        f"{num(m.get('mutants'), 0)} mutants, {num(by.get('killed', 0), 0)} killed, "
+        f"{num(by.get('survived', 0), 0)} survived, {num(by.get('timeout', 0), 0)} timeouts, "
+        f"{num(by.get('no tests', 0), 0)} in code no unit test reaches (mostly CLI entry points). "
+        "Mutation score killed / (killed + survived) = "
+        f"**{num(m.get('mutation_score'), 3, pct=True)}** ({src('st_mutation', m)}). Every "
+        "survivor is listed in the metrics file; many are equivalent (same behaviour).",
+        "",
+        table(["module", "killed", "survived", "timeout", "no tests", "score"], rows),
+    ]
 
 
 # ---------------------------------------------------------------------------------- README
@@ -1277,6 +1315,16 @@ def readme_results() -> str:
             f"€{num(y19['total_score_eur'], 0)}: {y19['true_positives']} of {y19['leaks']} leaks, "
             f"{y19['false_positives']} false positives; {place}",
             "battledim_score",
+            m,
+        )
+    m = load("st_mutation")
+    if m and m.get("mutation_score") is not None:
+        add(
+            "Mutation score, 6 core modules (D-040)",
+            f"{num(m['mutation_score'], 3, pct=True)} of mutants killed ({num(m.get('mutants'), 0)} "
+            "mutants of the scorer, detection metrics, re-baselining, alert rule, SQL guard and "
+            "guardrails)",
+            "st_mutation",
             m,
         )
     m = load("pe_eval_v3")

@@ -285,3 +285,25 @@ def test_real_leak_localization_table(metrics_dir):
     assert "| gcn_sens | 250 | 50.0% | 75.0% | 250 | 50.0% | 75.0% |" in text
     row = next(r for r in reports.readme_results().splitlines() if "2019 BattLeDIM leaks" in r)
     assert "median 250 m" in row
+
+
+def test_mutation_section_and_row(metrics_dir):
+    write(
+        metrics_dir,
+        "st_mutation",
+        {
+            "tool": "mutmut 3.8.1",
+            "mutants": 100,
+            "by_status": {"killed": 80, "survived": 10, "timeout": 2, "no tests": 8},
+            "mutation_score": 0.8889,
+            "files": {
+                "src/leakwatch/x.py": {"killed": 80, "survived": 10, "mutation_score": 0.8889}
+            },
+            "survivors": [],
+        },
+    )
+    text = reports.st_report()
+    assert "## Mutation testing (D-040)" in text and "**88.9%**" in text
+    assert "| `src/leakwatch/x.py` | 80 | 10 | 0 | 0 | 88.9% |" in text
+    row = next(r for r in reports.readme_results().splitlines() if "Mutation score" in r)
+    assert "88.9% of mutants killed (100 mutants" in row
