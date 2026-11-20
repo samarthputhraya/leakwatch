@@ -126,6 +126,7 @@ bdt-scaling: ## batch features + K-Means scoring at 12.5M / 50M / 100M+ readings
 
 MUTATION_JOBS ?= 6
 mutation: ## mutation testing of core modules (mutmut, D-040) -> reports/metrics/st_mutation.json
+	rm -rf mutants  # a fresh run: mutmut would reuse results of unchanged code with old tests
 	-$(RUN) mutmut run --max-children $(MUTATION_JOBS)
 	$(RUN) python -m leakwatch.eval.mutation
 
