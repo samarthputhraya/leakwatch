@@ -1,58 +1,80 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T18:42:18+00:00",
-    "git_commit": "eea5d40",
+    "generated_at": "2026-11-21T07:17:16+00:00",
+    "git_commit": "8bcc130",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
   "topic": "scada.readings",
-  "wall_s": 1909.3,
+  "wall_s": 2349.2,
   "batches_with_data": 126,
   "kafka_records_read": 25018560,
   "duplicates_dropped": 0,
   "late_rows_dropped_by_watermark": 0,
   "batch_duration_s": {
-    "p50": 13.588,
-    "p95": 24.067,
-    "max": 34.445,
-    "mean": 14.662
+    "p50": 16.915,
+    "p95": 33.57,
+    "max": 67.994,
+    "mean": 18.15538888888889
   },
   "target_batch_duration_s": 10,
-  "batches_over_target": 111,
-  "processing_span_s": 1847.635,
-  "rows_per_s_over_span": 13540.856283843941,
+  "batches_over_target": 115,
+  "processing_span_s": 2287.936,
+  "rows_per_s_over_span": 10934.991188564714,
   "publish_to_lake_s": {
     "newest_in_batch": {
-      "p50": 7438.921718120575,
-      "p95": 9149.224114656448
+      "p50": 1494.4821808338165,
+      "p95": 2299.446165084839
     },
     "oldest_in_batch": {
-      "p50": 7447.204320669174,
-      "p95": 9159.396806001663
+      "p50": 1501.985428571701,
+      "p95": 2300.0791652202606
     }
   },
-  "first_batch_duration_s": 28.563,
+  "first_batch_duration_s": 67.994,
   "steady_state_excluding_first_batch": {
     "batches": 125,
     "batch_duration_s": {
-      "p50": 13.588,
-      "p95": 21.993,
-      "max": 34.445
+      "p50": 16.915,
+      "p95": 32.701,
+      "max": 49.367
     },
-    "batches_over_target": 110,
+    "batches_over_target": 114,
     "publish_to_lake_s": {
       "newest_in_batch": {
-        "p50": 7438.921718120575,
-        "p95": 9149.224114656448
+        "p50": 1501.0744285583496,
+        "p95": 2299.446165084839
       },
       "oldest_in_batch": {
-        "p50": 7447.204320669174,
-        "p95": 9159.396806001663
+        "p50": 1511.7898926734924,
+        "p95": 2300.0791652202606
       }
     }
   },
   "readings_processed": 25018560,
+  "step_s": {
+    "summary": {
+      "p50": 3.447,
+      "p95": 6.482,
+      "max": 19.801
+    },
+    "windows": {
+      "p50": 12.277,
+      "p95": 23.992,
+      "max": 40.517
+    },
+    "tail": {
+      "p50": 0.469,
+      "p95": 1.384,
+      "max": 3.102
+    },
+    "score": {
+      "p50": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    }
+  },
   "windows_emitted": 70076,
   "late_readings_ignored": 0,
   "first_window_start_s": 1514764800,

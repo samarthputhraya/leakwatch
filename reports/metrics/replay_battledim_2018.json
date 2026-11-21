@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-18T15:52:58+00:00",
-    "git_commit": "f98443c",
+    "generated_at": "2026-11-21T06:35:40+00:00",
+    "git_commit": "8bcc130",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -18,9 +18,9 @@
   "sensors": 119,
   "readings": 12509280,
   "delivery_errors": 0,
-  "wall_s": 101.0,
+  "wall_s": 73.5,
   "slept_s": 0.0,
-  "readings_per_s": 123851.2,
+  "readings_per_s": 170189.7,
   "target_readings_per_s": 10000,
   "meets_target": true,
   "producer": {
