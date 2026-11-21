@@ -329,3 +329,56 @@ def test_empirical_p_value_counts_draws_at_least_as_good():
     assert bs.empirical_p_value(10.0, [1.0, 2.0, 3.0]) == pytest.approx(0.25)
     assert bs.empirical_p_value(2.0, [1.0, 2.0, 3.0]) == pytest.approx(0.75)
     assert bs.empirical_p_value(5.0, []) == 1.0
+
+
+# ---- timing tests (D-047)
+
+
+def test_far_link_is_away_from_every_leak(dist):
+    assert bs.far_link([leak("p1", 0, 10)], dist) == "p4"
+    assert bs.far_link([leak("p4", 0, 10)], dist) == "p1"
+
+
+def test_oracle_reports_go_to_the_newest_unreported_running_leak(dist):
+    leaks = [leak("p1", 100, 1_000), leak("p4", 500, 2_000)]
+    times = [at(3_000), at(200), at(600), at(700)]  # unsorted on purpose
+    det = bs.oracle_detections(times, leaks, 2019, far="p2")
+    assert list(det["link_id"]) == ["p1", "p4", "p4", "p2"]  # A, then B, B again, none running
+    r = bs.score_detections(det, leaks, dist, PARAMS)
+    assert r["true_positives"] == 2 and r["repeated_detections"] == 1
+    assert r["false_positives"] == 1
+
+
+def test_first_alert_delays_skip_old_and_unalerted_leaks():
+    leaks = [leak("p1", 100, 1_000), leak("p2", 500, 2_000), leak("p3", -50, 90), leak("p4", 5, 50)]
+    delays = bs.first_alert_delays_h([at(600), at(200)], leaks, 2019)
+    assert delays == [pytest.approx(100 * 5 / 60), pytest.approx(100 * 5 / 60)]
+
+
+def test_compare_to_random_both_directions():
+    up = bs.compare_to_random(10.0, [1.0, 2.0, 3.0, 11.0])
+    assert up["p_value"] == pytest.approx(2 / 5) and up["random_mean"] == pytest.approx(4.25)
+    down = bs.compare_to_random(2.0, [1.0, 5.0, 6.0, 7.0], smaller_is_better=True)
+    assert down["p_value"] == pytest.approx(2 / 5)
+    assert bs.compare_to_random(1.0, [float("nan")]) == {"observed": 1.0, "draws": 0}
+
+
+def test_timing_tests_report_every_measure(dist):
+    leaks = [leak("p1", 100, 1_000), leak("p4", 500, 2_000)]
+    scorer = SimpleNamespace(
+        dist=dist, score=lambda d, year: bs.score_detections(d, leaks, dist, PARAMS, year)
+    )
+    system_times = [at(110), at(510)]  # right after each onset
+    system = scorer.score(pd.DataFrame({"link_id": ["p1", "p4"], "ts": system_times}), 2019)
+    rng = np.random.default_rng(0)
+    sets = [bs.random_alert_times(2019, 2, rng) for _ in range(20)]
+    rand = [
+        scorer.score(bs.oracle_detections(list(s["start_ts"]), leaks, 2019, "p2"), 2019)
+        for s in sets
+    ]
+    out = bs.timing_tests(system_times, sets, system, rand, leaks, scorer, 2019)
+    assert out["oracle_placement_true_positives"]["observed"] == 2
+    assert out["median_delay_to_first_alert_h"]["observed"] == pytest.approx(10 * 5 / 60, abs=0.01)
+    assert out["median_delay_to_first_alert_h"]["leaks_starting_in_year"] == 2
+    assert out["median_delay_to_first_correct_report_h"]["leaks_found"] == 2
+    assert out["oracle_placement_eur"]["p_value"] <= 0.2  # early reports beat random ones

@@ -48,7 +48,7 @@ from leakwatch.bdt.live import (
 from leakwatch.common import paths
 from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
-from leakwatch.common.metrics import write_metrics
+from leakwatch.common.metrics import latency_stats, write_metrics
 from leakwatch.features.baselines import read_baselines
 from leakwatch.features.clean import READING_COLUMNS
 from leakwatch.features.spec import FeatureSpec, load_feature_spec
@@ -179,6 +179,7 @@ class FeatureBatchWriter:
             log.info("batch %d already committed; skipping replay of it", batch_id)
             return
         state = StreamState.load(layout)
+        t0 = time.perf_counter()
         batch_df.persist()
         try:
             valid = batch_df.where(F.col("is_valid"))
@@ -201,6 +202,7 @@ class FeatureBatchWriter:
                 ]
             first = valid.agg(*aggs).first()
             info: dict[str, Any] = first.asDict() if first is not None else {"rows": 0}
+            info["timings_s"] = {"summary": round(time.perf_counter() - t0, 3)}
             if not info["rows"]:
                 lake_writer.commit_batch(
                     layout, batch_id, {**info, "windows": 0, "state": asdict(state)}
@@ -232,6 +234,15 @@ class FeatureBatchWriter:
         if state.tail:
             combined = combined.unionByName(spark.read.parquet(str(state_dir / state.tail)))
 
+        timings: dict[str, float] = dict(info.pop("timings_s", {}))
+        mark = time.perf_counter()
+
+        def lap(name: str) -> None:
+            nonlocal mark
+            now = time.perf_counter()
+            timings[name] = round(now - mark, 3)
+            mark = now
+
         windows = 0
         next_after = next_start
         stage = layout.staging_for(batch_id)
@@ -247,21 +258,25 @@ class FeatureBatchWriter:
             )
             windows = _staged_rows(stage)
             next_after = last_start + spec.slide_s
+        lap("windows")
 
         tail = f"tail-b{batch_id:010d}"
         keep_from = F.timestamp_seconds(F.lit(next_after - spec.history_s))
         combined.where(F.col("ts") >= keep_from).write.mode("overwrite").parquet(
             str(state_dir / tail)
         )
+        lap("tail")
         alert_state, alert_rows, live_info = state.alerts, [], {}
         if self.live is not None:
             alert_state, alert_rows, live_info = self._score(stage, batch_id, windows, state)
+        lap("score")
         new_state = StreamState(
             max_ts_s=max_ts, next_window_start_s=next_after, tail=tail, alerts=alert_state
         )
         marker = {
             **info,
             **live_info,
+            "timings_s": timings,
             "committed_epoch_s": time.time(),
             "windows": windows,
             "first_window_start_s": next_start if windows else None,
@@ -275,6 +290,7 @@ class FeatureBatchWriter:
                 self.live.publish([alert_message(r) for r in alert_rows])
         else:
             lake_writer.commit_batch(layout, batch_id, marker)
+        lap("commit")
         for old in state_dir.glob("tail-b*"):
             if old.name != tail:
                 shutil.rmtree(old, ignore_errors=True)
@@ -341,8 +357,18 @@ def summarise(progress: list[dict[str, Any]], markers: list[dict[str, Any]]) -> 
     for key in ("rejects", "out_of_range_flagged"):
         base.pop(key, None)
     emitted = [m for m in markers if m.get("windows")]
+    steps: dict[str, list[float]] = {}
+    for m in emitted:
+        for name, sec in (m.get("timings_s") or {}).items():
+            steps.setdefault(name, []).append(float(sec))
     return {
         **base,
+        # D-047: where a batch's time goes inside foreachBatch (batches that emitted windows;
+        # the commit step is timed after its marker is written, so markers do not hold it)
+        "step_s": {
+            name: {k: latency_stats(v)[k] for k in ("p50", "p95", "max")}
+            for name, v in steps.items()
+        },
         "windows_emitted": sum(int(m["windows"]) for m in markers),
         "late_readings_ignored": sum(int(m.get("late_readings") or 0) for m in markers),
         "first_window_start_s": emitted[0]["first_window_start_s"] if emitted else None,

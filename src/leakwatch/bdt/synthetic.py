@@ -26,7 +26,7 @@ import argparse
 import os
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 import numpy as np
@@ -102,6 +102,52 @@ def residual_variants() -> list[str]:
     return [v for v, spec in VARIANTS.items() if spec[1] in ("residual", "rebaselined")]
 
 
+def draw(
+    cfg: Mapping[str, Any], rng: np.random.Generator, wn: Any
+) -> tuple[list[str], list[pd.Timestamp], pd.Timedelta]:
+    """Leak junctions, start times and the observation horizon of the benchmark (seeded)."""
+    scfg = cfg["bdt"]["synthetic"]
+    lo, hi = (pd.Timestamp(t, tz="UTC") for t in scfg["background"])
+    junctions = sorted(wn.junction_name_list)
+    nodes = list(rng.choice(junctions, int(scfg["junctions"]), replace=False))
+    # the leak keeps running after its simulated hours (signature held at its last value); a
+    # detector gets ``observe_hours`` to fire (D-038: the re-baselined variant waits 8 h)
+    horizon = pd.Timedelta(hours=float(scfg.get("observe_hours", scfg["hours"])))
+    # starts: on the 5-minute grid, far enough from the period's ends
+    grid = pd.date_range(
+        lo + pd.Timedelta(hours=3), hi - horizon - pd.Timedelta(hours=3), freq="5min"
+    )
+    starts = sorted(grid[rng.choice(len(grid), int(scfg["starts"]), replace=False)])
+    return nodes, starts, horizon
+
+
+def synthetic_leaks(cfg: Mapping[str, Any], spec: FeatureSpec) -> Iterator[dict[str, Any]]:
+    """The benchmark's leaks in its order: node, diameter, start and EPANET signature (D-048).
+
+    The same draw as :func:`run` (same seed), so other detectors see exactly the same leaks.
+    """
+    from leakwatch.data import network
+    from leakwatch.demo.signature import leak_signatures
+
+    scfg = cfg["bdt"]["synthetic"]
+    rng = np.random.default_rng(int(cfg["project"]["seed"]))
+    nodes, starts, _ = draw(cfg, rng, network.load_network())
+    diameters = [float(d) for d in scfg["diameters_m"]]
+    for i, start in enumerate(starts):
+        mine = [n for j, n in enumerate(nodes) if j % len(starts) == i]
+        leaks = [(n, d) for n in mine for d in diameters]
+        for (node, diameter), (delta, flow) in zip(
+            leaks, leak_signatures(leaks, start, float(scfg["hours"])), strict=True
+        ):
+            yield {
+                "node": node,
+                "diameter_m": diameter,
+                "start": start,
+                "delta": delta,
+                "leak_flow_m3h": flow,
+            }
+
+
 def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
     """Simulate the leaks, score them with every residual variant, summarize."""
     from leakwatch.data import network
@@ -123,18 +169,9 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
 
     wn = network.load_network()
     areas = network.node_areas(wn, cfg["network"]["area_anchors"])
-    junctions = sorted(wn.junction_name_list)
-    nodes = list(rng.choice(junctions, int(scfg["junctions"]), replace=False))
+    nodes, starts, horizon = draw(cfg, rng, wn)
     diameters = [float(d) for d in scfg["diameters_m"]]
     hours = float(scfg["hours"])
-    # the leak keeps running after its simulated hours (signature held at its last value); a
-    # detector gets ``observe_hours`` to fire (D-038: the re-baselined variant waits 8 h)
-    horizon = pd.Timedelta(hours=float(scfg.get("observe_hours", hours)))
-    # starts: on the 5-minute grid, far enough from the period's ends
-    grid = pd.date_range(
-        lo + pd.Timedelta(hours=3), hi - horizon - pd.Timedelta(hours=3), freq="5min"
-    )
-    starts = sorted(grid[rng.choice(len(grid), int(scfg["starts"]), replace=False)])
 
     variants = {}
     for v in residual_variants():

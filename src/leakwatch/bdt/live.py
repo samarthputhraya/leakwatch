@@ -233,7 +233,7 @@ def batch_seeder(columns: Sequence[str]) -> Seeder:
         lo, hi = (first - back).isoformat(), first.isoformat()
         try:
             return lake.query_df(
-                lake.connect(),
+                lake.connect(only=["features"]),
                 f"SELECT window_start, {col_sql} FROM features WHERE source = 'battledim' "
                 f"AND window_start >= TIMESTAMPTZ '{lo}' AND window_start < TIMESTAMPTZ '{hi}' "
                 "ORDER BY window_start",

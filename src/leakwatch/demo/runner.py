@@ -24,6 +24,7 @@ import json
 import shutil
 import sys
 import threading
+import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -82,6 +83,7 @@ class DemoRunner:
         self.queries: list[Any] = []
         self.dispatch_threads: list[threading.Thread] = []
         self.started = datetime.now(UTC)
+        self.llm: Any = None  # one client for every work order, warmed at start (D-046)
         self.sim_ts: pd.Timestamp | None = None
         self.status = "starting"
         self._reset_flag = False
@@ -203,18 +205,51 @@ class DemoRunner:
                 log.warning("stopping query: %s", exc)
         self.queries = []
 
-    def dispatch(self, alert_ids: list[str]) -> None:
-        """Work orders for new alerts (template fallback without an LLM)."""
+    def warm_llm(self) -> None:
+        """Build the work-order model client and send one tiny request (D-046).
+
+        The first request to a hosted endpoint pays for the TLS handshake and, on free tiers,
+        often a queue; doing it at start keeps it out of the first alert's work order.
+        """
         try:
-            from leakwatch.copilot.dispatch import run_dispatch
             from leakwatch.copilot.llm import build_llm
             from leakwatch.copilot.settings import llm_settings
+
+            self.llm = build_llm(llm_settings(), self.cfg["copilot"]["llm"])
+            if self.llm is None:
+                log.info("no LLM configured: work orders are templates")
+                return
+            t0 = time.perf_counter()
+            self.llm.chat([{"role": "user", "content": "Reply with: ok"}], fast=True)
+            log.info("LLM warmed up in %.1f s", time.perf_counter() - t0)
+        except Exception as exc:
+            log.warning("LLM warm-up failed (work orders fall back to the template): %s", exc)
+
+    def dispatch(self, alert_ids: list[str]) -> None:
+        """Work orders for new alerts: the template at once, then the model's version (D-046).
+
+        The template is written first, so the operator has a work order as soon as the alert
+        exists; the model's order (same evidence, numbers checked) replaces it in the alerts view
+        when it arrives (newest ``generated_at`` wins). A model failure leaves the template.
+        """
+        try:
+            from leakwatch.copilot.dispatch import (
+                generate_work_order,
+                run_dispatch,
+                write_work_order,
+            )
             from leakwatch.copilot.tools import ToolContext
 
             ctx = ToolContext(lake_root=demo_lake())
-            llm = build_llm(llm_settings(), ctx.cfg["llm"])  # None without LLM_* -> template
-            counts = run_dispatch(ctx, llm, alert_ids=alert_ids)
-            log.info("work orders for %s: %s", alert_ids, counts)
+            counts = run_dispatch(ctx, None, alert_ids=alert_ids)
+            log.info("template work orders for %s: %s", alert_ids, counts)
+            if self.llm is None:
+                return
+            for alert_id in alert_ids:
+                gen = generate_work_order(ctx, alert_id, self.llm)
+                if gen.generator == "llm":
+                    write_work_order(gen, ctx.lake_root)
+                    log.info("model work order for %s", alert_id)
         except Exception as exc:
             log.error("dispatch failed for %s: %s", alert_ids, exc)
 
@@ -260,6 +295,7 @@ class DemoRunner:
     def run(self) -> None:
         """Replay until stopped (Ctrl+C); reset on command."""
         demo_root().mkdir(parents=True, exist_ok=True)
+        threading.Thread(target=self.warm_llm, daemon=True).start()
         start = pd.Timestamp(self.dcfg["background_start"], tz="UTC")
         hours = float(self.dcfg["background_hours"])
         wide = battledim.load_scada(start.year).loc[start : start + pd.Timedelta(hours=hours)]

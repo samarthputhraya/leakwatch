@@ -117,6 +117,13 @@ bdt:
     starts: 10                     # random leak start times (junctions are spread over them)
     hours: 6                       # EPANET signature length; held at its last value after
     observe_hours: 24              # how long a detector has to fire (D-038: m = 32 windows = 8 h)
+  slow:                            # `make bdt-slow` (D-048): slow detectors on the same simulated leaks
+    night_hours: [1, 4]            # night windows start 01:00-03:45 UTC (lowest demand)
+    reference_nights: 7            # night residual = night - median of the previous 7 nights
+    night_cusum_k: 0.5             # CUSUM allowance (robust z units)
+    pressure_cusum_k: 1.0
+    margin: 1.05                   # threshold = largest statistic on 2018 normal data x this
+    horizons_h: [24, 72]           # count a detection within 24 h (benchmark) and 72 h
 
 dl:
   # PRD §8 (Phase 5). CPU-only; laptop-safe defaults.
@@ -316,6 +323,7 @@ copilot:
     night_hour: 22                 # "since last night" = previous day at this hour
   dispatch:
     demo_safe_mode: true           # LLM failure -> work order from the same tool outputs, "template fallback"
+    fast_llm: true                 # D-046: the model writes the order without reasoning first (evidence is given)
     max_pipes: 10
     pipes_per_sensor: 4            # no GNN candidates: nearest pipes to each top sensor, in sensor order
     max_per_run: 500

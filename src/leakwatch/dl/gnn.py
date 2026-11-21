@@ -445,7 +445,7 @@ def rebaselined_pressure(sensors: list[str]) -> pd.DataFrame:
     if key not in _FEATURES:
         col_sql = ", ".join(f'"{c}"' for c in cols)
         feats = lake.query_df(
-            lake.connect(),
+            lake.connect(only=["features"]),
             f"SELECT window_start, window_end, {col_sql} FROM features WHERE source = 'battledim'",
         )
         rb = Rebaseline.from_config(load_config())

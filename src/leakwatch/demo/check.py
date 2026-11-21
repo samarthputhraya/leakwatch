@@ -42,7 +42,14 @@ def wait_for(predicate: Any, timeout_s: float, poll_s: float = 1.0) -> float | N
     return None
 
 
-ALERT_COLUMNS = ["alert_id", "start_ts", "last_window_end", "gnn_top5", "work_order_json"]
+ALERT_COLUMNS = [
+    "alert_id",
+    "start_ts",
+    "last_window_end",
+    "gnn_top5",
+    "work_order_json",
+    "work_order_generator",
+]
 
 
 def current_alerts(after: pd.Timestamp) -> pd.DataFrame:
@@ -78,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
     if preflight.main() != 0:
         return 1
     cfg = load_config()
+    from leakwatch.copilot.settings import llm_settings
+
+    llm_configured = bool(llm_settings().configured)
     nodes = list(cfg["demo"]["check_nodes"])
     diameter = float(cfg["demo"]["leak_diameter_m"])
     # A state file from an earlier demo says "running" before this runner has subscribed to
@@ -116,6 +126,15 @@ def main(argv: list[str] | None = None) -> int:
             wo_s = since_click(
                 lambda t=sim_before: current_alerts(t)["work_order_json"].notna().any()
             )
+            # D-046: the template order comes first; the model's version replaces it later
+            # (reported, not part of the pass mark: the template is the demo-safe path).
+            model_s = (
+                since_click(
+                    lambda t=sim_before: current_alerts(t)["work_order_generator"].eq("llm").any()
+                )
+                if llm_configured
+                else None
+            )
             row: dict[str, Any] = {
                 "run": k + 1,
                 "node": node,
@@ -124,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
                 "seconds_to_alert": alert_s,
                 "seconds_to_localizer": gnn_s,
                 "seconds_to_work_order": wo_s,
+                "seconds_to_model_work_order": model_s,
                 "wall_s": round(time.perf_counter() - t_click, 1),
                 "speed": read_state().get("speed"),
             }

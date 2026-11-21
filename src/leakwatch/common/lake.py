@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 import duckdb
@@ -164,13 +165,19 @@ def layer_dirs(lake_root: Path | None = None) -> dict[str, Path]:
 
 
 def connect(
-    lake_raw_dir: Path | None = None, lake_root: Path | None = None
+    lake_raw_dir: Path | None = None,
+    lake_root: Path | None = None,
+    only: Iterable[str] | None = None,
 ) -> duckdb.DuckDBPyConnection:
     """In-memory DuckDB connection with views over the lake (timestamps shown in UTC).
 
     Args:
         lake_raw_dir: override the raw layer only (tests).
         lake_root: read every layer under this directory instead of the configured lake.
+        only: create just these views (e.g. ``["features"]``). Creating a view reads the
+            metadata of every Parquet file of its layer once, tens of seconds for the whole lake
+            (13,688 raw files); a job that reads one table should not pay for all (D-047).
+            ``alerts`` needs ``alert_events`` and ``work_orders``, which are added for it.
 
     """
     con = duckdb.connect(database=":memory:")
@@ -178,6 +185,11 @@ def connect(
     dirs = layer_dirs(lake_root)
     if lake_raw_dir is not None:
         dirs["raw_readings"] = lake_raw_dir
+    if only is not None:
+        wanted = set(only)
+        if "alerts" in wanted:
+            wanted |= {"alert_events", "work_orders"}
+        dirs = {k: v for k, v in dirs.items() if k in wanted}
     hive = {
         "raw_readings": RAW_HIVE_TYPES,
         "clean_readings": RAW_HIVE_TYPES,

@@ -404,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
     scorer = YearScorer(cfg)
     perfect = scorer.score(perfect_detections(scorer.leaks[2019]), 2019)
     alerts = lake.query_df(
-        lake.connect(),
+        lake.connect(only=["alerts"]),
         "SELECT alert_id, start_ts, model, top_sensors, gnn_top5 FROM alerts "
         "WHERE origin = 'batch'",
     )
@@ -472,6 +472,7 @@ def main(argv: list[str] | None = None) -> int:
     rng = np.random.default_rng(int(cfg["project"]["seed"]))
     observed = {2018: years["2018"]["total_score_eur"], 2019: steps_2019["with_revisit_rule"]}
     random_baseline: dict[str, Any] = {}
+    timing: dict[str, Any] = {}
     for year in (2018, 2019):
         n = len(placed[year][0])
         sets = [random_alert_times(year, n, rng) for _ in range(draws)]
@@ -479,7 +480,18 @@ def main(argv: list[str] | None = None) -> int:
             dets = [place["sensor_drop"](s) for s in sets]
         else:
             dets = _localize_random(sets, scorer.dist, cfg)
-        totals = [scorer.score(revisit_filter(d, days), year)["total_score_eur"] for d in dets]
+        rand_results = [scorer.score(revisit_filter(d, days), year) for d in dets]
+        totals = [r["total_score_eur"] for r in rand_results]
+        system_result = scorer.score(final[2018] if year == 2018 else no_carry_2019, year)
+        timing[str(year)] = timing_tests(
+            list(placed[year][0]["start_ts"]),
+            sets,
+            system_result,
+            rand_results,
+            scorer.leaks[year],
+            scorer,
+            year,
+        )
         random_baseline[str(year)] = {
             "draws": draws,
             "alerts_per_draw": n,
@@ -511,6 +523,13 @@ def main(argv: list[str] | None = None) -> int:
         "carry_forward": carry,
         "steps_2019": steps_2019,
         "random_baseline": random_baseline,
+        "timing_tests": {
+            "why": "the random-timing baseline mixes timing with placement; these tests isolate "
+            "timing (D-047): (a) every report at the true leak, system vs random alert times; "
+            "(b) hours from each leak's start to its first correct report (system placement) and "
+            "to the first alert of any kind, system vs random times (same draws, same count)",
+            **timing,
+        },
         "years": years,
     }
     path = write_metrics("battledim_score", payload)
@@ -551,6 +570,133 @@ def _localize_random(
                 rows.append({"ts": ts, "link_id": link})
         out.append(pd.DataFrame(rows, columns=["ts", "link_id"]))
     return out
+
+
+# ------------------------------------------------------------------------------ timing tests
+
+
+def far_link(leaks: Sequence[OfficialLeak], dist: LinkDistances) -> str:
+    """The pipe farthest from every leak of the year (a report there is always a false positive)."""
+    pipes = [name for name, (_, _, length) in dist.links.items() if length > 0]
+    return max(pipes, key=lambda p: (min(dist.between(p, leak.link_id) for leak in leaks), p))
+
+
+def oracle_detections(
+    times: Sequence[Any], leaks: Sequence[OfficialLeak], year: int, far: str
+) -> pd.DataFrame:
+    """One report per alert time at the true leak (D-047 timing test, oracle placement).
+
+    At each time the report goes to the newest running leak not reported yet; if every running
+    leak was reported, to the newest running one (a repeat, €0); with no leak running, to ``far``
+    (a false positive). The score then depends on *when* the reports are made, not where.
+    """
+    taken: set[int] = set()
+    rows = []
+    for ts in sorted(pd.Timestamp(t) for t in times):
+        step = to_step(ts, year)
+        running = [j for j, lk in enumerate(leaks) if lk.start_step <= step <= lk.end_step]
+        fresh = [j for j in running if j not in taken]
+        pick = fresh or running
+        if pick:
+            j = max(pick, key=lambda k: (leaks[k].start_step, k))
+            taken.add(j)
+            rows.append({"ts": ts, "link_id": leaks[j].link_id})
+        else:
+            rows.append({"ts": ts, "link_id": far})
+    return pd.DataFrame(rows, columns=["ts", "link_id"])
+
+
+def first_alert_delays_h(
+    times: Sequence[Any], leaks: Sequence[OfficialLeak], year: int
+) -> list[float]:
+    """Per leak that starts in the scored year: hours from its start to the first alert after it.
+
+    Leaks with no alert while they run are left out (their count is reported separately).
+    """
+    steps = np.sort(np.array([to_step(t, year) for t in times]))
+    out = []
+    for lk in leaks:
+        if lk.start_step < 0:  # started the year before: no onset to time
+            continue
+        k = np.searchsorted(steps, lk.start_step, side="left")
+        if k < len(steps) and steps[k] <= lk.end_step:
+            out.append(float((steps[k] - lk.start_step) * STEP.total_seconds() / 3600))
+    return out
+
+
+def tp_delays_h(result: Mapping[str, Any]) -> list[float]:
+    """Hours from each found leak's start to its first correct report (``score_detections``)."""
+    return [float(r["delay_h"]) for r in result["per_detection"] if r["label"] == "tp"]
+
+
+def compare_to_random(
+    observed: float, draws: Sequence[float], smaller_is_better: bool = False
+) -> dict[str, Any]:
+    """Observed value against random draws: mean, 5th/95th percentile, one-sided p."""
+    d = np.asarray([v for v in draws if v is not None and np.isfinite(v)], dtype="float64")
+    if not len(d):
+        return {"observed": observed, "draws": 0}
+    if smaller_is_better:
+        p = (1 + int((d <= observed).sum())) / (len(d) + 1)
+    else:
+        p = empirical_p_value(observed, list(d))
+    return {
+        "observed": round(float(observed), 2),
+        "random_mean": round(float(d.mean()), 2),
+        "random_p5": round(float(np.percentile(d, 5)), 2),
+        "random_p95": round(float(np.percentile(d, 95)), 2),
+        "draws": len(d),
+        "p_value": round(float(p), 4),
+    }
+
+
+def timing_tests(
+    system_times: Sequence[Any],
+    random_sets: Sequence[pd.DataFrame],
+    system_result: Mapping[str, Any],
+    random_results: Sequence[Mapping[str, Any]],
+    leaks: Sequence[OfficialLeak],
+    scorer: Any,
+    year: int,
+) -> dict[str, Any]:
+    """Tests that isolate the detector's timing from the localizer (D-047).
+
+    (a) *Oracle placement*: every report at the true leak (:func:`oracle_detections`), at the
+    system's alert times vs random times of the same count. (b) *Delay*: hours from each leak's
+    start to its first correct report with the system's placement (median over found leaks), and
+    to the first alert of any kind (no placement), system vs random times.
+    """
+    far = far_link(leaks, scorer.dist)
+    oracle_sys = scorer.score(oracle_detections(system_times, leaks, year, far), year)
+    oracle_rand = [
+        scorer.score(oracle_detections(list(s["start_ts"]), leaks, year, far), year)
+        for s in random_sets
+    ]
+
+    def med(values: Sequence[float]) -> float:
+        return float(np.median(values)) if len(values) else float("nan")
+
+    sys_tp = tp_delays_h(system_result)
+    sys_first = first_alert_delays_h(system_times, leaks, year)
+    onsets = sum(1 for lk in leaks if lk.start_step >= 0)
+    return {
+        "oracle_placement_eur": compare_to_random(
+            oracle_sys["total_score_eur"], [r["total_score_eur"] for r in oracle_rand]
+        ),
+        "oracle_placement_true_positives": compare_to_random(
+            oracle_sys["true_positives"], [r["true_positives"] for r in oracle_rand]
+        ),
+        "median_delay_to_first_correct_report_h": compare_to_random(
+            med(sys_tp), [med(tp_delays_h(r)) for r in random_results], smaller_is_better=True
+        )
+        | {"leaks_found": len(sys_tp)},
+        "median_delay_to_first_alert_h": compare_to_random(
+            med(sys_first),
+            [med(first_alert_delays_h(list(s["start_ts"]), leaks, year)) for s in random_sets],
+            smaller_is_better=True,
+        )
+        | {"leaks_with_an_alert": len(sys_first), "leaks_starting_in_year": onsets},
+    }
 
 
 if __name__ == "__main__":

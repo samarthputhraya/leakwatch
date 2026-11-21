@@ -14,7 +14,7 @@ PY_DIRS := src tests scripts notebooks
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
 	demo-check bdt-scaling reports test-report prepare llm-local llm-check bdt-synthetic gnn-apply \
-	gnn-prior bdt-fast-path battledim-score mutation localizer
+	gnn-prior bdt-fast-path battledim-score mutation localizer bdt-slow
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -102,6 +102,9 @@ bdt-eval: ## score 2018-2019, write scores + alerts, evaluate on 2019 -> bdt_kme
 
 bdt-synthetic: ## simulated leaks on normal 2018 background, residual detectors -> bdt_synthetic_leaks.json
 	$(RUN) python -m leakwatch.bdt.synthetic
+
+bdt-slow: ## slow detectors (night inflow, pressure CUSUM) on the bdt-synthetic leaks -> bdt_slow_detectors.json
+	$(RUN) python -m leakwatch.bdt.slow_detectors
 
 sim-scale: ## Spark-parallel scenario simulation (epyt-flow) -> lake/sim/scenarios (full: configs/full.yaml)
 	$(RUN) python -m leakwatch.sim.generate

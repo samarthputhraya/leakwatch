@@ -26,7 +26,7 @@ from leakwatch.features.spec import FeatureSpec
 
 def load_features(year: int, source: str = "battledim", table: str = "features") -> pd.DataFrame:
     """Batch feature rows of one year (``window_start`` in that year), in time order."""
-    con = lake.connect()
+    con = lake.connect(only=[table])
     df = lake.query_df(
         con,
         f"""SELECT * EXCLUDE ("window", date) FROM {table}

@@ -222,15 +222,15 @@ def template_work_order(ev: Evidence, actions: Sequence[str], now: datetime) -> 
     )
 
 
-def _ask_model(llm: Any, messages: list[dict[str, Any]]) -> WorkOrderDraft:
+def _ask_model(llm: Any, messages: list[dict[str, Any]], fast: bool = False) -> WorkOrderDraft:
     from leakwatch.copilot.llm import LLMError, json_object_from_text
 
     try:
-        resp = llm.chat(messages, json_mode=True)
+        resp = llm.chat(messages, json_mode=True, fast=fast)
     except LLMError as exc:
         if "response_format" not in str(exc) and "json" not in str(exc).lower():
             raise
-        resp = llm.chat(messages)  # server without JSON mode
+        resp = llm.chat(messages, fast=fast)  # server without JSON mode
     messages.append({"role": "assistant", "content": resp.content or ""})
     try:
         return WorkOrderDraft.model_validate(json_object_from_text(resp.content or ""))
@@ -238,8 +238,14 @@ def _ask_model(llm: Any, messages: list[dict[str, Any]]) -> WorkOrderDraft:
         raise WorkOrderError(f"invalid work order JSON: {str(exc)[:300]}") from exc
 
 
-def llm_work_order(ev: Evidence, llm: Any, now: datetime, max_corrections: int = 1) -> WorkOrder:
-    """Structured output from the model, validated and grounded in the evidence."""
+def llm_work_order(
+    ev: Evidence, llm: Any, now: datetime, max_corrections: int = 1, fast: bool = False
+) -> WorkOrder:
+    """Structured output from the model, validated and grounded in the evidence.
+
+    ``fast``: ask the model not to reason first (``copilot.dispatch.fast_llm``, D-046): the order
+    is written from evidence already gathered, and its numbers are checked against it.
+    """
     prompt = load_named_prompt("work_order")
     evidence_json = ev.as_json()
     messages: list[dict[str, Any]] = [
@@ -251,7 +257,7 @@ def llm_work_order(ev: Evidence, llm: Any, now: datetime, max_corrections: int =
             ),
         },
     ]
-    draft = _ask_model(llm, messages)
+    draft = _ask_model(llm, messages, fast)
     for attempt in range(max_corrections + 1):
         text = "\n".join([draft.summary, *draft.evidence, *draft.recommended_actions])
         check = check_numbers(text, [evidence_json])
@@ -267,7 +273,7 @@ def llm_work_order(ev: Evidence, llm: Any, now: datetime, max_corrections: int =
                 ),
             }
         )
-        draft = _ask_model(llm, messages)
+        draft = _ask_model(llm, messages, fast)
     cited = [
         c
         for c in draft.manual_citations
@@ -318,7 +324,8 @@ def generate_work_order(
     notes: list[str] = []
     if llm is not None and not template_only:
         try:
-            order = llm_work_order(ev, llm, now)
+            fast = bool(ctx.cfg["dispatch"].get("fast_llm", False))
+            order = llm_work_order(ev, llm, now, fast=fast)
             return GeneratedOrder(order, "llm", prompt_version, notes, ev)
         except (LLMError, WorkOrderError, ValidationError) as exc:
             if not ctx.cfg["dispatch"].get("demo_safe_mode", True):

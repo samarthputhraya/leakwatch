@@ -181,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
                 "batch_duration_s"
             ],
             "first_batch_duration_s": summary["first_batch_duration_s"],
+            "step_s": summary.get("step_s"),
         },
         "alerts_opened_live": alerts_out,
         "alert_versions_published": len(published),

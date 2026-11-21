@@ -171,3 +171,15 @@ def test_work_order_schema_rejects_bad_priority():
         dispatch.WorkOrderDraft.model_validate(
             {"priority": "P9", "summary": "x" * 20, "evidence": ["a"], "recommended_actions": ["b"]}
         )
+
+
+def test_work_order_model_call_skips_reasoning_when_configured(ctx):
+    """D-046: ``dispatch.fast_llm`` makes the JSON call a fast one."""
+    ctx.full_cfg["copilot"]["dispatch"]["fast_llm"] = True
+    llm = ScriptedLLM([reply(llm_json())])
+    assert dispatch.generate_work_order(ctx, testing.ALERT_A1, llm=llm, now=NOW).generator == "llm"
+    assert llm.requests[0]["fast"] is True
+    ctx.full_cfg["copilot"]["dispatch"]["fast_llm"] = False
+    llm = ScriptedLLM([reply(llm_json())])
+    dispatch.generate_work_order(ctx, testing.ALERT_A1, llm=llm, now=NOW)
+    assert llm.requests[0]["fast"] is False
