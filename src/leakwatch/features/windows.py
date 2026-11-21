@@ -19,6 +19,8 @@ job by watermark).
 
 from __future__ import annotations
 
+import numpy as np
+import pandas as pd
 from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as F
 
@@ -167,6 +169,60 @@ def pivot_windows(agg: DataFrame, spec: FeatureSpec) -> DataFrame:
     return agg.groupBy(*WINDOW_KEY).agg(*quality, *features)
 
 
+_NO_KEY = "<no scenario>"
+
+
+def pivot_windows_pandas(agg: pd.DataFrame, spec: FeatureSpec) -> pd.DataFrame:
+    """:func:`pivot_windows` on collected long aggregates (pandas), value for value (D-047).
+
+    The Spark pivot is a 233-expression aggregation whose planning and code generation cost ~3 s
+    per streaming micro-batch for a few hundred long rows. The pivot only *selects* values (one
+    row per window and series; ``max`` of that single value) and sums integer counts, so doing it
+    after collecting the long rows gives the same numbers. Column order and types follow
+    :func:`window_features`: ``WINDOW_KEY``, ``QUALITY_COLUMNS`` (int64), feature columns
+    (float64, NaN where Spark has NULL).
+    """
+    feature_cols = list(spec.feature_columns())
+    key = list(WINDOW_KEY)
+    if agg.empty:
+        empty = pd.DataFrame(columns=[*key, *QUALITY_COLUMNS, *feature_cols])
+        return empty.astype({c: "float64" for c in feature_cols})
+    df = agg.copy()
+    # NULL keys (BattLeDIM rows have no scenario) do not align reliably in pandas MultiIndexes
+    df["scenario_id"] = df["scenario_id"].astype(object).where(df["scenario_id"].notna(), _NO_KEY)
+    df["_present"] = (df["n"] > 0).astype("int64")
+    by = df.groupby(key, dropna=False, sort=True)
+    quality = by.agg(
+        n_readings=("n", "sum"),
+        n_filled=("n_filled", "sum"),
+        n_stuck=("n_stuck", "sum"),
+        n_out_of_range=("n_out_of_range", "sum"),
+        _present=("_present", "sum"),
+    )
+    quality["n_series_missing"] = len(spec.series) - quality.pop("_present")
+    wide = df.pivot_table(
+        index=key, columns="series_id", values=list(spec.stats), aggfunc="max", dropna=False
+    )
+    cols = {
+        feature_column(series, stat): wide[(stat, series)]
+        if (stat, series) in wide.columns
+        else pd.Series(np.nan, index=wide.index)
+        for series in spec.series
+        for stat in spec.stats
+    }
+    features = pd.DataFrame(cols, index=wide.index).reindex(quality.index)
+    out = pd.concat([quality.astype("int64"), features.astype("float64")], axis=1).reset_index()
+    out["scenario_id"] = out["scenario_id"].astype(object)
+    out.loc[out["scenario_id"] == _NO_KEY, "scenario_id"] = None
+    return out[[*key, *QUALITY_COLUMNS, *feature_cols]]
+
+
+def window_aggregates_of(readings: DataFrame, baselines: DataFrame, spec: FeatureSpec) -> DataFrame:
+    """The long aggregates :func:`window_features` pivots (cleaning, series, residual, stats)."""
+    series = with_residual(feature_series(clean_readings(readings, spec), spec), baselines)
+    return window_aggregates(series, spec)
+
+
 def window_features(readings: DataFrame, baselines: DataFrame, spec: FeatureSpec) -> DataFrame:
     """Readings → one feature row per window (see module docstring). Shared by batch and stream.
 
@@ -180,8 +236,7 @@ def window_features(readings: DataFrame, baselines: DataFrame, spec: FeatureSpec
         Columns ``WINDOW_KEY``, ``QUALITY_COLUMNS``, then ``spec.feature_columns()``.
 
     """
-    series = with_residual(feature_series(clean_readings(readings, spec), spec), baselines)
-    wide = pivot_windows(window_aggregates(series, spec), spec)
+    wide = pivot_windows(window_aggregates_of(readings, baselines, spec), spec)
     return wide.select(*WINDOW_KEY, *QUALITY_COLUMNS, *spec.feature_columns())
 
 

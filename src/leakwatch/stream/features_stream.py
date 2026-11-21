@@ -35,6 +35,8 @@ from pathlib import Path
 from typing import Any
 
 import orjson
+import pandas as pd
+import pyarrow as pa
 import pyarrow.parquet as pq
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
@@ -55,7 +57,9 @@ from leakwatch.features.spec import FeatureSpec, load_feature_spec
 from leakwatch.features.windows import (
     ceil_to,
     complete_window_range,
+    pivot_windows_pandas,
     select_windows,
+    window_aggregates_of,
     window_features,
     with_partitions,
 )
@@ -164,6 +168,44 @@ def _staged_rows(stage: Path) -> int:
     return sum(pq.ParquetFile(f).metadata.num_rows for f in stage.rglob("*.parquet"))
 
 
+def write_staged_features(wide: pd.DataFrame, stage: Path, spec: FeatureSpec) -> int:
+    """Write pandas feature rows in the lake's hive layout (``source=…/window=…/date=…/``).
+
+    The same layout and types as the Spark writer: timestamps UTC microseconds, quality counts
+    int64, features float64 (NULL for NaN); partition columns live in the directory names only.
+    """
+    if wide.empty:
+        return 0
+    df = wide.copy()
+    for col in ("window_start", "window_end"):
+        ts = pd.to_datetime(df[col])
+        df[col] = ts.dt.tz_localize("UTC") if ts.dt.tz is None else ts.dt.tz_convert("UTC")
+    df["window"] = spec.window_label
+    df["date"] = df["window_start"].dt.strftime("%Y-%m-%d")
+    table = pa.Table.from_pandas(df, preserve_index=False)
+    table = table.cast(
+        pa.schema(
+            [
+                pa.field(f.name, pa.timestamp("us", tz="UTC"))
+                if pa.types.is_timestamp(f.type)
+                else pa.field(f.name, pa.string())
+                if f.name == "scenario_id"
+                else f
+                for f in table.schema
+            ]
+        )
+    )
+    pq.write_to_dataset(
+        table,
+        root_path=str(stage),
+        partition_cols=list(PARTITION_COLS),
+        basename_template="part-{i}.zstd.parquet",
+        compression="zstd",
+        coerce_timestamps="us",
+    )
+    return len(df)
+
+
 @dataclass
 class FeatureBatchWriter:
     """``foreachBatch`` sink: readings → feature rows (exactly once), with carried history."""
@@ -172,6 +214,8 @@ class FeatureBatchWriter:
     spec: FeatureSpec
     baselines: DataFrame
     live: LiveScoring | None = None  # score windows + raise alerts in the same commit (Phase 3)
+    # D-047: pivot the long aggregates in pandas (same values; ~3 s less per micro-batch)
+    pandas_pivot: bool = True
 
     def __call__(self, batch_df: DataFrame, batch_id: int) -> None:  # noqa: D102 (class doc)
         layout = self.stream_paths.layout
@@ -246,7 +290,13 @@ class FeatureBatchWriter:
         windows = 0
         next_after = next_start
         stage = layout.staging_for(batch_id)
-        if last_start >= next_start:
+        if last_start >= next_start and self.pandas_pivot:
+            long = window_aggregates_of(combined, self.baselines, spec)
+            start = F.col("window_start").cast("long")
+            rows = long.where(start.between(next_start, last_start)).toPandas()
+            windows = write_staged_features(pivot_windows_pandas(rows, spec), stage, spec)
+            next_after = last_start + spec.slide_s
+        elif last_start >= next_start:
             features = window_features(combined, self.baselines, spec)
             (
                 with_partitions(select_windows(features, next_start, last_start), spec)
