@@ -89,6 +89,23 @@ class DemoRunner:
 
     # ------------------------------------------------------------------------- lifecycle
 
+    def stream_warm(self) -> bool:
+        """The scored feature stream has finished ``demo.warm_batches`` micro-batches with data.
+
+        Its first batches seed the re-baselining history from the lake and compile the Spark
+        plans; until then an injected leak waits behind them (D-043). Without a query: warm.
+        """
+        if not self.queries:
+            return True
+        need = int(self.dcfg.get("warm_batches", 0))
+        try:
+            done = sum(
+                1 for p in self.queries[0].recentProgress if int(p.get("numInputRows") or 0) > 0
+            )
+        except Exception:  # a query that just failed reports no progress
+            return False
+        return done >= need
+
     def write_state(self) -> None:
         """Atomically update ``state.json``."""
         doc = {
@@ -298,7 +315,7 @@ class DemoRunner:
                     producer.produce(self.topic, value=payload, key=key)
                 producer.poll(0)
                 if i % 3 == 0:
-                    if i * 300 > 5400:
+                    if self.status != "running" and i * 300 > 5400 and self.stream_warm():
                         self.status = "running"
                     self.write_state()
             producer.flush(10)

@@ -198,6 +198,7 @@ demo:
   leak_diameter_m: 0.03            # default demo leak (~30 m3/h at L-Town pressures)
   check_nodes: [n100, n300, n470]  # junctions `make demo-check` injects at (areas A)
   quiet_before_inject_s: 10
+  warm_batches: 3                  # "running" once the scored stream has finished 3 batches with data (D-043)
 
 battledim_score:
   # Official BattLeDIM 2020 scoring (KIOS-Research/BattLeDIM Scoring_Algorithm.m; D-037). These are
