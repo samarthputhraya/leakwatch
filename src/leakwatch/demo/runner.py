@@ -3,7 +3,7 @@
 One process that
 
 1. replays a quiet stretch of BattLeDIM 2018 (normal under D-015) through Kafka topic
-   ``demo.readings`` at a paced speed (``demo.speed``; 720× = one hour of data every 5 s);
+   ``demo.readings`` at a paced speed (``demo.speed``; 2880× = one hour of data every 1.25 s);
 2. runs two Spark Structured Streaming queries on it, into the demo lake ``data/demo/lake``:
    the raw ingest (``stream.raw_ingest``) and the feature stream with live K-Means scoring,
    alerts, the GNN localizer (``gnn_top5`` on new alerts) and Kafka ``alerts``;

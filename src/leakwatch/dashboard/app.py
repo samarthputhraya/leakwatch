@@ -346,13 +346,9 @@ def demo_controls(state: dict[str, Any], selected_node: str | None) -> None:
     if c1.button("Inject leak", type="primary"):
         send_command("inject_leak", node_id=node, diameter_m=diameter_mm / 1000)
         st.toast(f"Leak injected at {node}")
-    speed = c2.selectbox(
-        "Speed",
-        [180, 360, 720, 1440],
-        index=[180, 360, 720, 1440].index(int(state.get("speed", 360)))
-        if int(state.get("speed", 360)) in [180, 360, 720, 1440]
-        else 1,
-    )
+    speeds = [180, 360, 720, 1440, 2880]
+    current = int(state.get("speed", 360))
+    speed = c2.selectbox("Speed", speeds, index=speeds.index(current) if current in speeds else 1)
     if c2.button("Set speed"):
         send_command("set_speed", speed=speed)
     if c3.button("Reset"):

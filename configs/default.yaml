@@ -191,7 +191,7 @@ demo:
   partitions: 3
   shuffle_partitions: 2            # small micro-batches: fewer shuffle tasks = lower latency
   trigger_seconds: 2
-  speed: 1440                      # simulated s per wall s (1 h of data = 2.5 s); the live model needs 8 h above τ (D-043)
+  speed: 2880                      # simulated s per wall s (1 h of data = 1.25 s); the live model needs 8 h above τ (D-043)
   background_start: "2018-11-19 00:00"   # Monday; no batch alert of the live model Nov 18 - Dec 6 2018 (D-025)
   background_hours: 168
   signature_hours: 6               # EPANET leak-minus-no-leak deltas; held constant afterwards
