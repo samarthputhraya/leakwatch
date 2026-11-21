@@ -9,6 +9,10 @@ A FastAPI app that serves the page (``static/``, no build step) and its JSON:
 - ``POST /api/demo/inject | speed | restart``: the three ``demo.commands`` of the runner.
 - ``GET /api/health``: for scripts that wait for the server.
 
+Commands are accepted from the dashboard's own page only (``from_the_page``), and the app
+answers only to the host names in ``dashboard.allowed_hosts``: another website open in the
+same browser cannot restart the replay or start a leak.
+
 DuckDB is used from the snapshot thread only. A lake that cannot be read is reported in the
 snapshot (``error``), never as an empty result. Failures answer with a sentence for the screen,
 never with a stack trace.
@@ -28,6 +32,7 @@ from typing import Any
 
 import orjson
 from fastapi import FastAPI
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -44,6 +49,7 @@ ALERT_COLUMNS = (
     "est_loss_m3h, windows_above, last_window_end, top_sensors, gnn_top5, work_order_json, "
     "work_order_generator, created_at, updated_at"
 )
+NOT_FROM_PAGE = "This request did not come from the dashboard page."
 KAFKA_DOWN = "The command could not be sent: Kafka did not accept it. Start Kafka with `make up`."
 
 
@@ -97,6 +103,23 @@ def json_response(payload: Any, status_code: int = 200) -> Response:
 def refused(status_code: int, message: str) -> Response:
     """A request the server did not carry out, with the sentence the page shows."""
     return json_response({"ok": False, "message": message}, status_code)
+
+
+def from_the_page(method: str, headers: Mapping[str, str]) -> bool:
+    """Whether a state-changing request was made by the dashboard's own page.
+
+    The page sends ``X-Requested-With: leakwatch``. A browser lets another site add that header
+    only after a preflight, which this server never approves. Where the browser also reports
+    where the request came from (``Sec-Fetch-Site``, ``Origin``), it must be this server.
+    """
+    if method in ("GET", "HEAD", "OPTIONS"):
+        return True
+    if headers.get("x-requested-with") != "leakwatch":
+        return False
+    if headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
+        return False
+    origin = headers.get("origin")
+    return origin is None or origin.split("://", 1)[-1] == headers.get("host")
 
 
 def send_demo_command(command: str, **params: Any) -> None:
@@ -346,8 +369,10 @@ def create_app(
     app = FastAPI(title="LeakWatch control room", lifespan=lifespan, docs_url=None, redoc_url=None)
 
     @app.middleware("http")
-    async def revalidate(request, call_next):  # type: ignore[no-untyped-def]
-        """Page files are revalidated on every load, so an updated file is never served stale."""
+    async def guard(request, call_next):  # type: ignore[no-untyped-def]
+        """Refuse commands from other sites; make the browser revalidate page files."""
+        if not from_the_page(request.method, request.headers):
+            return refused(403, NOT_FROM_PAGE)
         response = await call_next(request)
         if not request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-cache"
@@ -418,6 +443,7 @@ def create_app(
         return FileResponse(STATIC / "index.html")
 
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=[str(h) for h in dash["allowed_hosts"]])
     return app
 
 

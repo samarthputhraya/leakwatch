@@ -16,6 +16,7 @@ from leakwatch.dashboard import api, view
 
 CFG = load_config(environ={})
 TZ = "Asia/Kolkata"
+PAGE = {"base_url": "http://localhost", "headers": {"X-Requested-With": "leakwatch"}}
 NOW = datetime(2026, 11, 21, 14, 20, 30, tzinfo=UTC)
 GEOMETRY = SimpleNamespace(
     payload={"junctions": ["n100", "n470"], "nodes": {"n470": [224.6, 728.1]}}
@@ -45,7 +46,8 @@ def app(sent: list, code: str = "running", sender=None) -> TestClient:
             cfg=CFG,
             sender=sender or record,
             geometry_loader=lambda: GEOMETRY,
-        )
+        ),
+        **PAGE,
     )
 
 
@@ -119,7 +121,9 @@ def test_network_endpoint_serves_the_geometry_or_says_what_to_run():
     def missing():
         raise FileNotFoundError("/data/L-TOWN.inp missing: run `make data`")
 
-    c = TestClient(api.create_app(lambda: vm(), background=False, cfg=CFG, geometry_loader=missing))
+    c = TestClient(
+        api.create_app(lambda: vm(), background=False, cfg=CFG, geometry_loader=missing), **PAGE
+    )
     res = c.get("/api/network")
     assert res.status_code == 503 and res.json()["message"].endswith("Run `make data`.")
     assert "/data/" not in res.text
@@ -213,3 +217,63 @@ def test_unavailable_view_has_every_key_the_page_reads():
     out = view.unavailable_view(NOW)
     assert out["banner"]["kind"] == "unknown" and out["runner"]["code"] == "error"
     assert out["leaks"] == {"pending": [], "active": [], "failed": []} and out["clock"] is None
+
+
+# ------------------------------------------------------------ commands come from the page only
+
+
+def test_a_command_without_the_page_header_is_refused_and_nothing_is_sent():
+    sent: list = []
+    c = app(sent)
+    res = c.post("/api/demo/restart", headers={"X-Requested-With": ""})
+    assert res.status_code == 403 and res.json() == {"ok": False, "message": api.NOT_FROM_PAGE}
+    assert sent == []
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"Origin": "http://evil.example"},
+        {"Sec-Fetch-Site": "cross-site"},
+        {"Origin": "http://localhost:9"},
+    ],
+)
+def test_a_command_from_another_site_is_refused(extra):
+    sent: list = []
+    res = app(sent).post(
+        "/api/demo/inject", json={"node_id": "n470", "diameter_mm": 30}, headers=extra
+    )
+    assert res.status_code == 403 and sent == []
+
+
+def test_the_page_itself_may_send_commands_and_anyone_may_read():
+    sent: list = []
+    c = app(sent)
+    same = {"Origin": "http://localhost", "Sec-Fetch-Site": "same-origin"}
+    assert c.post("/api/demo/restart", headers=same).status_code == 200
+    assert sent == [("reset", {})]
+    assert (
+        c.get(
+            "/api/live", headers={"X-Requested-With": "", "Sec-Fetch-Site": "cross-site"}
+        ).status_code
+        == 200
+    )
+
+
+def test_only_local_host_names_are_served():
+    c = app([])
+    assert c.get("/api/health", headers={"Host": "127.0.0.1:8501"}).status_code == 200
+    assert c.get("/api/health", headers={"Host": "evil.example"}).status_code == 400
+    assert c.post("/api/demo/restart", headers={"Host": "evil.example"}).status_code == 400
+
+
+def test_from_the_page_rules():
+    ok = {"x-requested-with": "leakwatch", "host": "localhost:8501"}
+    assert api.from_the_page("GET", {})
+    assert api.from_the_page("POST", ok)
+    assert api.from_the_page(
+        "POST", {**ok, "origin": "http://localhost:8501", "sec-fetch-site": "same-origin"}
+    )
+    assert not api.from_the_page("POST", {"host": "localhost:8501"})
+    assert not api.from_the_page("POST", {**ok, "origin": "http://localhost:8502"})
+    assert not api.from_the_page("DELETE", {**ok, "sec-fetch-site": "same-site"})

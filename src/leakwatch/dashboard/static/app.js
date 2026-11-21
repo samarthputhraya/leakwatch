@@ -24,7 +24,8 @@ async function call(method, url, body) {
     const res = await fetch(url, {
       method,
       cache: 'no-store',
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      // The custom header marks the request as the page's own; the server refuses commands without it.
+      headers: { 'X-Requested-With': 'leakwatch', ...(body ? { 'Content-Type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));

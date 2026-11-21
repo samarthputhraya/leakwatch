@@ -232,6 +232,7 @@ demo:
 dashboard:
   # Control-room screen (D-052). Display only: nothing here changes the pipeline or the demo runner.
   host: 127.0.0.1                  # the page is for the demo laptop's own browser
+  allowed_hosts: [localhost, 127.0.0.1]   # Host names the server answers to (blocks DNS rebinding)
   port: 8501
   snapshot_seconds: 1.0            # how often the server re-reads state.json and the demo lake
   poll_ms: 1000                    # how often the page asks the server for the snapshot

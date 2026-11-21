@@ -27,7 +27,11 @@ VM = {
 
 
 def client(source=lambda: VM) -> TestClient:
-    return TestClient(api.create_app(source, background=False, cfg=CFG))
+    return TestClient(
+        api.create_app(source, background=False, cfg=CFG),
+        base_url="http://localhost",
+        headers={"X-Requested-With": "leakwatch"},
+    )
 
 
 def test_live_returns_the_view_model_as_json():
@@ -73,7 +77,11 @@ def test_background_snapshots_serve_the_last_result():
         calls.append(1)
         return {**VM, "open_alerts": len(calls)}
 
-    with TestClient(api.create_app(source, background=True, cfg=CFG)) as c:
+    with TestClient(
+        api.create_app(source, background=True, cfg=CFG),
+        base_url="http://localhost",
+        headers={"X-Requested-With": "leakwatch"},
+    ) as c:
         first = c.get("/api/live").json()["open_alerts"]
         again = c.get("/api/live").json()["open_alerts"]
     assert first >= 1 and again >= first
