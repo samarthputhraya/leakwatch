@@ -86,7 +86,7 @@ What the numbers say, briefly (details and figures in the report drafts):
                                                               │
                                  localizer top 5 ── alerts ── work orders (copilot)
                                                               │
-                                  DuckDB (read-only) ──► Streamlit dashboard + copilot chat
+                     DuckDB (read-only) ──► control-room screen (FastAPI, deck.gl, ECharts) + copilot
 ```
 
 Details: [docs/architecture.md](docs/architecture.md). Every non-obvious choice and its reason:
@@ -104,7 +104,7 @@ make setup     # Python 3.11 venv with pinned dependencies (uv.lock, CPU-only Py
 make data      # download BattLeDIM from Zenodo (MD5-checked), Parquet, leak ground truth
 make up        # Kafka 4.3.2 (KRaft) in Docker + topics
 make prepare   # replay 2018 + 2019 through Kafka, features, K-Means, alerts, localizer, RAG index
-make demo      # live demo: dashboard on http://localhost:8501
+make demo      # live demo: control-room screen on http://localhost:8501
 ```
 
 `make prepare` replays both years through Kafka and trains every model, so it takes a while; it
@@ -112,12 +112,34 @@ only needs to run once per data directory. `make help` lists every target.
 
 ### The demo
 
-The dashboard replays a quiet week of BattLeDIM 2018 at 720× speed (one simulated hour every
-5 seconds). Click a junction on the map and inject a leak: the runner simulates that leak with
-EPANET and adds its pressure and flow signature to the replayed readings. K-Means raises an
-alert, the localizer's top 5 appear on the map ("Reveal the true leak" shows where it was), a
-work order is written, and the copilot answers questions about it. `make demo-check` runs this
-three times without a person and records the timings.
+![The control-room screen after a leak at junction n470](reports/figures/ui/04_reveal_true_leak.jpg)
+
+`make demo` starts the demo runner and the control-room screen on http://localhost:8501. The
+runner replays a quiet week of BattLeDIM 2018 through Kafka into the live Spark stream at 2,880×
+(one simulated hour every 1.25 seconds, about 3.5 minutes for the week).
+
+1. Wait until the header says **Running**. Spark needs about a minute to start.
+2. Click a junction on the map, or type one (for example `n470`) in step 1 on the right, and
+   start a leak. EPANET simulates it and adds its pressure and flow signature to the readings.
+3. When K-Means raises an alert, the banner turns amber, sensors whose pressure dropped get a
+   ring, the area gets a dashed outline, and the map flies to the localizer's five candidates,
+   numbered by rank.
+4. The work order appears in step 4: the template version first, then the model's version.
+5. **Reveal the true leak** marks the real junction and gives its distance along the pipes to
+   candidate 1.
+6. Ask the copilot a question, or press the loss question, which is answered from the alert
+   without a model.
+
+The amber tint along the pipes is the only interpolated element on the map, and the legend says
+so. Every number on the screen comes from the demo lake, the runner's state file or
+`reports/metrics/`. The header shows how far the stream has analysed, which trails the replay
+when the laptop is busy. The **History** tab lists the batch alerts of 2018 and 2019; the
+**Results** tab shows the results table below with its source files.
+
+`make demo-stop` stops a demo left running. `make demo-check` runs the leak path five times
+without a person and records the timings in `reports/metrics/demo_runs.json`. `make ui-check`
+loads the screen in headless Chrome in four states. The earlier Streamlit page is still there as
+`make dashboard-legacy`. Screenshots: [reports/figures/ui/](reports/figures/ui/).
 
 Before the demo: `make up`, then `make demo` (it checks its prerequisites and names the command
 for anything missing). Without an LLM configured, work orders are rendered from the same tool

@@ -105,7 +105,7 @@ export function createCharts(scoreEl, pressureEl) {
       },
       tooltip: {
         ...tip,
-        formatter: (ps) => `${time(ps[0].value[0])} ${c.tz_name}<br>${ps.map((p) => `${p.marker}${p.seriesName} <b>${p.value[1] == null ? 'no reading' : `${MINUS(p.value[1])} m`}</b>`).join('<br>')}`,
+        formatter: (ps) => `${time(ps[0].value[0])} ${c.tz_name}<br>${ps.map((p) => `${p.marker}${window.echarts.format.encodeHTML(p.seriesName)} <b>${p.value[1] == null ? 'no reading' : `${MINUS(p.value[1])} m`}</b>`).join('<br>')}`,
       },
       xAxis,
       yAxis: {
@@ -211,7 +211,7 @@ export function drawResultsCharts(detEl, locEl, res) {
   loc.setOption({
     animation: false,
     grid: { left: 130, right: 92, top: 30, bottom: 26 },
-    tooltip: { ...tip, formatter: (ps) => { const b = lb[ps[0].dataIndex]; return `${b.name}<br><b>${b.top5_pct}%</b> in the top 5${b.ci_pct[0] != null ? ` (95% CI ${b.ci_pct[0]}–${b.ci_pct[1]}%)` : ''}<br>${b.n} medium + large leaks`; } },
+    tooltip: { ...tip, formatter: (ps) => { const b = lb[ps[0].dataIndex]; return `${echarts.format.encodeHTML(b.name)}<br><b>${b.top5_pct}%</b> in the top 5${b.ci_pct[0] != null ? ` (95% CI ${b.ci_pct[0]}–${b.ci_pct[1]}%)` : ''}<br>${b.n} medium + large leaks`; } },
     xAxis: { type: 'value', min: 0, max: 100, ...axis, axisLabel: { ...axis.axisLabel, formatter: '{value}%' } },
     yAxis: { type: 'category', inverse: true, data: lb.map((b) => (b.chosen ? `${b.name} (chosen)` : b.name)), ...axis, axisLabel: text },
     series: [{
