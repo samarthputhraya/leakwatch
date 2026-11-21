@@ -47,8 +47,8 @@ def test_counts_folders_and_coverage(reports):
     assert s["by_folder"] == {"unit": 3, "contract": 1, "integration": 1}
     assert s["coverage_percent"] == 71.2
     assert s["coverage_by_module"] == {
-        "bdt/alerts.py": {"statements": 100, "percent": 99.0},
-        "common/lake.py": {"statements": 50, "percent": 40.0},
+        "bdt/alerts.py": {"statements": 100, "covered": 0, "percent": 99.0},
+        "common/lake.py": {"statements": 50, "covered": 0, "percent": 40.0},
     }
 
 
@@ -86,3 +86,18 @@ def test_main_selects_the_marker_and_writes_the_summary(monkeypatch, argv, marke
     summary = written["test_summary"]
     assert summary["marker"] == marker and summary["pytest_exit_code"] == 1
     assert summary["failed"] == 2
+
+
+def test_core_coverage_is_statement_weighted_and_names_weak_modules():
+    from leakwatch.eval.test_summary import core_coverage
+
+    per = {
+        "a.py": {"statements": 100, "covered": 90, "percent": 90.0},
+        "b.py": {"statements": 50, "covered": 30, "percent": 60.0},
+        "c.py": {"statements": 10, "covered": 10, "percent": 100.0},
+    }
+    out = core_coverage(per, ["a.py", "b.py", "z.py"])
+    assert out["percent"] == 80.0  # (90 + 30) / 150
+    assert out["statements"] == 150 and out["modules"] == 2
+    assert out["missing"] == ["z.py"] and out["below_80"] == ["b.py"]
+    assert core_coverage(per, [])["percent"] is None

@@ -223,6 +223,31 @@ demo:
   quiet_before_inject_s: 10
   warm_batches: 3                  # "running" once the scored stream has finished 3 batches with data (D-043)
 
+st:
+  # D-049: the code behind a reported number or a safety check; `make test-report` reports
+  # their statement-weighted line coverage (aim >= 80%) next to the whole package's
+  core_modules:
+    - bdt/alerts.py
+    - bdt/scorer.py
+    - bdt/report.py
+    - bdt/live.py
+    - bdt/slow_detectors.py
+    - features/rebaseline.py
+    - features/windows.py
+    - features/clean.py
+    - features/normal.py
+    - eval/battledim_score.py
+    - eval/detection.py
+    - eval/alerting.py
+    - dl/inversion.py
+    - dl/localizer.py
+    - copilot/sql_guard.py
+    - copilot/guardrails.py
+    - copilot/agent.py
+    - copilot/llm.py
+    - common/metrics.py
+    - common/config.py
+
 battledim_score:
   # Official BattLeDIM 2020 scoring (KIOS-Research/BattLeDIM Scoring_Algorithm.m; D-037). These are
   # the competition's fixed parameters, not tunables: changing them breaks leaderboard comparison.

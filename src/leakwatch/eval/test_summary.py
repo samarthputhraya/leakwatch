@@ -50,6 +50,7 @@ def summarise(junit: Path, coverage: Path | None) -> dict:
             module = name.replace("\\", "/").split("src/leakwatch/")[-1]
             per_module[module] = {
                 "statements": f["summary"]["num_statements"],
+                "covered": f["summary"].get("covered_lines", 0),
                 "percent": round(float(f["summary"]["percent_covered"]), 1),
             }
     return {
@@ -60,6 +61,24 @@ def summarise(junit: Path, coverage: Path | None) -> dict:
         "by_folder": dict(folders),
         "coverage_percent": None if cov is None else round(float(cov), 1),
         "coverage_by_module": dict(sorted(per_module.items())),
+    }
+
+
+def core_coverage(per_module: dict, core: list[str]) -> dict:
+    """Statement-weighted line coverage of the core modules (``st.core_modules``, D-049).
+
+    Core = the code behind a reported number or a safety check (detection, alerts, scoring,
+    re-baselining, localization, SQL and number guardrails), not job drivers or the UI.
+    """
+    rows = {m: per_module[m] for m in core if m in per_module}
+    stmts = sum(int(r["statements"]) for r in rows.values())
+    covered = sum(int(r.get("covered", 0)) for r in rows.values())
+    return {
+        "modules": len(rows),
+        "missing": sorted(set(core) - set(rows)),
+        "statements": stmts,
+        "percent": round(100.0 * covered / stmts, 1) if stmts else None,
+        "below_80": sorted(m for m, r in rows.items() if float(r["percent"]) < 80.0),
     }
 
 
@@ -94,6 +113,10 @@ def main(argv: list[str] | None = None) -> int:
         ]
         code = subprocess.run(cmd, cwd=REPO_ROOT, check=False).returncode
         summary = summarise(junit, cov)
+    from leakwatch.common.config import load_config
+
+    core = list(load_config().get("st", {}).get("core_modules", []))
+    summary["core_coverage"] = core_coverage(summary["coverage_by_module"], core)
     summary["marker"] = marker
     summary["pytest_exit_code"] = code
     path = write_metrics("test_summary", summary)
