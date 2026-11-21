@@ -286,3 +286,23 @@ Every non-obvious technical decision, newest at the bottom. Format: date · deci
 
   - **The detector's timing does not beat chance on the official score.** With 10 leaks running at once in 2019, a report almost anywhere near a sensor that just fell finds some leak. The score is earned by where reports land (the posterior) and how they are dispatched (the two rules), not by when the alerts fire.
   - The detection metrics with chance levels (`bdt_kmeans_2019.json`, `dl_lstm_ae.json`) and the simulated-leak benchmark (`bdt_synthetic_leaks.json`) remain the evidence for detection timing. This result is reported, not hidden.
+
+
+### D-043 · 2026-11-21 · Fast path for the live model, chosen on 2018; demo replay at 2880×
+- **Problem.** The live model opens an alert after m = 32 windows above τ (8 h, D-038). The official score chose m and barely notices hours. In the demo, inject → alert took 10.25–10.5 simulated h. At 1440× the check gave 85.1 s for run 1 (alert at 56.7 s, then 28 s for the work order) and 55.8 s / 58.3 s for runs 2 and 3: 2 of 3 within 60 s (`4cca18c`, kept in git history).
+- **Fast path** (`bdt.alerts.AlertRule.fast_threshold`, `make bdt-fast-path`).
+  - One window above k·τ opens the alert at once. It is applied to the live model only, in the batch evaluation, the live stream and the simulated-leak benchmark alike.
+  - k is chosen on 2018: the smallest k in [20, 12, 8, 5, 3, 2] with the 2018 official score (system placement, 30-day revisit) not lower, and no more alerts in the 2018 normal windows (20.99 weeks), than without it.
+  - 2018 scores: none €75,560 · k = 20 **€81,437** · 12 €71,533 · 8 €71,538 · 5 €64,024 · 3 €60,000 · 2 €51,187. Normal-window alerts: 1 / 1 / 1 / 1 / 2 / 2 / 7. So **k = 20** (τ_fast = 27.33).
+  - Smaller k open alerts earlier. The posterior then places them from a different hour, and 2018 does worse.
+- **Effect.**
+  - Its 2019 alerts place exactly as before (placement-only 2019 score unchanged, €160,577).
+  - Simulated leaks: 60.0% detected, 0 false alarms on the background, as before. The median time to detection of 30 mm leaks is 8.17 h (fastest 0.08 h). At 20τ the fast path rarely fires; the rule allowed no lower k.
+  - Final official score, with the D-042 rules re-chosen on 2018 (placement: localizer; revisit 30 days; 10 of 24 reports closed by a repair, 11 carried):
+
+    | Year | Score | Leaks | False positives | Rank | Random timing p |
+    |---|---|---|---|---|---|
+    | 2018 | €81,437 | 7 / 14 | 15 | — | 0.070 |
+    | 2019 | **€236,433** | 14 / 23 | 49 | 3 of the 6 tabulated | 0.597 |
+
+- **Demo speed.** PRD §16 sets the replay speed so that steps 2–5 fit in 60 s. With 10.5 simulated hours from inject to alert, 1440× is not enough for the cold first run, so `demo.speed` is now 2880× (1 h of data in 1.25 s; the dashboard offers it). Three things were tried in turn. 1440×: 2 of 3 (above). 2880×: 80.2 / 39.8 / 35.9 s, still 2 of 3: the cold run 1 waited behind the stream's first micro-batches, which seed the re-baselining history from the lake and compile the Spark plans. The runner reported "running" after 1.5 simulated hours of replay, which is under 2 s of wall time at 2880×. Now "running" also needs the scored stream to have finished `demo.warm_batches` = 3 micro-batches with data. With that, `make demo-check` gives **3 of 3 within 60 s: 55.4 / 35.5 / 29.9 s** to the work order (alert at 25.5 / 21.2 / 15.6 s). Best of the top 5 is 172 m from n100, 2,886 m from n300 (behind PRV-1, as before) and 0 m from n470. Run 1's margin is small: its work order took 30 s after the alert (LLM), against 14 s in the other two runs.
