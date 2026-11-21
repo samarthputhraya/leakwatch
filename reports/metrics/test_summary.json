@@ -1,387 +1,502 @@
 {
   "meta": {
-    "generated_at": "2026-11-21T02:32:17+00:00",
-    "git_commit": "4bfbde7",
+    "generated_at": "2026-11-21T08:03:18+00:00",
+    "git_commit": "b0e9f9c",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "passed": 610,
+  "passed": 677,
   "failed": 0,
   "skipped": 0,
-  "duration_s": 627.9,
+  "duration_s": 716.9,
   "by_folder": {
-    "contract": 39,
+    "contract": 41,
     "integration": 2,
     "metamorphic": 5,
-    "unit": 564
+    "unit": 629
   },
-  "coverage_percent": 71.4,
+  "coverage_percent": 74.0,
   "coverage_by_module": {
     "__init__.py": {
       "statements": 1,
+      "covered": 1,
       "percent": 100.0
     },
     "bdt/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "bdt/alerts.py": {
       "statements": 131,
+      "covered": 131,
       "percent": 100.0
     },
     "bdt/data.py": {
       "statements": 92,
+      "covered": 65,
       "percent": 70.7
     },
     "bdt/evaluate.py": {
       "statements": 141,
+      "covered": 33,
       "percent": 23.4
     },
     "bdt/fast_path.py": {
-      "statements": 75,
-      "percent": 24.0
+      "statements": 74,
+      "covered": 18,
+      "percent": 24.3
     },
     "bdt/live.py": {
       "statements": 168,
+      "covered": 152,
       "percent": 90.5
     },
     "bdt/model.py": {
       "statements": 62,
+      "covered": 62,
       "percent": 100.0
     },
     "bdt/report.py": {
       "statements": 55,
+      "covered": 54,
       "percent": 98.2
     },
     "bdt/scaling.py": {
       "statements": 146,
+      "covered": 48,
       "percent": 32.9
     },
     "bdt/scorer.py": {
       "statements": 97,
+      "covered": 92,
       "percent": 94.8
     },
+    "bdt/slow_detectors.py": {
+      "statements": 117,
+      "covered": 40,
+      "percent": 34.2
+    },
     "bdt/synthetic.py": {
-      "statements": 134,
-      "percent": 35.1
+      "statements": 151,
+      "covered": 49,
+      "percent": 32.5
     },
     "bdt/train.py": {
       "statements": 166,
+      "covered": 48,
       "percent": 28.9
     },
     "common/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "common/config.py": {
       "statements": 46,
+      "covered": 44,
       "percent": 95.7
     },
     "common/lake.py": {
-      "statements": 84,
-      "percent": 63.1
+      "statements": 90,
+      "covered": 59,
+      "percent": 65.6
     },
     "common/logging.py": {
       "statements": 22,
+      "covered": 21,
       "percent": 95.5
     },
     "common/metrics.py": {
       "statements": 49,
+      "covered": 47,
       "percent": 95.9
     },
     "common/paths.py": {
       "statements": 83,
+      "covered": 80,
       "percent": 96.4
     },
     "common/schemas.py": {
       "statements": 153,
+      "covered": 151,
       "percent": 98.7
     },
     "copilot/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "copilot/agent.py": {
-      "statements": 191,
-      "percent": 94.2
+      "statements": 194,
+      "covered": 183,
+      "percent": 94.3
     },
     "copilot/chat.py": {
       "statements": 40,
+      "covered": 37,
       "percent": 92.5
     },
     "copilot/check.py": {
       "statements": 55,
+      "covered": 0,
       "percent": 0.0
     },
     "copilot/complaints.py": {
       "statements": 181,
+      "covered": 173,
       "percent": 95.6
     },
     "copilot/dispatch.py": {
-      "statements": 227,
-      "percent": 93.4
+      "statements": 228,
+      "covered": 216,
+      "percent": 94.7
     },
     "copilot/evaluate.py": {
       "statements": 406,
+      "covered": 342,
       "percent": 84.2
     },
     "copilot/guardrails.py": {
       "statements": 240,
+      "covered": 237,
       "percent": 98.8
     },
     "copilot/llm.py": {
-      "statements": 175,
-      "percent": 92.6
+      "statements": 188,
+      "covered": 176,
+      "percent": 93.6
     },
     "copilot/network_index.py": {
       "statements": 78,
-      "percent": 88.5
+      "covered": 75,
+      "percent": 96.2
     },
     "copilot/prompts/__init__.py": {
       "statements": 78,
+      "covered": 76,
       "percent": 97.4
     },
     "copilot/rag/__init__.py": {
       "statements": 3,
+      "covered": 3,
       "percent": 100.0
     },
     "copilot/rag/build.py": {
       "statements": 138,
+      "covered": 69,
       "percent": 50.0
     },
     "copilot/rag/chunking.py": {
       "statements": 362,
+      "covered": 348,
       "percent": 96.1
     },
     "copilot/rag/embed.py": {
       "statements": 53,
+      "covered": 53,
       "percent": 100.0
     },
     "copilot/rag/index.py": {
       "statements": 100,
-      "percent": 93.0
+      "covered": 95,
+      "percent": 95.0
     },
     "copilot/rag/lexical.py": {
       "statements": 53,
+      "covered": 52,
       "percent": 98.1
     },
     "copilot/rag/ocr.py": {
       "statements": 152,
+      "covered": 102,
       "percent": 67.1
     },
     "copilot/settings.py": {
       "statements": 37,
+      "covered": 33,
       "percent": 89.2
     },
     "copilot/sql_guard.py": {
       "statements": 81,
+      "covered": 80,
       "percent": 98.8
     },
     "copilot/testing.py": {
       "statements": 85,
+      "covered": 84,
       "percent": 98.8
     },
     "copilot/tools.py": {
-      "statements": 562,
-      "percent": 90.6
+      "statements": 582,
+      "covered": 534,
+      "percent": 91.8
     },
     "data/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "data/battledim.py": {
       "statements": 141,
+      "covered": 106,
       "percent": 75.2
     },
     "data/build.py": {
       "statements": 81,
+      "covered": 0,
       "percent": 0.0
     },
     "data/ground_truth.py": {
       "statements": 112,
+      "covered": 104,
       "percent": 92.9
     },
     "data/network.py": {
       "statements": 94,
+      "covered": 78,
       "percent": 83.0
     },
     "data/quality.py": {
       "statements": 40,
+      "covered": 40,
       "percent": 100.0
     },
     "demo/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "demo/check.py": {
-      "statements": 104,
-      "percent": 32.7
+      "statements": 107,
+      "covered": 34,
+      "percent": 31.8
     },
     "demo/preflight.py": {
       "statements": 37,
+      "covered": 30,
       "percent": 81.1
     },
     "demo/runner.py": {
-      "statements": 226,
-      "percent": 27.0
+      "statements": 246,
+      "covered": 77,
+      "percent": 31.3
     },
     "demo/signature.py": {
       "statements": 80,
+      "covered": 67,
       "percent": 83.8
     },
     "dl/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "dl/gnn.py": {
-      "statements": 405,
-      "percent": 51.9
+      "statements": 456,
+      "covered": 326,
+      "percent": 71.5
     },
     "dl/gnn_data.py": {
       "statements": 170,
+      "covered": 45,
       "percent": 26.5
     },
     "dl/gnn_prior.py": {
       "statements": 73,
+      "covered": 33,
       "percent": 45.2
+    },
+    "dl/inversion.py": {
+      "statements": 110,
+      "covered": 110,
+      "percent": 100.0
+    },
+    "dl/localizer.py": {
+      "statements": 157,
+      "covered": 143,
+      "percent": 91.1
     },
     "dl/lstm_ae.py": {
       "statements": 219,
+      "covered": 111,
       "percent": 50.7
     },
     "dl/sequences.py": {
       "statements": 50,
+      "covered": 37,
       "percent": 74.0
     },
     "eval/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "eval/alerting.py": {
       "statements": 64,
+      "covered": 54,
       "percent": 84.4
     },
     "eval/battledim_score.py": {
-      "statements": 246,
-      "percent": 61.8
+      "statements": 296,
+      "covered": 294,
+      "percent": 99.3
     },
     "eval/detection.py": {
       "statements": 75,
-      "percent": 98.7
+      "covered": 75,
+      "percent": 100.0
     },
     "eval/mutation.py": {
       "statements": 43,
+      "covered": 30,
       "percent": 69.8
     },
     "eval/reports.py": {
-      "statements": 441,
-      "percent": 96.4
+      "statements": 501,
+      "covered": 484,
+      "percent": 96.6
     },
     "eval/test_summary.py": {
-      "statements": 58,
-      "percent": 98.3
+      "statements": 66,
+      "covered": 65,
+      "percent": 98.5
     },
     "features/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "features/baselines.py": {
       "statements": 17,
+      "covered": 16,
       "percent": 94.1
     },
     "features/build.py": {
       "statements": 122,
+      "covered": 0,
       "percent": 0.0
     },
     "features/clean.py": {
       "statements": 21,
+      "covered": 21,
       "percent": 100.0
     },
     "features/normal.py": {
       "statements": 53,
-      "percent": 88.7
+      "covered": 53,
+      "percent": 100.0
     },
     "features/parity.py": {
       "statements": 58,
+      "covered": 46,
       "percent": 79.3
     },
     "features/rebaseline.py": {
       "statements": 39,
+      "covered": 39,
       "percent": 100.0
     },
     "features/spec.py": {
       "statements": 82,
+      "covered": 80,
       "percent": 97.6
     },
     "features/windows.py": {
-      "statements": 62,
-      "percent": 100.0
+      "statements": 86,
+      "covered": 84,
+      "percent": 97.7
     },
     "ingest/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "ingest/kafka_io.py": {
       "statements": 72,
+      "covered": 43,
       "percent": 59.7
     },
     "ingest/replayer.py": {
       "statements": 174,
+      "covered": 138,
       "percent": 79.3
     },
     "ingest/topics.py": {
       "statements": 20,
+      "covered": 0,
       "percent": 0.0
     },
     "sim/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "sim/bench.py": {
       "statements": 89,
+      "covered": 0,
       "percent": 0.0
     },
     "sim/generate.py": {
       "statements": 80,
+      "covered": 0,
       "percent": 0.0
     },
     "sim/replay.py": {
       "statements": 43,
+      "covered": 0,
       "percent": 0.0
     },
     "sim/scenarios.py": {
       "statements": 109,
+      "covered": 106,
       "percent": 97.2
     },
     "stream/__init__.py": {
       "statements": 0,
+      "covered": 0,
       "percent": 100.0
     },
     "stream/features_stream.py": {
-      "statements": 212,
-      "percent": 59.0
+      "statements": 250,
+      "covered": 153,
+      "percent": 61.2
     },
     "stream/lake_writer.py": {
       "statements": 80,
+      "covered": 69,
       "percent": 86.2
     },
     "stream/latency_bench.py": {
       "statements": 55,
+      "covered": 0,
       "percent": 0.0
     },
     "stream/live_replay.py": {
       "statements": 103,
+      "covered": 0,
       "percent": 0.0
     },
     "stream/raw_ingest.py": {
       "statements": 180,
+      "covered": 133,
       "percent": 73.9
     },
     "stream/spark.py": {
       "statements": 21,
+      "covered": 19,
       "percent": 90.5
     }
+  },
+  "core_coverage": {
+    "modules": 20,
+    "missing": [],
+    "statements": 2267,
+    "percent": 93.0,
+    "below_80": [
+      "bdt/slow_detectors.py"
+    ]
   },
   "marker": "slow or not slow",
   "pytest_exit_code": 0
