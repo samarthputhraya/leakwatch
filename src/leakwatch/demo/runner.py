@@ -205,6 +205,25 @@ class DemoRunner:
                 log.warning("stopping query: %s", exc)
         self.queries = []
 
+    def warm_up(self) -> None:
+        """Load what the first work order needs before the first alert (D-046).
+
+        The evidence path (manual search: embedding model and index; network index) took 17 s
+        in the first rehearsal run and nothing afterwards: both are cached per process, so one
+        call at start moves that cost out of the first alert. Then the model client.
+        """
+        try:
+            from leakwatch.copilot.tools import ToolContext, search_manual
+
+            t0 = time.perf_counter()
+            ctx = ToolContext(lake_root=demo_lake())
+            ctx.get_network()
+            search_manual(ctx, {"query": str(ctx.cfg["dispatch"]["manual_query"])})
+            log.info("work-order evidence path warmed up in %.1f s", time.perf_counter() - t0)
+        except Exception as exc:
+            log.warning("evidence warm-up failed (the first work order will be slower): %s", exc)
+        self.warm_llm()
+
     def warm_llm(self) -> None:
         """Build the work-order model client and send one tiny request (D-046).
 
@@ -295,7 +314,7 @@ class DemoRunner:
     def run(self) -> None:
         """Replay until stopped (Ctrl+C); reset on command."""
         demo_root().mkdir(parents=True, exist_ok=True)
-        threading.Thread(target=self.warm_llm, daemon=True).start()
+        threading.Thread(target=self.warm_up, daemon=True).start()
         start = pd.Timestamp(self.dcfg["background_start"], tz="UTC")
         hours = float(self.dcfg["background_hours"])
         wide = battledim.load_scada(start.year).loc[start : start + pd.Timedelta(hours=hours)]

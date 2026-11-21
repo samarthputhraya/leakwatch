@@ -81,3 +81,15 @@ def test_dispatch_without_a_model_writes_only_the_template(tmp_path, monkeypatch
     DemoRunner(CFG, 720.0).dispatch([testing.ALERT_A1])
     n = lake.connect(lake_root=root).execute("SELECT count(*) FROM work_orders").fetchone()
     assert n == (1,)
+
+
+def test_warm_up_loads_the_evidence_path_then_the_model(monkeypatch):
+    from leakwatch.copilot import tools
+
+    seen = []
+    monkeypatch.setattr(tools.ToolContext, "get_network", lambda self: seen.append("network"))
+    monkeypatch.setattr(tools, "search_manual", lambda ctx, args: seen.append(args["query"]) or {})
+    r = DemoRunner({**CFG, "copilot": {"llm": {}}}, 720.0)
+    monkeypatch.setattr(r, "warm_llm", lambda: seen.append("llm"))
+    r.warm_up()
+    assert seen[0] == "network" and seen[-1] == "llm" and len(seen) == 3
