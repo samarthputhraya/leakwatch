@@ -40,7 +40,7 @@ export function createMap(el, net, { onPick, onError }) {
   for (let x = gx0; x <= gx1; x += 100) grid.push({ a: [x, gy0], b: [x, gy1], major: x % 500 === 0 });
   for (let y = gy0; y <= gy1; y += 100) grid.push({ a: [gx0, y], b: [gx1, y], major: y % 500 === 0 });
 
-  const st = { selected: null, drops: null, incident: null, zoomed: false, key: '' };
+  const st = { selected: null, drops: null, incident: null, truth: null, zoomed: false, key: '', ripple: 0 };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const move = (ms) => (reduced ? {} : ms);
 
@@ -89,6 +89,45 @@ export function createMap(el, net, { onPick, onError }) {
         updateTriggers: { getText: key } }));
     }
     return out;
+  }
+
+  // The true leak after the reveal: coral ring with a pulse, a line to candidate 1 and its distance.
+  function truthLayers(z) {
+    const t = st.truth;
+    const at = t && xy(t.node_id);
+    if (!at) return [];
+    const first = st.incident && st.incident.candidates.length ? xy(st.incident.candidates[0]) : null;
+    const out = [];
+    if (first && t.rank !== 1) {
+      out.push(new LineLayer({ id: 'truth-line', data: [0], getSourcePosition: () => at, getTargetPosition: () => first,
+        getColor: [...C.coral, 230], getWidth: 1.6, widthUnits: 'pixels' }));
+    }
+    const r = st.ripple % 1;
+    out.push(
+      new ScatterplotLayer({ id: 'truth-pulse', data: [0], getPosition: () => at, radiusUnits: 'pixels',
+        getRadius: (st.zoomed ? 18 : 12) + r * 30, filled: false, stroked: true, getLineColor: [...C.coral, Math.round(255 * (1 - r))],
+        lineWidthUnits: 'pixels', getLineWidth: 2, updateTriggers: { getRadius: [st.ripple, z], getLineColor: st.ripple } }),
+      new ScatterplotLayer({ id: 'truth', data: [0], getPosition: () => at, radiusUnits: 'pixels',
+        getRadius: st.zoomed ? 18 : 12, filled: false, stroked: true, getLineColor: C.coral, lineWidthUnits: 'pixels',
+        getLineWidth: 2.8, updateTriggers: { getRadius: z } }),
+    );
+    const labels = [{ p: at, text: `True leak ${t.node_id}`, o: [0, (st.zoomed ? 18 : 12) + 16] }];
+    if (first && t.rank !== 1 && t.to_first_m != null) {
+      labels.push({ p: [(at[0] + first[0]) / 2, (at[1] + first[1]) / 2], text: `${t.to_first_m.toLocaleString('en')} m to candidate 1`, o: [0, 0] });
+    }
+    out.push(new TextLayer({ id: 'truth-labels', data: labels, getPosition: (d) => d.p, getText: (d) => d.text,
+      getPixelOffset: (d) => d.o, getSize: 13.5, getColor: C.coral, fontFamily: FONT, fontWeight: 600, characterSet: 'auto',
+      background: true, getBackgroundColor: [...C.sheet, 235], backgroundPadding: [5, 3],
+      updateTriggers: { getText: st.key, getPixelOffset: z } }));
+    return out;
+  }
+
+  // The pulse runs while the true leak is on screen (not under reduced motion).
+  let pulse = 0;
+  function animate() {
+    const on = !!st.truth && !reduced;
+    if (on && !pulse) pulse = setInterval(() => { st.ripple += 0.035; draw(); }, 50);
+    if (!on && pulse) { clearInterval(pulse); pulse = 0; }
   }
 
   function layers() {
@@ -140,6 +179,7 @@ export function createMap(el, net, { onPick, onError }) {
           getSize: st.zoomed ? 14 : 12, getColor: C.sheet, fontFamily: FONT, fontWeight: 700, updateTriggers: { getSize: z } }),
       );
     }
+    L.push(...truthLayers(z));
     const alertArea = inc ? inc.area : null;
     L.push(new TextLayer({ id: 'areas', data: Object.entries(net.area_labels), getPosition: (d) => d[1],
       getText: (d) => (d[0] === alertArea ? `Area ${d[0]}: alert` : `Area ${d[0]}`), getSize: 14,
@@ -247,9 +287,10 @@ export function createMap(el, net, { onPick, onError }) {
     set(patch) {
       Object.assign(st, patch);
       const order = st.incident && st.incident.order ? `${st.incident.order.state}:${(st.incident.order.pipes || []).join(',')}` : '';
-      const key = `${st.drops ? st.drops.window_end : ''}|${st.incident ? st.incident.alert_id : ''}|${order}`;
+      const key = `${st.drops ? st.drops.window_end : ''}|${st.incident ? st.incident.alert_id : ''}|${order}|${st.truth ? st.truth.node_id : ''}`;
       if (key !== st.key) { st.key = key; updateHeat(); }
       draw();
+      animate();
     },
     // Fly to junctions (the candidates and the sensors that moved most); false if none is on the map.
     focus(nodes) {
@@ -270,6 +311,7 @@ export function createMap(el, net, { onPick, onError }) {
     destroy() {
       el.removeEventListener('pointerdown', onDown);
       el.removeEventListener('click', onClick);
+      clearInterval(pulse);
       deckgl.finalize();
       tip.remove();
       inset.remove();

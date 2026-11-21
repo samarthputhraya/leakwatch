@@ -137,7 +137,7 @@ function Banner({ banner, runner, onRestart }) {
   </div>`;
 }
 
-function MapView({ net, selected, drops, incident, onReady, onPick, onError }) {
+function MapView({ net, selected, drops, incident, truth, onReady, onPick, onError }) {
   const el = useRef(null);
   const map = useRef(null);
   const handlers = useRef({});
@@ -150,13 +150,13 @@ function MapView({ net, selected, drops, incident, onReady, onPick, onError }) {
     handlers.current.onReady(map.current);
     return () => { if (map.current) map.current.destroy(); map.current = null; handlers.current.onReady(null); };
   }, [net]);
-  useEffect(() => { if (map.current) map.current.set({ selected, drops, incident }); }, [selected, drops, incident]);
+  useEffect(() => { if (map.current) map.current.set({ selected, drops, incident, truth }); }, [selected, drops, incident, truth]);
   return html`<div class="deck" ref=${el}></div>`;
 }
 
 const metres = (m) => `${Number(m.toFixed(1))} m`;
 
-function Legend({ net, drops, incident, floor }) {
+function Legend({ net, drops, incident, floor, truth }) {
   return html`<div class="legend" aria-label="Map legend">
     <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="4.2" fill="var(--sheet)" stroke="var(--ink)" stroke-width="1.5"/></svg>
       Pressure sensor (${net.counts.pressure_sensors})</span>
@@ -167,6 +167,7 @@ function Legend({ net, drops, incident, floor }) {
     ${incident && incident.candidates.length > 0 && html`<span><svg width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="var(--amber)"/>
       <text x="9" y="13" text-anchor="middle" font-size="11" font-weight="700" fill="var(--sheet)">1</text></svg>Candidate, by rank</span>`}
     ${incident && incident.order && incident.order.pipes && incident.order.pipes.length > 0 && html`<span><svg width="26" height="12" aria-hidden="true"><path d="M2 6H24" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/></svg>Pipe to inspect, numbered in order</span>`}
+    ${truth && html`<span><svg width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="var(--coral)" stroke-width="2.4"/><path d="M10 0v3.5M10 16.5V20M0 10h3.5M16.5 10H20" stroke="var(--coral)" stroke-width="2"/></svg>True leak (after the reveal)</span>`}
     ${drops && html`<span class="when">Readings of the window ending ${drops.time}</span>`}
   </div>`;
 }
@@ -361,15 +362,41 @@ function OrderStep({ inc }) {
   return { on: true, title, short, body: html`<${OrderCard} order=${o} inc=${inc} />` };
 }
 
-function Rail({ vm, net, size, canStart, why, busy, onStart, notice }) {
+const thousands = (m) => m.toLocaleString('en');
+
+function RevealStep({ inc, revealed, onReveal }) {
+  const title = STEPS[4];
+  if (!inc) return { on: false, title };
+  const t = inc.truth;
+  if (!t) {
+    const why = !inc.leak_id ? 'No leak started from this screen belongs to this alert, so there is nothing to check it against.'
+      : !inc.candidates.length ? 'This needs the candidates of step 3.'
+        : 'The pipe distances are being prepared.';
+    return { on: false, title, body: html`<p>${why}</p>` };
+  }
+  if (!revealed) {
+    return { on: false, title, body: html`<button class="btn ghost" onClick=${onReveal}>Reveal the true leak</button>` };
+  }
+  let where;
+  if (t.rank === 1) where = html`Candidate 1 is the leak junction itself.`;
+  else if (t.to_first_m != null) where = html`Candidate 1 is <b>${thousands(t.to_first_m)} m</b> away along the pipes.`;
+  else where = 'No pipe path joins it to candidate 1.';
+  const nearest = t.rank == null && t.nearest_rank != null && t.nearest_rank !== 1
+    ? html` The nearest, candidate ${t.nearest_rank}, is <b>${thousands(t.nearest_m)} m</b> away.` : '';
+  return { on: true, title, body: html`
+    <p>The leak is at <b>${t.node_id}</b>, ${t.rank != null ? html`candidate <b>${t.rank}</b> of ${t.of}.` : html`not one of the ${t.of} candidates.`}${' '}${where}${nearest}</p>
+    ${(t.flow_m3h != null || t.loss_now_m3h != null) && html`<p>${t.flow_m3h != null && html`Simulated leak <b>${t.flow_m3h.toFixed(1)} m³/h</b>`}${t.flow_m3h != null && t.loss_now_m3h != null ? ', ' : ''}${t.loss_now_m3h != null && html`current estimate <b>${t.loss_now_m3h.toFixed(1)} m³/h</b>`}.</p>`}` };
+}
+
+function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, onReveal }) {
   const [unfolded, setUnfolded] = useState({});
   const first = LeakStep({ leaks: vm.leaks, net, size, canStart, why, busy, onStart });
   const inc = vm.incident;
   const steps = [first, AlertStep({ inc }), LocatedStep({ inc }), OrderStep({ inc }),
-    ...STEPS.slice(4).map((title) => ({ on: false, title }))];
+    RevealStep({ inc, revealed, onReveal }), ...STEPS.slice(5).map((title) => ({ on: false, title }))];
   const now = steps.reduce((last, s, i) => (s.on ? i : last), 0);
   // Finished steps fold to one line once the work order is on screen, so the open step fits.
-  const foldable = (i) => steps[3].on && i < 3;
+  const foldable = (i) => (steps[3].on && i < 3) || (steps[4].on && i === 3);
   const id = (i) => `${inc ? inc.alert_id : ''}:${i}`;
   const folded = (i) => foldable(i) && !unfolded[id(i)];
   const toggle = (i) => setUnfolded({ ...unfolded, [id(i)]: !unfolded[id(i)] });
@@ -419,11 +446,12 @@ function useCamera(map, incident) {
       setZoomed(false);
     }
   }, [map, target]);
+  const frame = (nodes) => { if (map) setZoomed(map.focus(nodes)); };
   const toggle = () => {
     if (!map || !incident) return;
     if (zoomed) { map.home(); setZoomed(false); } else setZoomed(map.focus(incident.focus));
   };
-  return { zoomed, toggle };
+  return { zoomed, toggle, frame };
 }
 
 function App() {
@@ -435,6 +463,7 @@ function App() {
   const [notice, setNotice] = useState(null);
   const [mapError, setMapError] = useState(null);
   const [map, setMap] = useState(null);
+  const [revealed, setRevealed] = useState({});
   const mapBox = useRef(null);
   const camera = useCamera(map, lost ? null : vm && vm.incident);
   if (!vm && !lost) return html`<div class="app" aria-busy="true"></div>`;
@@ -454,6 +483,13 @@ function App() {
     const box = mapBox.current.getBoundingClientRect();
     setPick(node ? { node, x: at.x, y: at.y, maxX: box.width, maxY: box.height } : null);
   };
+  const inc = shown.incident;
+  const truth = inc && inc.truth && revealed[inc.alert_id] ? inc.truth : null;
+  const reveal = () => {
+    if (!inc || !inc.truth) return;
+    setRevealed({ ...revealed, [inc.alert_id]: true });
+    camera.frame([inc.truth.node_id, ...inc.candidates]);
+  };
   const restart = async () => { const res = await call('POST', '/api/demo/restart'); setNotice(res.ok ? null : res.message); };
   return html`<div class="app">
     <${Header} runner=${shown.runner} clock=${shown.clock} analysed=${shown.analysed}>
@@ -461,20 +497,21 @@ function App() {
     <//>
     <main class="map" ref=${mapBox}>
       ${net && !mapError && html`<${MapView} net=${net} selected=${pick ? pick.node : null} drops=${shown.drops}
-        incident=${shown.incident} onReady=${setMap} onPick=${onPick}
+        incident=${shown.incident} truth=${truth} onReady=${setMap} onPick=${onPick}
         onError=${() => setMapError('The map needs WebGL 2, which this browser did not provide. The panels on the right still work.')} />`}
       ${(netError || mapError) && html`<p class="map-note" role="alert">${mapError || netError}</p>`}
       <${Banner} banner=${shown.banner} runner=${shown.runner} onRestart=${restart} />
       ${map && shown.incident && shown.incident.candidates.length > 0 && html`<div class="map-buttons">
         <button class="btn ghost" onClick=${camera.toggle}>${camera.zoomed ? 'Show the whole network' : 'Zoom to the candidates'}</button>
       </div>`}
-      ${net && !mapError && html`<${Legend} net=${net} drops=${shown.drops} incident=${shown.incident}
+      ${net && !mapError && html`<${Legend} net=${net} drops=${shown.drops} incident=${shown.incident} truth=${truth}
         floor=${shown.drops ? shown.drops.floor_m : settings ? settings.ring_floor_m : 0} />`}
       ${pick && net && html`<${PickCard} pick=${pick} net=${net} size=${leakSize} canStart=${canStart} why=${why}
         busy=${busy} onStart=${() => start(pick.node)} onClose=${() => setPick(null)} />`}
     </main>
     <${Instruments} charts=${shown.charts} />
-    <${Rail} vm=${shown} net=${net} size=${leakSize} canStart=${canStart} why=${why} busy=${busy} onStart=${start} notice=${notice} />
+    <${Rail} vm=${shown} net=${net} size=${leakSize} canStart=${canStart} why=${why} busy=${busy} onStart=${start} notice=${notice}
+      revealed=${!!(inc && revealed[inc.alert_id])} onReveal=${reveal} />
   </div>`;
 }
 

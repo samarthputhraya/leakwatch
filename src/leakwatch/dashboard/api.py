@@ -197,6 +197,7 @@ class LiveSource:
         self._columns: list[tuple[str, str]] | None = None
         self._cache: dict[str, tuple[tuple[int, int], Any]] = {}
         self._n_pressure: int | None = None
+        self._distances: dict[tuple[str, str], float | None] = {}
         self._failed = FailedLeaks(float(self.cfg["dashboard"]["failed_leak_seconds"]))
 
     def _connection(self) -> Any:
@@ -301,6 +302,25 @@ class LiveSource:
         out["scores"] = self._cached("scores", self._read_scores, [])
         return out
 
+    def _distance(self) -> Callable[[str, str], float | None] | None:
+        """Pipe distance between junctions, once the map geometry exists (never built here).
+
+        The page's first ``/api/network`` request builds it; building it in the snapshot thread
+        would hold the screen for seconds.
+        """
+        from leakwatch.dashboard import geometry
+
+        if geometry.load.cache_info().currsize == 0:
+            return None
+        geo = geometry.load()
+
+        def distance(a: str, b: str) -> float | None:
+            if (a, b) not in self._distances:
+                self._distances[(a, b)] = geo.pipe_distance_m(a, b)
+            return self._distances[(a, b)]
+
+        return distance
+
     def _pressure_sensors(self) -> int | None:
         if self._n_pressure is None:
             from leakwatch.data import network
@@ -337,6 +357,7 @@ class LiveSource:
             residuals=rows.get("residuals", []),
             scores=rows.get("scores", []),
             orders=rows.get("orders", []),
+            distance=self._distance(),
         )
         out["generated_at"] = datetime.now(UTC)
         out["build_ms"] = round((time.perf_counter() - started) * 1000, 1)

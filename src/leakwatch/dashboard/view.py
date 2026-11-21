@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -455,6 +455,35 @@ def order_view(
     }
 
 
+def truth_view(
+    leak: Mapping[str, Any],
+    candidates: Sequence[str],
+    loss_now: float | None,
+    distance: Callable[[str, str], float | None],
+) -> dict[str, Any]:
+    """The true leak against the localizer's candidates (shown after "Reveal the true leak").
+
+    Distances are along the pipes (``distance(a, b)``, metres). ``flow_m3h`` is the leak flow
+    EPANET simulated; ``loss_now_m3h`` the system's current estimate of the lost water.
+    """
+    node = str(leak.get("node_id"))
+    rank = candidates.index(node) + 1 if node in candidates else None
+    found = [(d, i + 1) for i, c in enumerate(candidates) if (d := distance(node, c)) is not None]
+    first = next((d for d, r in found if r == 1), None)
+    near = min(found) if found else None
+    flow = number(leak.get("est_flow_m3h"))
+    return {
+        "node_id": node,
+        "rank": rank,
+        "of": len(candidates),
+        "to_first_m": None if first is None else round(first),
+        "nearest_m": None if near is None else round(near[0]),
+        "nearest_rank": None if near is None else near[1],
+        "flow_m3h": None if flow is None else round(flow, 1),
+        "loss_now_m3h": loss_now,
+    }
+
+
 def newest(rows: Sequence[Mapping[str, Any]], key: str) -> Mapping[str, Any] | None:
     """The row with the latest timestamp in ``key`` (rows without one are skipped)."""
     dated = [(t, r) for r in rows if (t := to_utc(r.get(key))) is not None]
@@ -609,6 +638,7 @@ def live_view(
     residuals: Sequence[Mapping[str, Any]] = (),
     scores: Sequence[Mapping[str, Any]] = (),
     orders: Sequence[Mapping[str, Any]] = (),
+    distance: Callable[[str, str], float | None] | None = None,
 ) -> dict[str, Any]:
     """Everything the live page shows, from the runner state and the newest lake rows.
 
@@ -625,6 +655,7 @@ def live_view(
             sensor id.
         scores: ``scores`` windows, oldest first (``window_end``, ``score``, ``threshold``).
         orders: ``work_orders`` rows (``alert_id``, ``generator``, ``generated_at``, JSON).
+        distance: pipe distance between two junctions (None until the map geometry is built).
 
     """
     tz = str(cfg["project"]["display_timezone"])
@@ -651,6 +682,11 @@ def live_view(
         )
         theirs = [o for o in orders if o.get("alert_id") == current.get("alert_id")]
         incident["order"] = order_view(theirs, mine, leak, tz)
+        incident["truth"] = (
+            None
+            if leak is None or distance is None or not incident["candidates"]
+            else truth_view(leak, incident["candidates"], incident["loss_now_m3h"], distance)
+        )
     last = residuals[-1] if residuals else None
     drops = None
     if last is not None:

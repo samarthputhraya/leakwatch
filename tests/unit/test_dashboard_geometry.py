@@ -150,3 +150,14 @@ def test_every_area_has_an_outline_around_its_junctions(built):
     assert set(p["outlines"]) == {"A", "B", "C"}
     for area, rings in p["outlines"].items():
         assert rings and all(r[0] == r[-1] and len(r) > 4 for r in rings), area
+
+
+@pytest.mark.needs_data
+def test_pipe_distance_equals_the_demo_checks_distance(built):
+    from leakwatch.demo.check import distance_to
+
+    candidates = ["n469", "n470", "n471", "n94", "n468"]
+    expected = distance_to("n470", candidates)
+    mine = [built.pipe_distance_m("n470", c) for c in candidates]
+    assert mine[0] == pytest.approx(expected["top1_m"])
+    assert min(mine) == pytest.approx(expected["best_of_top5_m"])

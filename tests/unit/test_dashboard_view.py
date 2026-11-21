@@ -522,3 +522,44 @@ def test_live_view_puts_the_order_of_the_shown_alert_on_the_incident():
         orders=[TEMPLATE, other],
     )
     assert out["incident"]["order"]["state"] == "template"
+
+
+# Pipe distances from n470 in L-Town, metres (Geometry.pipe_distance_m, measured 21 Nov 2026).
+N470 = {"n469": 49.0, "n470": 0.0, "n471": 38.3, "n94": 108.0, "n468": 169.2}
+
+
+def test_reveal_of_the_n470_run_names_rank_distance_and_both_flows():
+    out = view.truth_view(
+        {**LEAK, "est_flow_m3h": 57.03},
+        ["n469", "n470", "n471", "n94", "n468"],
+        54.0,
+        lambda a, b: N470[b],
+    )
+    assert out == {
+        "node_id": "n470",
+        "rank": 2,
+        "of": 5,
+        "to_first_m": 49,
+        "nearest_m": 0,
+        "nearest_rank": 2,
+        "flow_m3h": 57.0,
+        "loss_now_m3h": 54.0,
+    }
+
+
+def test_reveal_when_the_leak_is_not_a_candidate_or_cannot_be_reached():
+    far = {"a": 300.0, "b": 120.0, "c": None}
+    out = view.truth_view({**LEAK, "node_id": "n300"}, ["a", "b", "c"], None, lambda x, y: far[y])
+    assert out["rank"] is None and out["to_first_m"] == 300
+    assert out["nearest_m"] == 120 and out["nearest_rank"] == 2
+    none = view.truth_view(LEAK, ["a"], None, lambda x, y: None)
+    assert none["to_first_m"] is None and none["nearest_m"] is None
+
+
+def test_live_view_adds_the_truth_only_with_a_leak_candidates_and_distances():
+    common = {"state": state(leaks=[LEAK]), "alerts": [RUN_ALERT], "now": NOW, "cfg": CFG}
+    assert view.live_view(**common)["incident"]["truth"] is None  # no geometry yet
+    out = view.live_view(**common, distance=lambda a, b: N470[b])
+    assert out["incident"]["truth"]["rank"] == 2
+    alone = view.live_view(**{**common, "state": state()}, distance=lambda a, b: 1.0)
+    assert alone["incident"]["truth"] is None  # no leak from this screen to check against
