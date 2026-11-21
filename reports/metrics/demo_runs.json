@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-21T07:51:02+00:00",
-    "git_commit": "b0e9f9c",
+    "generated_at": "2026-11-21T19:27:02+00:00",
+    "git_commit": "af58c14",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -12,36 +12,36 @@
       "node": "n100",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 29.2,
-      "seconds_to_localizer": 29.4,
-      "seconds_to_work_order": 46.3,
-      "seconds_to_model_work_order": 53.3,
-      "wall_s": 53.3,
+      "seconds_to_alert": 22.3,
+      "seconds_to_localizer": 22.4,
+      "seconds_to_work_order": 37.2,
+      "seconds_to_model_work_order": 45.3,
+      "wall_s": 45.3,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
         "n474",
         "n101",
         "n477",
         "n97",
-        "n100"
+        "n475"
       ],
       "distance_at_alert": {
         "top1_m": 58.8652,
-        "best_of_top5_m": 0.0
+        "best_of_top5_m": 58.8652
       },
-      "alert_start_sim": "2018-11-21T08:30:00+00:00",
+      "alert_start_sim": "2018-11-21T11:00:00+00:00",
       "sim_hours_inject_to_alert": 13.0,
-      "seconds_to_refined_localizer": 57.8,
+      "seconds_to_refined_localizer": 48.0,
       "localizer_top5": [
         "n474",
         "n101",
         "n477",
         "n97",
-        "n100"
+        "n475"
       ],
       "distance": {
         "top1_m": 58.8652,
-        "best_of_top5_m": 0.0
+        "best_of_top5_m": 58.8652
       },
       "ok": false
     },
@@ -50,36 +50,36 @@
       "node": "n300",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 13.0,
-      "seconds_to_localizer": 13.1,
-      "seconds_to_work_order": 13.2,
-      "seconds_to_model_work_order": 21.3,
-      "wall_s": 21.3,
+      "seconds_to_alert": 15.1,
+      "seconds_to_localizer": 15.2,
+      "seconds_to_work_order": 16.5,
+      "seconds_to_model_work_order": 25.4,
+      "wall_s": 25.4,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
-        "n303",
-        "n31",
-        "n740",
-        "n739",
-        "n738"
+        "n549",
+        "n550",
+        "n158",
+        "n545",
+        "n546"
       ],
       "distance_at_alert": {
-        "top1_m": 0.0,
-        "best_of_top5_m": 0.0
+        "top1_m": 2550.5464999999995,
+        "best_of_top5_m": 2495.0055999999995
       },
-      "alert_start_sim": "2018-11-20T05:00:00+00:00",
-      "sim_hours_inject_to_alert": 4.75,
-      "seconds_to_refined_localizer": 21.7,
+      "alert_start_sim": "2018-11-20T01:45:00+00:00",
+      "sim_hours_inject_to_alert": 6.25,
+      "seconds_to_refined_localizer": 25.8,
       "localizer_top5": [
-        "n303",
-        "n31",
-        "n740",
-        "n739",
-        "n738"
+        "n549",
+        "n550",
+        "n158",
+        "n545",
+        "n546"
       ],
       "distance": {
-        "top1_m": 0.0,
-        "best_of_top5_m": 0.0
+        "top1_m": 2550.5464999999995,
+        "best_of_top5_m": 2495.0055999999995
       },
       "ok": true
     },
@@ -88,11 +88,11 @@
       "node": "n470",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 14.3,
-      "seconds_to_localizer": 14.4,
-      "seconds_to_work_order": 15.7,
-      "seconds_to_model_work_order": 26.1,
-      "wall_s": 26.1,
+      "seconds_to_alert": 12.6,
+      "seconds_to_localizer": 12.7,
+      "seconds_to_work_order": 14.0,
+      "seconds_to_model_work_order": 21.9,
+      "wall_s": 21.9,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
         "n469",
@@ -105,9 +105,9 @@
         "top1_m": 48.9692,
         "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-20T01:30:00+00:00",
-      "sim_hours_inject_to_alert": 4.0,
-      "seconds_to_refined_localizer": 26.7,
+      "alert_start_sim": "2018-11-20T00:00:00+00:00",
+      "sim_hours_inject_to_alert": 4.75,
+      "seconds_to_refined_localizer": 22.4,
       "localizer_top5": [
         "n469",
         "n470",
@@ -126,32 +126,32 @@
       "node": "n100",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 18.7,
-      "seconds_to_localizer": 18.8,
-      "seconds_to_work_order": 18.9,
-      "seconds_to_model_work_order": 25.6,
-      "wall_s": 25.6,
+      "seconds_to_alert": 23.4,
+      "seconds_to_localizer": 23.6,
+      "seconds_to_work_order": 24.7,
+      "seconds_to_model_work_order": 34.9,
+      "wall_s": 34.9,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
         "n474",
+        "n97",
         "n101",
-        "n100",
         "n477",
-        "n475"
+        "n100"
       ],
       "distance_at_alert": {
         "top1_m": 58.8652,
         "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-20T05:45:00+00:00",
-      "sim_hours_inject_to_alert": 11.25,
-      "seconds_to_refined_localizer": 26.4,
+      "alert_start_sim": "2018-11-20T09:45:00+00:00",
+      "sim_hours_inject_to_alert": 13.5,
+      "seconds_to_refined_localizer": 35.7,
       "localizer_top5": [
         "n474",
+        "n97",
         "n101",
-        "n100",
         "n477",
-        "n475"
+        "n100"
       ],
       "distance": {
         "top1_m": 58.8652,
@@ -164,36 +164,36 @@
       "node": "n300",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 10.3,
-      "seconds_to_localizer": 10.4,
-      "seconds_to_work_order": 11.6,
-      "seconds_to_model_work_order": 19.2,
-      "wall_s": 19.2,
+      "seconds_to_alert": 12.9,
+      "seconds_to_localizer": 13.0,
+      "seconds_to_work_order": 14.2,
+      "seconds_to_model_work_order": 22.1,
+      "wall_s": 22.1,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
-        "n145",
-        "n146",
-        "n525",
-        "n141",
-        "n149"
+        "n303",
+        "n519",
+        "n12",
+        "n14",
+        "n357"
       ],
       "distance_at_alert": {
-        "top1_m": 2397.4604,
-        "best_of_top5_m": 2345.3959
+        "top1_m": 0.0,
+        "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-19T23:15:00+00:00",
-      "sim_hours_inject_to_alert": 4.5,
-      "seconds_to_refined_localizer": 19.6,
+      "alert_start_sim": "2018-11-20T03:30:00+00:00",
+      "sim_hours_inject_to_alert": 4.75,
+      "seconds_to_refined_localizer": 22.4,
       "localizer_top5": [
-        "n145",
-        "n146",
-        "n525",
-        "n141",
-        "n149"
+        "n303",
+        "n519",
+        "n12",
+        "n14",
+        "n357"
       ],
       "distance": {
-        "top1_m": 2397.4604,
-        "best_of_top5_m": 2345.3959
+        "top1_m": 0.0,
+        "best_of_top5_m": 0.0
       },
       "ok": true
     }
