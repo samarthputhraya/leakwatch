@@ -209,6 +209,10 @@ demo-stop: ## stop a demo left running (runner, its Spark session, dashboard); K
 dashboard: ## only the Streamlit dashboard (http://localhost:8501)
 	$(RUN) python -m leakwatch.dashboard.serve --server.headless true
 
+DASHBOARD_NEXT_PORT ?= 8502
+dashboard-next: ## the new control-room screen while it is being built (http://localhost:8502)
+	$(RUN) python -m leakwatch.dashboard.api --port $(DASHBOARD_NEXT_PORT)
+
 DEMO_ARGS ?=
 demo-check: ## headless demo rehearsal x3 -> demo_runs.json (DEMO_ARGS="--runs 5 --budget-s 30")
 	$(RUN) python -m leakwatch.demo.check $(DEMO_ARGS)
