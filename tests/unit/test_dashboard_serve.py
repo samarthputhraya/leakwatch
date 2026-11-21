@@ -1,4 +1,4 @@
-"""Dashboard launcher (D-032): warm up pyarrow, then ``streamlit run app.py``."""
+"""Dashboard launcher (D-032, D-052): warm up pyarrow, then the screen or the legacy page."""
 
 from __future__ import annotations
 
@@ -15,15 +15,24 @@ TABLE_SCRIPT = (
 )
 
 
-def test_main_runs_the_app_with_the_given_options(monkeypatch):
+def test_legacy_runs_the_streamlit_page_with_the_given_options(monkeypatch):
     seen = {}
     from streamlit.web import cli
 
     monkeypatch.setattr(cli, "main", lambda: seen.setdefault("argv", list(sys.argv)) and 0)
     monkeypatch.setattr(sys, "argv", ["serve"])
-    serve.main(["--server.port", "8600"])
+    serve.main(["--legacy", "--server.port", "8600"])
     assert seen["argv"] == ["streamlit", "run", str(serve.APP), "--server.port", "8600"]
     assert serve.APP.name == "app.py" and serve.APP.exists()
+
+
+def test_main_serves_the_control_room_screen_by_default(monkeypatch):
+    from leakwatch.dashboard import api
+
+    seen = {}
+    monkeypatch.setattr(api, "main", lambda argv: seen.setdefault("argv", argv) and 0)
+    serve.main(["--port", "8601"])
+    assert seen["argv"] == ["--port", "8601"]
 
 
 @pytest.mark.slow

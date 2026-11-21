@@ -15,7 +15,7 @@ PY_DIRS := src tests scripts notebooks
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
 	demo-check bdt-scaling reports test-report prepare llm-local llm-check bdt-synthetic gnn-apply \
 	gnn-prior bdt-fast-path battledim-score mutation localizer bdt-slow localizer-multileak \
-	demo-stop dashboard-next
+	demo-stop dashboard-legacy
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -206,12 +206,11 @@ demo-stop: ## stop a demo left running (runner, its Spark session, dashboard); K
 	@pkill -f 'leakwatch\.demo\.runner' && echo "stopped the demo runner" || echo "no demo runner running"
 	@pkill -f 'leakwatch\.dashboard\.(serve|api)' && echo "stopped the dashboard" || echo "no dashboard running"
 
-dashboard: ## only the Streamlit dashboard (http://localhost:8501)
-	$(RUN) python -m leakwatch.dashboard.serve --server.headless true
+dashboard: ## only the control-room screen (http://localhost:8501); the demo runner is separate
+	$(RUN) python -m leakwatch.dashboard.serve
 
-DASHBOARD_NEXT_PORT ?= 8502
-dashboard-next: ## the new control-room screen while it is being built (http://localhost:8502)
-	$(RUN) python -m leakwatch.dashboard.api --port $(DASHBOARD_NEXT_PORT)
+dashboard-legacy: ## the earlier Streamlit page (http://localhost:8501)
+	$(RUN) python -m leakwatch.dashboard.serve --legacy --server.headless true
 
 DEMO_ARGS ?=
 demo-check: ## headless demo rehearsal x3 -> demo_runs.json (DEMO_ARGS="--runs 5 --budget-s 30")

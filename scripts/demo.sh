@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # `make demo`: the live demo — demo runner (Kafka replay + Spark streams + leak injection) in the
-# background and the Streamlit dashboard in the foreground (http://localhost:8501).
+# background and the control-room screen in the foreground (http://localhost:8501).
 # Needs Kafka (`make up`) and the trained models (`make bdt-train gnn`).
 set -euo pipefail
 RUN="uv run --locked --all-extras"
@@ -11,7 +11,6 @@ $RUN python -m leakwatch.demo.runner &
 RUNNER_PID=$!
 trap 'kill "$RUNNER_PID" 2>/dev/null || true' EXIT INT TERM
 
-# The launcher warms up pyarrow in the main thread first; plain `streamlit run` crashes on the
-# second table render (D-032).
-$RUN python -m leakwatch.dashboard.serve \
-  --server.headless true --server.port "${DASHBOARD_PORT:-8501}" --browser.gatherUsageStats false
+# The launcher warms up pyarrow in the main thread first (D-032), then serves the screen (D-052).
+# The earlier Streamlit page: `make dashboard-legacy`.
+$RUN python -m leakwatch.dashboard.serve --port "${DASHBOARD_PORT:-8501}"
