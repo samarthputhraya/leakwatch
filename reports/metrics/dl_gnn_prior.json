@@ -1,0 +1,719 @@
+{
+  "meta": {
+    "generated_at": "2026-11-21T00:00:53+00:00",
+    "git_commit": "4121dc5",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "network": "gcn_sens_no_context",
+  "rule": "posterior = network probability x exp(-pipe distance to the most-dropped pressure sensor / L); L by the official 2018 score, ties to the longer L (D-042)",
+  "grid_m": [
+    "none",
+    "1200",
+    "600",
+    "300",
+    "150",
+    "75",
+    "37.5"
+  ],
+  "official_score_by_length": {
+    "none": {
+      "2018": {
+        "total_score_eur": 13951.82,
+        "true_positives": 5,
+        "false_positives": 37,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": -3393.53,
+        "true_positives": 8,
+        "false_positives": 184,
+        "alerts": 196
+      }
+    },
+    "1200": {
+      "2018": {
+        "total_score_eur": 30316.34,
+        "true_positives": 6,
+        "false_positives": 34,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": 66859.12,
+        "true_positives": 9,
+        "false_positives": 175,
+        "alerts": 196
+      }
+    },
+    "600": {
+      "2018": {
+        "total_score_eur": 31316.34,
+        "true_positives": 6,
+        "false_positives": 32,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": 72083.77,
+        "true_positives": 10,
+        "false_positives": 165,
+        "alerts": 196
+      }
+    },
+    "300": {
+      "2018": {
+        "total_score_eur": 68059.51,
+        "true_positives": 6,
+        "false_positives": 31,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": 160576.58,
+        "true_positives": 13,
+        "false_positives": 155,
+        "alerts": 196
+      }
+    },
+    "150": {
+      "2018": {
+        "total_score_eur": 67983.53,
+        "true_positives": 6,
+        "false_positives": 31,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": 172171.5,
+        "true_positives": 13,
+        "false_positives": 148,
+        "alerts": 196
+      }
+    },
+    "75": {
+      "2018": {
+        "total_score_eur": 59784.42,
+        "true_positives": 5,
+        "false_positives": 30,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": 183235.81,
+        "true_positives": 14,
+        "false_positives": 145,
+        "alerts": 196
+      }
+    },
+    "37.5": {
+      "2018": {
+        "total_score_eur": 49746.91,
+        "true_positives": 4,
+        "false_positives": 31,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": 107674.55,
+        "true_positives": 12,
+        "false_positives": 149,
+        "alerts": 196
+      }
+    }
+  },
+  "chosen_sensor_prior_m": 300.0,
+  "configured_sensor_prior_m": null,
+  "config_matches_choice": false,
+  "real_leaks": {
+    "2018": {
+      "year": 2018,
+      "role": "development",
+      "leaks": 14,
+      "input": "re-baselined pressure residuals (D-038), two 1 h windows ending 2 h after the outflow first reaches half its peak",
+      "localizers": {
+        "nearest_sensor": {
+          "median_distance_top1_m": 1003.5,
+          "mean_distance_top1_m": 1173.2,
+          "within_m_top1": 0.1429,
+          "within_m_best_of_top5": 0.3571
+        },
+        "network": {
+          "median_distance_top1_m": 458.0,
+          "mean_distance_top1_m": 908.7,
+          "within_m_top1": 0.2857,
+          "within_m_best_of_top5": 0.4286
+        },
+        "posterior": {
+          "median_distance_top1_m": 630.6,
+          "mean_distance_top1_m": 1061.8,
+          "within_m_top1": 0.2143,
+          "within_m_best_of_top5": 0.2857
+        }
+      },
+      "per_leak": [
+        {
+          "leak_id": "L2018_p257",
+          "pipe_id": "p257",
+          "type": "incipient",
+          "start": "2018-01-08T13:30:00+00:00",
+          "localize_at": "2018-01-20T16:15:00+00:00",
+          "peak_outflow_m3h": 6.87,
+          "nearest_sensor_top1": "n54",
+          "nearest_sensor_distance_top1_m": 632.5,
+          "network_top1": "n44",
+          "network_distance_top1_m": 580.5,
+          "posterior_top1": "n44",
+          "posterior_distance_top1_m": 580.5
+        },
+        {
+          "leak_id": "L2018_p461",
+          "pipe_id": "p461",
+          "type": "incipient",
+          "start": "2018-01-23T04:25:00+00:00",
+          "localize_at": "2018-03-09T06:15:00+00:00",
+          "peak_outflow_m3h": 30.54,
+          "nearest_sensor_top1": "n229",
+          "nearest_sensor_distance_top1_m": 2060.6,
+          "network_top1": "n623",
+          "network_distance_top1_m": 2105.8,
+          "posterior_top1": "n623",
+          "posterior_distance_top1_m": 2105.8
+        },
+        {
+          "leak_id": "L2018_p232",
+          "pipe_id": "p232",
+          "type": "incipient",
+          "start": "2018-01-31T02:35:00+00:00",
+          "localize_at": "2018-02-02T17:30:00+00:00",
+          "peak_outflow_m3h": 26.1,
+          "nearest_sensor_top1": "n613",
+          "nearest_sensor_distance_top1_m": 367.3,
+          "network_top1": "n168",
+          "network_distance_top1_m": 327.8,
+          "posterior_top1": "n168",
+          "posterior_distance_top1_m": 327.8
+        },
+        {
+          "leak_id": "L2018_p427",
+          "pipe_id": "p427",
+          "type": "incipient",
+          "start": "2018-02-13T08:25:00+00:00",
+          "localize_at": "2018-04-18T22:45:00+00:00",
+          "peak_outflow_m3h": 5.11,
+          "nearest_sensor_top1": "n215",
+          "nearest_sensor_distance_top1_m": 1037.3,
+          "network_top1": "n145",
+          "network_distance_top1_m": 1183.6,
+          "posterior_top1": "n215",
+          "posterior_distance_top1_m": 1037.3
+        },
+        {
+          "leak_id": "L2018_p673",
+          "pipe_id": "p673",
+          "type": "abrupt",
+          "start": "2018-03-05T15:45:00+00:00",
+          "localize_at": "2018-03-05T17:45:00+00:00",
+          "peak_outflow_m3h": 28.42,
+          "nearest_sensor_top1": "n229",
+          "nearest_sensor_distance_top1_m": 45.2,
+          "network_top1": "n623",
+          "network_distance_top1_m": 0.0,
+          "posterior_top1": "n623",
+          "posterior_distance_top1_m": 0.0
+        },
+        {
+          "leak_id": "L2018_p628",
+          "pipe_id": "p628",
+          "type": "incipient",
+          "start": "2018-05-02T14:55:00+00:00",
+          "localize_at": "2018-05-12T09:45:00+00:00",
+          "peak_outflow_m3h": 35.38,
+          "nearest_sensor_top1": "n613",
+          "nearest_sensor_distance_top1_m": 370.3,
+          "network_top1": "n618",
+          "network_distance_top1_m": 564.2,
+          "posterior_top1": "n618",
+          "posterior_distance_top1_m": 564.2
+        },
+        {
+          "leak_id": "L2018_p538",
+          "pipe_id": "p538",
+          "type": "abrupt",
+          "start": "2018-05-18T08:35:00+00:00",
+          "localize_at": "2018-05-18T10:45:00+00:00",
+          "peak_outflow_m3h": 32.84,
+          "nearest_sensor_top1": "n613",
+          "nearest_sensor_distance_top1_m": 969.6,
+          "network_top1": "n154",
+          "network_distance_top1_m": 118.9,
+          "posterior_top1": "n154",
+          "posterior_distance_top1_m": 118.9
+        },
+        {
+          "leak_id": "L2018_p866",
+          "pipe_id": "p866",
+          "type": "abrupt",
+          "start": "2018-06-01T09:05:00+00:00",
+          "localize_at": "2018-06-01T11:15:00+00:00",
+          "peak_outflow_m3h": 20.57,
+          "nearest_sensor_top1": "n1",
+          "nearest_sensor_distance_top1_m": 3172.1,
+          "network_top1": "n4",
+          "network_distance_top1_m": 2854.5,
+          "posterior_top1": "n347",
+          "posterior_distance_top1_m": 3104.0
+        },
+        {
+          "leak_id": "L2018_p31",
+          "pipe_id": "p31",
+          "type": "incipient",
+          "start": "2018-06-28T10:35:00+00:00",
+          "localize_at": "2018-07-23T19:45:00+00:00",
+          "peak_outflow_m3h": 16.21,
+          "nearest_sensor_top1": "n229",
+          "nearest_sensor_distance_top1_m": 1726.9,
+          "network_top1": "n54",
+          "network_distance_top1_m": 279.0,
+          "posterior_top1": "n229",
+          "posterior_distance_top1_m": 1726.9
+        },
+        {
+          "leak_id": "L2018_p654",
+          "pipe_id": "p654",
+          "type": "incipient",
+          "start": "2018-07-05T03:40:00+00:00",
+          "localize_at": "2018-08-26T15:30:00+00:00",
+          "peak_outflow_m3h": 5.49,
+          "nearest_sensor_top1": "n215",
+          "nearest_sensor_distance_top1_m": 1321.7,
+          "network_top1": "n120",
+          "network_distance_top1_m": 1176.1,
+          "posterior_top1": "n221",
+          "posterior_distance_top1_m": 680.6
+        },
+        {
+          "leak_id": "L2018_p810",
+          "pipe_id": "p810",
+          "type": "incipient",
+          "start": "2018-07-28T03:05:00+00:00",
+          "localize_at": "2018-10-05T16:00:00+00:00",
+          "peak_outflow_m3h": 6.91,
+          "nearest_sensor_top1": "n215",
+          "nearest_sensor_distance_top1_m": 1728.1,
+          "network_top1": "n278",
+          "network_distance_top1_m": 303.9,
+          "posterior_top1": "n215",
+          "posterior_distance_top1_m": 1728.1
+        },
+        {
+          "leak_id": "L2018_p183",
+          "pipe_id": "p183",
+          "type": "abrupt",
+          "start": "2018-08-07T02:35:00+00:00",
+          "localize_at": "2018-08-07T04:45:00+00:00",
+          "peak_outflow_m3h": 16.46,
+          "nearest_sensor_top1": "n31",
+          "nearest_sensor_distance_top1_m": 2531.1,
+          "network_top1": "n25",
+          "network_distance_top1_m": 2875.7,
+          "posterior_top1": "n27",
+          "posterior_distance_top1_m": 2481.6
+        },
+        {
+          "leak_id": "L2018_p158",
+          "pipe_id": "p158",
+          "type": "abrupt",
+          "start": "2018-10-06T02:35:00+00:00",
+          "localize_at": "2018-10-06T04:45:00+00:00",
+          "peak_outflow_m3h": 24.76,
+          "nearest_sensor_top1": "n644",
+          "nearest_sensor_distance_top1_m": 52.8,
+          "network_top1": "n232",
+          "network_distance_top1_m": 0.0,
+          "posterior_top1": "n232",
+          "posterior_distance_top1_m": 0.0
+        },
+        {
+          "leak_id": "L2018_p369",
+          "pipe_id": "p369",
+          "type": "abrupt",
+          "start": "2018-10-26T02:05:00+00:00",
+          "localize_at": "2018-10-26T04:15:00+00:00",
+          "peak_outflow_m3h": 21.05,
+          "nearest_sensor_top1": "n410",
+          "nearest_sensor_distance_top1_m": 409.7,
+          "network_top1": "n54",
+          "network_distance_top1_m": 351.9,
+          "posterior_top1": "n410",
+          "posterior_distance_top1_m": 409.7
+        }
+      ],
+      "posterior_gain": {
+        "nearest_sensor": {
+          "within_m_top1_gain": {
+            "estimate": 0.0714,
+            "ci95": [
+              0.0,
+              0.2143
+            ],
+            "draws": 2000
+          },
+          "median_distance_gain_m": {
+            "estimate": 372.9,
+            "ci95": [
+              -117.5962,
+              641.1
+            ],
+            "draws": 2000
+          }
+        },
+        "network": {
+          "within_m_top1_gain": {
+            "estimate": -0.0714,
+            "ci95": [
+              -0.2143,
+              0.0
+            ],
+            "draws": 2000
+          },
+          "median_distance_gain_m": {
+            "estimate": -172.5,
+            "ci95": [
+              -1375.0,
+              317.15
+            ],
+            "draws": 2000
+          }
+        }
+      }
+    },
+    "2019": {
+      "year": 2019,
+      "role": "test (reported only)",
+      "leaks": 19,
+      "input": "re-baselined pressure residuals (D-038), two 1 h windows ending 2 h after the outflow first reaches half its peak",
+      "localizers": {
+        "nearest_sensor": {
+          "median_distance_top1_m": 905.8,
+          "mean_distance_top1_m": 1148.7,
+          "within_m_top1": 0.3158,
+          "within_m_best_of_top5": 0.3684
+        },
+        "network": {
+          "median_distance_top1_m": 1024.6,
+          "mean_distance_top1_m": 1237.0,
+          "within_m_top1": 0.1579,
+          "within_m_best_of_top5": 0.2632
+        },
+        "posterior": {
+          "median_distance_top1_m": 905.8,
+          "mean_distance_top1_m": 972.6,
+          "within_m_top1": 0.3684,
+          "within_m_best_of_top5": 0.4211
+        }
+      },
+      "per_leak": [
+        {
+          "leak_id": "L2019_p523",
+          "pipe_id": "p523",
+          "type": "abrupt",
+          "start": "2019-01-15T23:00:00+00:00",
+          "localize_at": "2019-01-16T01:00:00+00:00",
+          "peak_outflow_m3h": 28.39,
+          "nearest_sensor_top1": "n506",
+          "nearest_sensor_distance_top1_m": 63.4,
+          "network_top1": "n523",
+          "network_distance_top1_m": 0.0,
+          "posterior_top1": "n523",
+          "posterior_distance_top1_m": 0.0
+        },
+        {
+          "leak_id": "L2019_p827",
+          "pipe_id": "p827",
+          "type": "abrupt",
+          "start": "2019-01-24T18:30:00+00:00",
+          "localize_at": "2019-01-24T20:30:00+00:00",
+          "peak_outflow_m3h": 26.46,
+          "nearest_sensor_top1": "n726",
+          "nearest_sensor_distance_top1_m": 203.3,
+          "network_top1": "n727",
+          "network_distance_top1_m": 152.5,
+          "posterior_top1": "n727",
+          "posterior_distance_top1_m": 152.5
+        },
+        {
+          "leak_id": "L2019_p280",
+          "pipe_id": "p280",
+          "type": "abrupt",
+          "start": "2019-02-10T13:05:00+00:00",
+          "localize_at": "2019-02-10T15:15:00+00:00",
+          "peak_outflow_m3h": 5.26,
+          "nearest_sensor_top1": "n215",
+          "nearest_sensor_distance_top1_m": 2173.5,
+          "network_top1": "n145",
+          "network_distance_top1_m": 1024.6,
+          "posterior_top1": "n338",
+          "posterior_distance_top1_m": 1393.4
+        },
+        {
+          "leak_id": "L2019_p653",
+          "pipe_id": "p653",
+          "type": "incipient",
+          "start": "2019-03-03T13:10:00+00:00",
+          "localize_at": "2019-04-07T13:30:00+00:00",
+          "peak_outflow_m3h": 18.28,
+          "nearest_sensor_top1": "n31",
+          "nearest_sensor_distance_top1_m": 1648.4,
+          "network_top1": "n25",
+          "network_distance_top1_m": 1993.0,
+          "posterior_top1": "n31",
+          "posterior_distance_top1_m": 1648.4
+        },
+        {
+          "leak_id": "L2019_p710",
+          "pipe_id": "p710",
+          "type": "abrupt",
+          "start": "2019-03-24T14:15:00+00:00",
+          "localize_at": "2019-03-24T16:15:00+00:00",
+          "peak_outflow_m3h": 5.58,
+          "nearest_sensor_top1": "n215",
+          "nearest_sensor_distance_top1_m": 899.8,
+          "network_top1": "n308",
+          "network_distance_top1_m": 931.5,
+          "posterior_top1": "n224",
+          "posterior_distance_top1_m": 261.7
+        },
+        {
+          "leak_id": "L2019_p514",
+          "pipe_id": "p514",
+          "type": "abrupt",
+          "start": "2019-04-02T20:40:00+00:00",
+          "localize_at": "2019-04-02T22:45:00+00:00",
+          "peak_outflow_m3h": 15.58,
+          "nearest_sensor_top1": "n332",
+          "nearest_sensor_distance_top1_m": 51.4,
+          "network_top1": "n494",
+          "network_distance_top1_m": 143.8,
+          "posterior_top1": "n517",
+          "posterior_distance_top1_m": 0.0
+        },
+        {
+          "leak_id": "L2019_p331",
+          "pipe_id": "p331",
+          "type": "abrupt",
+          "start": "2019-04-20T10:10:00+00:00",
+          "localize_at": "2019-04-20T12:15:00+00:00",
+          "peak_outflow_m3h": 10.93,
+          "nearest_sensor_top1": "n410",
+          "nearest_sensor_distance_top1_m": 251.4,
+          "network_top1": "n408",
+          "network_distance_top1_m": 579.7,
+          "posterior_top1": "n438",
+          "posterior_distance_top1_m": 104.7
+        },
+        {
+          "leak_id": "L2019_p193",
+          "pipe_id": "p193",
+          "type": "incipient",
+          "start": "2019-05-19T10:40:00+00:00",
+          "localize_at": "2019-07-06T00:15:00+00:00",
+          "peak_outflow_m3h": 10.36,
+          "nearest_sensor_top1": "n1",
+          "nearest_sensor_distance_top1_m": 3543.4,
+          "network_top1": "n25",
+          "network_distance_top1_m": 3304.5,
+          "posterior_top1": "n344",
+          "posterior_distance_top1_m": 3094.0
+        },
+        {
+          "leak_id": "L2019_p277",
+          "pipe_id": "p277",
+          "type": "incipient",
+          "start": "2019-05-30T21:55:00+00:00",
+          "localize_at": "2019-07-21T23:45:00+00:00",
+          "peak_outflow_m3h": 7.36,
+          "nearest_sensor_top1": "n4",
+          "nearest_sensor_distance_top1_m": 484.1,
+          "network_top1": "n31",
+          "network_distance_top1_m": 418.4,
+          "posterior_top1": "n4",
+          "posterior_distance_top1_m": 484.1
+        },
+        {
+          "leak_id": "L2019_p142",
+          "pipe_id": "p142",
+          "type": "abrupt",
+          "start": "2019-06-12T19:55:00+00:00",
+          "localize_at": "2019-06-12T22:00:00+00:00",
+          "peak_outflow_m3h": 27.04,
+          "nearest_sensor_top1": "n613",
+          "nearest_sensor_distance_top1_m": 253.5,
+          "network_top1": "n54",
+          "network_distance_top1_m": 992.0,
+          "posterior_top1": "n613",
+          "posterior_distance_top1_m": 253.5
+        },
+        {
+          "leak_id": "L2019_p680",
+          "pipe_id": "p680",
+          "type": "abrupt",
+          "start": "2019-07-10T08:45:00+00:00",
+          "localize_at": "2019-07-10T10:45:00+00:00",
+          "peak_outflow_m3h": 5.37,
+          "nearest_sensor_top1": "n54",
+          "nearest_sensor_distance_top1_m": 1532.5,
+          "network_top1": "n408",
+          "network_distance_top1_m": 1479.2,
+          "posterior_top1": "n408",
+          "posterior_distance_top1_m": 1479.2
+        },
+        {
+          "leak_id": "L2019_p586",
+          "pipe_id": "p586",
+          "type": "incipient",
+          "start": "2019-07-26T14:40:00+00:00",
+          "localize_at": "2019-08-18T23:30:00+00:00",
+          "peak_outflow_m3h": 20.52,
+          "nearest_sensor_top1": "n31",
+          "nearest_sensor_distance_top1_m": 1221.8,
+          "network_top1": "n25",
+          "network_distance_top1_m": 1566.5,
+          "posterior_top1": "n23",
+          "posterior_distance_top1_m": 1270.3
+        },
+        {
+          "leak_id": "L2019_p721",
+          "pipe_id": "p721",
+          "type": "incipient",
+          "start": "2019-08-02T03:00:00+00:00",
+          "localize_at": "2019-09-08T05:00:00+00:00",
+          "peak_outflow_m3h": 13.18,
+          "nearest_sensor_top1": "n215",
+          "nearest_sensor_distance_top1_m": 905.8,
+          "network_top1": "n111",
+          "network_distance_top1_m": 1842.0,
+          "posterior_top1": "n215",
+          "posterior_distance_top1_m": 905.8
+        },
+        {
+          "leak_id": "L2019_p800",
+          "pipe_id": "p800",
+          "type": "incipient",
+          "start": "2019-08-16T14:00:00+00:00",
+          "localize_at": "2019-09-01T12:00:00+00:00",
+          "peak_outflow_m3h": 21.95,
+          "nearest_sensor_top1": "n54",
+          "nearest_sensor_distance_top1_m": 2039.7,
+          "network_top1": "n428",
+          "network_distance_top1_m": 1773.7,
+          "posterior_top1": "n408",
+          "posterior_distance_top1_m": 1986.4
+        },
+        {
+          "leak_id": "L2019_p123",
+          "pipe_id": "p123",
+          "type": "incipient",
+          "start": "2019-09-13T20:05:00+00:00",
+          "localize_at": "2019-11-07T23:45:00+00:00",
+          "peak_outflow_m3h": 9.19,
+          "nearest_sensor_top1": "n4",
+          "nearest_sensor_distance_top1_m": 1151.1,
+          "network_top1": "n338",
+          "network_distance_top1_m": 669.6,
+          "posterior_top1": "n4",
+          "posterior_distance_top1_m": 1151.1
+        },
+        {
+          "leak_id": "L2019_p455",
+          "pipe_id": "p455",
+          "type": "incipient",
+          "start": "2019-10-03T14:00:00+00:00",
+          "localize_at": "2019-11-25T00:30:00+00:00",
+          "peak_outflow_m3h": 11.05,
+          "nearest_sensor_top1": "n1",
+          "nearest_sensor_distance_top1_m": 2178.9,
+          "network_top1": "n25",
+          "network_distance_top1_m": 1940.0,
+          "posterior_top1": "n23",
+          "posterior_distance_top1_m": 1643.8
+        },
+        {
+          "leak_id": "L2019_p762",
+          "pipe_id": "p762",
+          "type": "incipient",
+          "start": "2019-10-09T10:15:00+00:00",
+          "localize_at": "2019-11-17T05:30:00+00:00",
+          "peak_outflow_m3h": 15.71,
+          "nearest_sensor_top1": "n4",
+          "nearest_sensor_distance_top1_m": 2391.1,
+          "network_top1": "n44",
+          "network_distance_top1_m": 1868.3,
+          "posterior_top1": "n44",
+          "posterior_distance_top1_m": 1868.3
+        },
+        {
+          "leak_id": "L2019_p426",
+          "pipe_id": "p426",
+          "type": "abrupt",
+          "start": "2019-10-25T13:25:00+00:00",
+          "localize_at": "2019-10-25T15:30:00+00:00",
+          "peak_outflow_m3h": 13.56,
+          "nearest_sensor_top1": "n54",
+          "nearest_sensor_distance_top1_m": 680.1,
+          "network_top1": "n429",
+          "network_distance_top1_m": 362.3,
+          "posterior_top1": "n54",
+          "posterior_distance_top1_m": 680.1
+        },
+        {
+          "leak_id": "L2019_p879",
+          "pipe_id": "p879",
+          "type": "incipient",
+          "start": "2019-11-20T11:55:00+00:00",
+          "localize_at": "2019-12-19T23:30:00+00:00",
+          "peak_outflow_m3h": 10.93,
+          "nearest_sensor_top1": "n769",
+          "nearest_sensor_distance_top1_m": 152.8,
+          "network_top1": "n528",
+          "network_distance_top1_m": 2460.9,
+          "posterior_top1": "n768",
+          "posterior_distance_top1_m": 101.9
+        }
+      ],
+      "posterior_gain": {
+        "nearest_sensor": {
+          "within_m_top1_gain": {
+            "estimate": 0.0526,
+            "ci95": [
+              0.0,
+              0.1579
+            ],
+            "draws": 2000
+          },
+          "median_distance_gain_m": {
+            "estimate": 0.0,
+            "ci95": [
+              -48.5,
+              638.1
+            ],
+            "draws": 2000
+          }
+        },
+        "network": {
+          "within_m_top1_gain": {
+            "estimate": 0.2105,
+            "ci95": [
+              0.0526,
+              0.4211
+            ],
+            "draws": 2000
+          },
+          "median_distance_gain_m": {
+            "estimate": 118.8,
+            "ci95": [
+              -368.8,
+              995.1
+            ],
+            "draws": 2000
+          }
+        }
+      }
+    }
+  }
+}

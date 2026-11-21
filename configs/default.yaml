@@ -171,7 +171,7 @@ dl:
     # D-042 posterior localizer: network x exp(-pipe distance to the most-dropped sensor / L).
     # `make gnn-prior` picks L on the official 2018 score; null = the network alone.
     sensor_prior_grid_m: [1200, 600, 300, 150, 75, 37.5]
-    sensor_prior_m: null
+    sensor_prior_m: 300                # chosen on 2018 (dl_gnn_prior.json): EUR 68,060 vs 13,952 alone
     bootstrap_draws: 2000              # paired bootstrap over real leaks (gnn-prior)
     # D-029, D-038; the MLP baseline is always trained. The earlier closeness/context ablation
     # (no closeness, local-only first design) is in D-029; this run ablates the sensitivity input.
