@@ -1615,6 +1615,20 @@ def readme_results() -> str:
             "dl_localizer",
             m,
         )
+    m = load("dl_localizer_multileak")
+    if m:
+        pool = {
+            n: _get(c, "pooled_overlapping", "within_m_of_a_leak_top1")
+            for n, c in (m.get("candidates") or {}).items()
+        }
+        add(
+            "Localizer on overlapping simulated leaks (2–8 new leaks at once, D-051)",
+            f"top-1 within 300 m of a new leak: {m.get('chosen')} {num(pool.get(m.get('chosen')), 3, pct=True)}, "
+            f"previous posterior {num(pool.get('posterior'), 3, pct=True)} "
+            f"({_get(m, 'candidates', m.get('chosen'), 'pooled_overlapping', 'n')} scenarios)",
+            "dl_localizer_multileak",
+            m,
+        )
     m = load("bdt_slow_detectors")
     if m:
         best10 = max(
