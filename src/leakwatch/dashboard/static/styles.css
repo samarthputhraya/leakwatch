@@ -338,3 +338,24 @@ input[type="range"] { padding: 0; border: 0; background: none; accent-color: var
 .how summary { cursor: pointer; }
 .how p { margin-top: 4px; color: var(--ink-2); }
 .sql { margin: 4px 0 0; padding: 6px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--radius); white-space: pre-wrap; font: inherit; font-size: var(--text-xs); color: var(--ink-2); max-height: 120px; overflow: auto; }
+
+/* ------------------------------------------------------------------ tabs, pages */
+.tabs { display: flex; gap: 2px; align-self: stretch; }
+.tabs button { color: var(--ink-2); background: none; border: 0; border-bottom: 3px solid transparent; padding: 4px 14px 0; font-size: var(--text-m); }
+.tabs button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); }
+.live { display: contents; }
+.live.off > * { display: none; }
+.page { grid-column: 1 / 3; grid-row: 2 / 4; overflow: auto; padding: var(--space-5) var(--space-5) 40px; background: var(--sheet); display: grid; gap: var(--space-3); align-content: start; }
+.page h2 { font-size: var(--text-xl); font-weight: 600; }
+.charts2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.charts2 figure { margin: 0; border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px 12px; background: var(--panel); }
+.charts2 figcaption { font-size: var(--text-s); color: var(--ink-2); }
+.results-plot { height: 230px; }
+table.results { border-collapse: collapse; width: 100%; font-size: var(--text-s); }
+table.results th, table.results td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--rule); }
+table.results thead th { color: var(--ink-3); font-weight: 400; position: sticky; top: calc(-1 * var(--space-5)); background: var(--sheet); }
+table.results tbody th { font-weight: 600; width: 24%; }
+table.results td.src { color: var(--ink-3); font-size: var(--text-xs); white-space: nowrap; }
+table.history tbody th { font-weight: 400; width: auto; white-space: nowrap; }
+table.history td { white-space: nowrap; }
+.filters .btn[aria-pressed="true"] { background: var(--ink); color: var(--sheet); }

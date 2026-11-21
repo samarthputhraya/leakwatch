@@ -50,6 +50,7 @@ def test_times_are_shown_in_the_display_time_zone():
     assert view.fmt_time(ts, TZ) == "Thu 22 Nov, 02:15 IST"
     assert view.fmt_time(ts, TZ, date=False) == "02:15 IST"
     assert view.fmt_time(ts, "UTC") == "Wed 21 Nov, 20:45 UTC"
+    assert view.fmt_time(ts, TZ, year=True) == "Thu 22 Nov 2018, 02:15 IST"
 
 
 @pytest.mark.parametrize(
@@ -665,3 +666,111 @@ def test_a_failed_model_call_becomes_a_sentence():
         "state": "error",
         "text": "The model did not answer this time. The loss question works without it.",
     }
+
+
+# Shapes of reports/metrics files as the Results view reads them (values from the repo's files).
+METRICS = {
+    "dl_lstm_ae": {
+        "meta": {"git_commit": "b0e9f9c"},
+        "matched_false_alarm_comparison": {
+            "LSTM-AE": {
+                "at_most_2_fa_per_week": {
+                    "within_budget": True,
+                    "detection_rate": 1.0,
+                    "chance_level": 0.952,
+                }
+            },
+            "K-Means (all PRD features)": {"at_most_2_fa_per_week": {"within_budget": False}},
+        },
+    },
+    "dl_localizer": {
+        "meta": {"git_commit": "a1b2c3d"},
+        "chosen": "gls_sim",
+        "simulated_test": {
+            "nearest_sensor": {"medium_large": {"n": 382, "top5": 0.1911}},
+            "gls_sim": {"medium_large": {"n": 382, "top5": 0.6937, "top5_ci95": [0.6457, 0.7378]}},
+            "candidate:gls_sim": {"medium_large": {"n": 382, "top5": 0.6937}},
+        },
+    },
+}
+
+
+def test_results_keep_every_readme_row_with_its_file_and_commit():
+    rows = [
+        ["Localizer", "top-5 69.4% (target 60%)", "`dl_localizer.json`"],
+        ["Official score", "below the 6 tabulated teams", "`battledim_score.json`"],
+    ]
+    out = view.results_view(rows, METRICS.get, 60)
+    assert [r["result"] for r in out["rows"]] == ["Localizer", "Official score"]  # misses stay in
+    assert out["rows"][0] == {
+        "result": "Localizer",
+        "value": "top-5 69.4% (target 60%)",
+        "file": "reports/metrics/dl_localizer.json",
+        "commit": "a1b2c3d",
+    }
+    assert out["rows"][1]["commit"] is None  # file without meta: no commit claimed
+
+
+def test_results_charts_show_chance_levels_and_the_target():
+    out = view.results_view([], METRICS.get, 60)
+    assert out["detection"]["bars"] == [
+        {"detector": "LSTM-AE", "reachable": True, "detection_pct": 100.0, "chance_pct": 95.2},
+        {
+            "detector": "K-Means (all PRD features)",
+            "reachable": False,
+            "detection_pct": None,
+            "chance_pct": None,
+        },
+    ]
+    bars = out["localizer"]["bars"]
+    assert [b["name"] for b in bars] == ["nearest_sensor", "gls_sim"]  # candidates left out
+    assert bars[1] == {
+        "name": "gls_sim",
+        "top5_pct": 69.4,
+        "ci_pct": [64.6, 73.8],
+        "n": 382,
+        "chosen": True,
+    }
+    assert out["localizer"]["target_pct"] == 60 and out["localizer"]["commit"] == "a1b2c3d"
+
+
+def test_history_lists_batch_alerts_newest_first_with_counts_per_year():
+    alerts = [
+        {
+            "alert_id": "a",
+            "start_ts": "2018-03-01T00:00:00Z",
+            "end_ts": "2018-03-02T06:00:00Z",
+            "area": "A",
+            "kmeans_score_max": 10.0,
+            "threshold": 2.0,
+            "est_loss_m3h": 12.34,
+            "gnn_top5": [{"node_id": "n1"}],
+            "work_order_generator": "template",
+        },
+        {
+            "alert_id": "b",
+            "start_ts": "2019-05-01T00:00:00Z",
+            "end_ts": None,
+            "last_window_end": "2019-05-01T03:00:00Z",
+            "area": "C",
+            "kmeans_score_max": None,
+            "threshold": 1.0,
+            "gnn_top5": None,
+            "work_order_generator": "llm",
+        },
+        {"alert_id": "c", "start_ts": None},
+    ]
+    out = view.history_view(alerts, TZ)
+    assert [a["alert_id"] for a in out["alerts"]] == ["b", "a"] and out["years"] == {
+        "2018": 1,
+        "2019": 1,
+    }
+    newest, oldest = out["alerts"]
+    assert (
+        newest["ended"] == "open"
+        and newest["lasted"] == "3 h 00 min"
+        and newest["order"] == "model"
+    )
+    assert newest["candidate"] is None and newest["ratio"] is None
+    assert oldest["started"] == "Thu 1 Mar 2018, 05:30 IST" and oldest["lasted"] == "30 h 00 min"
+    assert oldest["ratio"] == 5 and oldest["loss_m3h"] == 12.3 and oldest["candidate"] == "n1"

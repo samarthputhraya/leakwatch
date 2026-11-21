@@ -356,3 +356,41 @@ def test_copilot_states_without_a_model_with_a_failure_and_without_a_question():
         base_url="http://localhost",
     )  # no page header
     assert other_site.post("/api/copilot/ask", json={"question": "Hi"}).status_code == 403
+
+
+def test_results_and_history_endpoints_answer_with_views_or_a_sentence():
+    def results():
+        return {"rows": [], "detection": {"bars": []}, "localizer": {"bars": []}}
+
+    def history():
+        return [{"alert_id": "a", "start_ts": "2019-05-01T00:00:00Z", "area": "A"}]
+
+    def broken():
+        raise OSError("No files found that match the pattern /root/leakwatch-data/lake/alerts")
+
+    ok = TestClient(
+        api.create_app(
+            lambda: VM, background=False, cfg=CFG, results_loader=results, history_loader=history
+        ),
+        base_url="http://localhost",
+    )
+    assert ok.get("/api/results").json()["rows"] == []
+    assert ok.get("/api/history").json()["years"] == {"2019": 1}
+    bad = TestClient(
+        api.create_app(
+            lambda: VM, background=False, cfg=CFG, results_loader=broken, history_loader=broken
+        ),
+        base_url="http://localhost",
+    )
+    assert bad.get("/api/results").status_code == 503
+    res = bad.get("/api/history")
+    assert res.status_code == 503 and "/root" not in res.text  # a sentence, not the error
+
+
+@pytest.mark.needs_data
+def test_the_results_view_has_the_readme_rows():
+    from leakwatch.eval import reports
+
+    out = api.load_results(CFG)
+    assert [r["result"] for r in out["rows"]] == [r[0] for r in reports.readme_rows()]
+    assert reports.readme_results() == reports.table(reports.README_HEADER, reports.readme_rows())

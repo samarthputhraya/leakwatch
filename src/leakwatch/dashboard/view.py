@@ -51,11 +51,12 @@ def to_utc(value: Any) -> datetime | None:
     return value.astimezone(UTC)
 
 
-def fmt_time(ts: datetime, tz: str, *, date: bool = True) -> str:
-    """``Thu 22 Nov, 12:15 IST`` (or ``12:15 IST``) in the display time zone."""
+def fmt_time(ts: datetime, tz: str, *, date: bool = True, year: bool = False) -> str:
+    """``Thu 22 Nov, 12:15 IST``, ``Thu 22 Nov 2018, 12:15 IST`` or ``12:15 IST`` (display zone)."""
     local = ts.astimezone(ZoneInfo(tz))
     clock = f"{local:%H:%M} {local.tzname()}"
-    return f"{local:%a} {local.day} {local:%b}, {clock}" if date else clock
+    day = f"{local:%a} {local.day} {local:%b}" + (f" {local.year}" if year else "")
+    return f"{day}, {clock}" if date else clock
 
 
 def fmt_duration(seconds: float) -> str:
@@ -716,6 +717,108 @@ def copilot_view(answer: Any) -> dict[str, Any]:
             "seconds": round(float(getattr(answer, "latency_s", 0.0) or 0.0), 1),
         },
     }
+
+
+def _pct(value: Any) -> float | None:
+    x = number(value)
+    return None if x is None else round(x * 100, 1)
+
+
+def _source(name: str, load: Callable[[str], Mapping[str, Any] | None]) -> dict[str, Any]:
+    meta = (load(name) or {}).get("meta") or {}
+    return {"file": f"reports/metrics/{name}.json", "commit": meta.get("git_commit")}
+
+
+def results_view(
+    rows: Sequence[Sequence[str]],
+    load: Callable[[str], Mapping[str, Any] | None],
+    target_pct: float,
+) -> dict[str, Any]:
+    """The Results view: the README's rows (misses included) and two charts.
+
+    ``rows`` are ``eval.reports.readme_rows()``: result, value as measured (targets and chance
+    levels are in the value's words), metrics file. ``load(name)`` reads ``reports/metrics``.
+    """
+    table = []
+    for fact, value, source in rows:
+        name = str(source).strip("`").removesuffix(".json")
+        table.append({"result": fact, "value": value, **_source(name, load)})
+    comparison = (load("dl_lstm_ae") or {}).get("matched_false_alarm_comparison") or {}
+    detection = []
+    for name, budgets in comparison.items():
+        at = (budgets or {}).get("at_most_2_fa_per_week") or {}
+        reach = bool(at.get("within_budget"))
+        detection.append(
+            {
+                "detector": str(name),
+                "reachable": reach,
+                "detection_pct": _pct(at.get("detection_rate")) if reach else None,
+                "chance_pct": _pct(at.get("chance_level")) if reach else None,
+            }
+        )
+    localizer = load("dl_localizer") or {}
+    bars = []
+    for name, res in (localizer.get("simulated_test") or {}).items():
+        ml = (res or {}).get("medium_large") or {}
+        if str(name).startswith("candidate:") or _pct(ml.get("top5")) is None:
+            continue
+        ci = ml.get("top5_ci95") or [None, None]
+        bars.append(
+            {
+                "name": str(name),
+                "top5_pct": _pct(ml.get("top5")),
+                "ci_pct": [_pct(ci[0]), _pct(ci[1])],
+                "n": ml.get("n"),
+                "chosen": name == localizer.get("chosen"),
+            }
+        )
+    return {
+        "rows": table,
+        "detection": {"bars": detection, **_source("dl_lstm_ae", load)},
+        "localizer": {"bars": bars, "target_pct": target_pct, **_source("dl_localizer", load)},
+    }
+
+
+#: Work-order generators as the screen names them.
+GENERATORS = {"template": "template", "llm": "model"}
+
+
+def history_view(alerts: Sequence[Mapping[str, Any]], tz: str) -> dict[str, Any]:
+    """The History view: batch alerts of the main lake, newest first, with counts per year."""
+    out = []
+    years: dict[str, int] = {}
+    for a in sorted(
+        alerts,
+        key=lambda a: to_utc(a.get("start_ts")) or datetime.min.replace(tzinfo=UTC),
+        reverse=True,
+    ):
+        start, end = to_utc(a.get("start_ts")), to_utc(a.get("end_ts"))
+        if start is None:
+            continue
+        year = str(start.astimezone(ZoneInfo(tz)).year)
+        years[year] = years.get(year, 0) + 1
+        last = end or to_utc(a.get("last_window_end"))
+        cands = [
+            str(c["node_id"])
+            for c in a.get("gnn_top5") or []
+            if isinstance(c, Mapping) and c.get("node_id")
+        ]
+        loss = number(a.get("est_loss_m3h"))
+        out.append(
+            {
+                "alert_id": str(a.get("alert_id")),
+                "year": year,
+                "started": fmt_time(start, tz, year=True),
+                "ended": "open" if end is None else fmt_time(end, tz, year=True),
+                "lasted": None if last is None else fmt_duration((last - start).total_seconds()),
+                "area": a.get("area"),
+                "ratio": score_ratio(a),
+                "loss_m3h": None if loss is None else round(loss, 1),
+                "candidate": cands[0] if cands else None,
+                "order": GENERATORS.get(str(a.get("work_order_generator"))),
+            }
+        )
+    return {"alerts": out, "years": dict(sorted(years.items()))}
 
 
 def unavailable_view(now: datetime) -> dict[str, Any]:

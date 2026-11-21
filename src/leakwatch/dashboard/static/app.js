@@ -2,7 +2,7 @@
 // only lays it out. No build step: Preact + htm are one vendored module.
 import { html, render, useEffect, useRef, useState } from './vendor/htm-preact.module.js';
 import { createMap } from './map.js';
-import { createCharts, drawAnswerChart } from './charts.js';
+import { createCharts, drawAnswerChart, drawResultsCharts } from './charts.js';
 
 const ICONS = {
   normal: 'M5 12l4.5 4.5L19 7',
@@ -111,10 +111,11 @@ function Controls({ settings, clock, runner, size, setSize, notify }) {
   </details>`;
 }
 
-function Header({ runner, clock, analysed, children }) {
+function Header({ runner, clock, analysed, tabs, children }) {
   const width = clock && clock.replay_fraction != null ? `${(clock.replay_fraction * 100).toFixed(1)}%` : '0';
   return html`<header class="header">
     <div class="brand"><b>LeakWatch</b><span>L-Town, the BattLeDIM benchmark network</span></div>
+    ${tabs}
     <dl class="facts">
       ${clock && html`<div class="fact"><dt>Simulated time</dt><dd>${clock.sim_time}</dd></div>`}
       ${clock && analysed && html`<div class="fact" title="Newest window the stream has scored; the replay runs ahead of it"><dt>Analysed up to</dt><dd>${analysed}</dd></div>`}
@@ -494,6 +495,74 @@ function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, o
   </aside>`;
 }
 
+/* ------------------------------------------------------------------- history, results */
+
+function useOnce(url, active) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    if (!active || (data && data.ok)) return;
+    call('GET', url).then(setData);
+  }, [active]);
+  return data;
+}
+
+function ResultsView({ active }) {
+  const res = useOnce('/api/results', active);
+  const det = useRef(null);
+  const loc = useRef(null);
+  useEffect(() => (res && res.ok && window.echarts ? drawResultsCharts(det.current, loc.current, res) : undefined), [res]);
+  if (!res) return html`<main class="page" aria-busy="true"><p class="fine">Reading reports/metrics.</p></main>`;
+  if (!res.ok) return html`<main class="page"><p class="problem" role="alert">${res.message}</p></main>`;
+  const commit = (r) => (r.commit ? html`, code ${r.commit}` : '');
+  return html`<main class="page" aria-labelledby="results-title">
+    <h2 id="results-title">Results, as measured</h2>
+    <p class="fine">The same rows as the README's results table, written by <code>make reports</code>. Misses are listed with their real numbers.</p>
+    <div class="charts2">
+      <figure><figcaption>2019 leaks detected with at most 2 false alarms per week, beside the chance level</figcaption>
+        <div class="results-plot" ref=${det} aria-hidden="true"></div><p class="fine">${res.detection.file}${commit(res.detection)}</p></figure>
+      <figure><figcaption>Localizers: medium and large simulated leaks with the true junction in the top 5</figcaption>
+        <div class="results-plot" ref=${loc} aria-hidden="true"></div><p class="fine">${res.localizer.file}${commit(res.localizer)}</p></figure>
+    </div>
+    <table class="results">
+      <thead><tr><th scope="col">Result</th><th scope="col">Measured</th><th scope="col">Source</th></tr></thead>
+      <tbody>${res.rows.map((r) => html`<tr><th scope="row">${r.result}</th><td>${r.value}</td>
+        <td class="src">${r.file}${r.commit ? html`<br />code ${r.commit}` : ''}</td></tr>`)}</tbody>
+    </table>
+  </main>`;
+}
+
+function HistoryView({ active }) {
+  const res = useOnce('/api/history', active);
+  const [year, setYear] = useState(null);
+  if (!res) return html`<main class="page" aria-busy="true"><p class="fine">Reading the alerts of the main lake.</p></main>`;
+  if (!res.ok) return html`<main class="page"><p class="problem" role="alert">${res.message}</p></main>`;
+  const years = Object.keys(res.years);
+  const shown = res.alerts.filter((a) => !year || a.year === year);
+  return html`<main class="page" aria-labelledby="history-title">
+    <h2 id="history-title">History: batch alerts of the main lake</h2>
+    <p class="fine">BattLeDIM 2018 and 2019 scored by the live K-Means model (<code>make bdt-eval</code>), newest first. Times in IST.</p>
+    <div class="row filters" role="group" aria-label="Year">
+      <button class="btn ghost" aria-pressed=${year == null ? 'true' : 'false'} onClick=${() => setYear(null)}>All (${res.alerts.length})</button>
+      ${years.map((y) => html`<button class="btn ghost" aria-pressed=${year === y ? 'true' : 'false'} onClick=${() => setYear(y)}>${y} (${res.years[y]})</button>`)}
+    </div>
+    ${shown.length === 0 ? html`<p>No batch alerts in the main lake.</p>` : html`<table class="results history">
+      <thead><tr><th scope="col">Started</th><th scope="col">Ended</th><th scope="col">Lasted</th><th scope="col">Area</th>
+        <th scope="col">Score × threshold</th><th scope="col">Loss, m³/h</th><th scope="col">Candidate 1</th><th scope="col">Work order</th></tr></thead>
+      <tbody>${shown.map((a) => html`<tr><th scope="row">${a.started}</th><td>${a.ended}</td><td>${a.lasted || ''}</td><td>${a.area || ''}</td>
+        <td>${a.ratio != null ? `${a.ratio}×` : ''}</td><td>${a.loss_m3h != null ? a.loss_m3h.toFixed(1) : ''}</td>
+        <td>${a.candidate || ''}</td><td>${a.order || ''}</td></tr>`)}</tbody>
+    </table>`}
+  </main>`;
+}
+
+const VIEWS = [['live', 'Live'], ['history', 'History'], ['results', 'Results']];
+
+function Tabs({ view, setView }) {
+  return html`<nav class="tabs" aria-label="Views">
+    ${VIEWS.map(([id, label]) => html`<button aria-current=${view === id ? 'page' : undefined} onClick=${() => setView(id)}>${label}</button>`)}
+  </nav>`;
+}
+
 /* --------------------------------------------------------------------------------- app */
 
 const SERVER_LOST = {
@@ -540,6 +609,7 @@ function App() {
   const [mapError, setMapError] = useState(null);
   const [map, setMap] = useState(null);
   const [revealed, setRevealed] = useState({});
+  const [view, setView] = useState('live');
   const mapBox = useRef(null);
   const camera = useCamera(map, lost ? null : vm && vm.incident);
   if (!vm && !lost) return html`<div class="app" aria-busy="true"></div>`;
@@ -568,9 +638,10 @@ function App() {
   };
   const restart = async () => { const res = await call('POST', '/api/demo/restart'); setNotice(res.ok ? null : res.message); };
   return html`<div class="app">
-    <${Header} runner=${shown.runner} clock=${shown.clock} analysed=${shown.analysed}>
+    <${Header} runner=${shown.runner} clock=${shown.clock} analysed=${shown.analysed} tabs=${html`<${Tabs} view=${view} setView=${setView} />`}>
       <${Controls} settings=${settings} clock=${shown.clock} runner=${shown.runner} size=${leakSize} setSize=${setSize} notify=${setNotice} />
     <//>
+    <div class=${view === 'live' ? 'live' : 'live off'}>
     <main class="map" ref=${mapBox}>
       ${net && !mapError && html`<${MapView} net=${net} selected=${pick ? pick.node : null} drops=${shown.drops}
         incident=${shown.incident} truth=${truth} onReady=${setMap} onPick=${onPick}
@@ -588,6 +659,9 @@ function App() {
     <${Instruments} charts=${shown.charts} />
     <${Rail} vm=${shown} net=${net} size=${leakSize} canStart=${canStart} why=${why} busy=${busy} onStart=${start} notice=${notice}
       revealed=${!!(inc && revealed[inc.alert_id])} onReveal=${reveal} settings=${settings} />
+    </div>
+    ${view === 'history' && html`<${HistoryView} active=${true} />`}
+    ${view === 'results' && html`<${ResultsView} active=${true} />`}
   </div>`;
 }
 

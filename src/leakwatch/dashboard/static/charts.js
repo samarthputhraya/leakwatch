@@ -173,3 +173,57 @@ export function drawAnswerChart(el, chart, tz, tzName) {
   resize.observe(el);
   return () => { resize.disconnect(); c.dispose(); };
 }
+
+// Results view: 2019 detection with the chance level beside each bar; localizer top-5 against the target.
+export function drawResultsCharts(detEl, locEl, res) {
+  const { echarts } = window;
+  const T = {
+    ink: token('--ink'), ink2: token('--ink-2'), ink3: token('--ink-3'), rule: token('--rule'), pipe: token('--pipe'),
+    amber: token('--amber'), sheet: token('--sheet'), font: token('--font'),
+  };
+  const text = { fontFamily: T.font, fontSize: 12, color: T.ink2 };
+  const axis = {
+    axisLine: { lineStyle: { color: T.rule } }, axisTick: { show: false },
+    axisLabel: { ...text, color: T.ink3 }, splitLine: { lineStyle: { color: T.rule, opacity: 0.45 } },
+  };
+  const tip = { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: T.ink, borderWidth: 0, confine: true,
+    textStyle: { color: T.sheet, fontFamily: T.font, fontSize: 13 } };
+  const det = echarts.init(detEl);
+  const bars = res.detection.bars;
+  det.setOption({
+    animation: false,
+    grid: { left: 190, right: 64, top: 30, bottom: 26 },
+    legend: { top: 0, right: 0, textStyle: text, itemWidth: 14, itemHeight: 10 },
+    tooltip: { ...tip, valueFormatter: (v) => (v == null ? 'not reachable' : `${v}%`) },
+    xAxis: { type: 'value', min: 0, max: 100, ...axis, axisLabel: { ...axis.axisLabel, formatter: '{value}%' } },
+    yAxis: { type: 'category', inverse: true, data: bars.map((b) => b.detector), ...axis, axisLabel: { ...text, width: 180, overflow: 'truncate' } },
+    series: [
+      { name: 'Leaks detected', type: 'bar', barGap: '15%', barWidth: 9, itemStyle: { color: T.ink, borderRadius: [0, 2, 2, 0] },
+        data: bars.map((b) => b.detection_pct),
+        label: { show: true, position: 'right', ...text, color: T.ink, formatter: (p) => (p.value == null ? 'not reachable' : `${p.value}%`) } },
+      { name: 'Chance level', type: 'bar', barWidth: 9, itemStyle: { color: T.pipe, borderRadius: [0, 2, 2, 0] },
+        data: bars.map((b) => b.chance_pct),
+        label: { show: true, position: 'right', ...text, color: T.ink3, formatter: (p) => (p.value == null ? '' : `${p.value}%`) } },
+    ],
+  });
+  const loc = echarts.init(locEl);
+  const lb = res.localizer.bars;
+  loc.setOption({
+    animation: false,
+    grid: { left: 130, right: 92, top: 30, bottom: 26 },
+    tooltip: { ...tip, formatter: (ps) => { const b = lb[ps[0].dataIndex]; return `${b.name}<br><b>${b.top5_pct}%</b> in the top 5${b.ci_pct[0] != null ? ` (95% CI ${b.ci_pct[0]}–${b.ci_pct[1]}%)` : ''}<br>${b.n} medium + large leaks`; } },
+    xAxis: { type: 'value', min: 0, max: 100, ...axis, axisLabel: { ...axis.axisLabel, formatter: '{value}%' } },
+    yAxis: { type: 'category', inverse: true, data: lb.map((b) => (b.chosen ? `${b.name} (chosen)` : b.name)), ...axis, axisLabel: text },
+    series: [{
+      name: 'Top-5 hit rate', type: 'bar', barWidth: 11,
+      data: lb.map((b) => ({ value: b.top5_pct, itemStyle: { color: b.chosen ? T.ink : T.pipe, borderRadius: [0, 2, 2, 0] } })),
+      label: { show: true, position: 'right', ...text, color: T.ink, formatter: (p) => { const b = lb[p.dataIndex]; return b.ci_pct[0] != null ? `${p.value}% (${b.ci_pct[0]}–${b.ci_pct[1]})` : `${p.value}%`; } },
+      markLine: { symbol: 'none', silent: true, data: [{ xAxis: res.localizer.target_pct,
+        lineStyle: { color: T.ink2, type: 'dashed', width: 1.4 }, label: { ...text, formatter: `Target ${res.localizer.target_pct}%`, position: 'start' } }] },  // the top: the axis is inverted
+    }],
+  });
+  const resize = new ResizeObserver(() => { det.resize(); loc.resize(); });
+  resize.observe(detEl);
+  resize.observe(locEl);
+  return () => { resize.disconnect(); det.dispose(); loc.dispose(); };
+}

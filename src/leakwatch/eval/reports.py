@@ -1440,8 +1440,11 @@ def _get(d: Any, *keys: Any) -> Any:
     return d
 
 
-def readme_results() -> str:
-    """The README's results table: one row per headline fact, each with its metrics file."""
+README_HEADER = ["Result", "Value", "Source (`reports/metrics/`)"]
+
+
+def readme_rows() -> list[list[str]]:
+    """One row per headline fact: result, value, metrics file (the README table and the screen)."""
     rows: list[list[str]] = []
 
     def add(fact: str, value: str | None, name: str, m: dict[str, Any] | None) -> None:
@@ -1734,7 +1737,12 @@ def readme_results() -> str:
         "test_summary",
         m,
     )
-    return table(["Result", "Value", "Source (`reports/metrics/`)"], rows)
+    return rows
+
+
+def readme_results() -> str:
+    """The README's results table: one row per headline fact, each with its metrics file."""
+    return table(README_HEADER, readme_rows())
 
 
 def update_readme(readme: Any = None) -> bool:

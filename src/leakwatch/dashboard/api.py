@@ -410,6 +410,35 @@ class Snapshots:
         self._stop.set()
 
 
+def load_results(cfg: Mapping[str, Any]) -> dict[str, Any]:
+    """The Results view from the README's rows and ``reports/metrics``."""
+    from leakwatch.eval import reports
+
+    target = float(cfg["dashboard"]["localizer_target_pct"])
+    return view.results_view(reports.readme_rows(), reports.load, target)
+
+
+def main_lake_alerts(cfg: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Batch alerts of the main lake (newest first), read with a short-lived connection."""
+    from leakwatch.common import lake
+
+    con = lake.connect(only=["alerts"])
+    try:
+        con.execute("SET threads = 1")
+        con.execute(f"SET memory_limit = '{cfg['dashboard']['duckdb_memory']}'")
+        limit = int(cfg["dashboard"]["history_limit"])
+        df = lake.query_df(
+            con,
+            "SELECT alert_id, start_ts, end_ts, last_window_end, area, kmeans_score_max, "
+            "threshold, est_loss_m3h, gnn_top5, work_order_generator FROM alerts "
+            "WHERE origin = 'batch' "
+            f"ORDER BY start_ts DESC LIMIT {limit}",
+        )
+    finally:
+        con.close()
+    return [plain(r) for r in df.to_dict("records")]
+
+
 class Copilot:
     """The copilot on the demo lake: the loss chip without a model, other questions with one.
 
@@ -470,6 +499,8 @@ def create_app(
     sender: Callable[..., None] | None = None,
     geometry_loader: Callable[[], Any] | None = None,
     copilot: Any = None,
+    results_loader: Callable[[], dict[str, Any]] | None = None,
+    history_loader: Callable[[], list[dict[str, Any]]] | None = None,
 ) -> FastAPI:
     """The dashboard app.
 
@@ -480,6 +511,8 @@ def create_app(
         sender: publishes a demo command (default: ``send_demo_command``, Kafka).
         geometry_loader: returns the map ``Geometry`` (default: ``geometry.load``).
         copilot: answers questions (default: ``Copilot``, the demo lake and the configured model).
+        results_loader: the Results view (default: README rows + ``reports/metrics``).
+        history_loader: batch alert rows of the main lake (default: ``main_lake_alerts``).
 
     """
     cfg = cfg or load_config()
@@ -591,6 +624,23 @@ def create_app(
         if current()["runner"]["code"] in ("offline", "stale", "error"):
             return refused(409, "The demo runner is not running. Start it with `make demo`.")
         return command("reset")
+
+    @app.get("/api/results")
+    def results() -> Response:
+        try:
+            return json_response((results_loader or (lambda: load_results(cfg)))())
+        except Exception as exc:
+            log.error("results not available: %s", exc)
+            return refused(503, "The results could not be read. Run `make reports`.")
+
+    @app.get("/api/history")
+    def history() -> Response:
+        try:
+            rows = (history_loader or (lambda: main_lake_alerts(cfg)))()
+        except Exception as exc:
+            log.error("main lake alerts not readable: %s", exc)
+            return refused(503, "The main lake's alerts could not be read. Run `make bdt-eval`.")
+        return json_response(view.history_view(rows, str(cfg["project"]["display_timezone"])))
 
     @app.post("/api/copilot/ask")
     def copilot_ask(body: AskBody) -> Response:

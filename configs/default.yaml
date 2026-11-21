@@ -251,6 +251,8 @@ dashboard:
     length_m: 400                  # the tint fades by 1/e over this pipe distance from the nearest sensor
     min_distance_m: 30             # keeps the weight finite at a sensor's own junction
     full_m: 2.0                    # interpolated drop drawn in full amber
+  localizer_target_pct: 60         # the PRD's top-5 target, drawn on the Results chart (as in the README)
+  history_limit: 500               # alerts listed in the History view
   outline:                         # outline of an area with an alert (D-054)
     buffer_m: 40                   # distance of the outline from the area's outer pipes
     alpha_m: 80                    # gaps up to about twice this are bridged, larger ones stay open
