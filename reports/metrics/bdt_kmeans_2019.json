@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-20T18:01:45+00:00",
-    "git_commit": "ed7c9f9",
+    "generated_at": "2026-11-21T01:01:59+00:00",
+    "git_commit": "d5931bf",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -17,6 +17,7 @@
       "k": 8,
       "threshold": 14.760243385577082,
       "persistence_windows": 2,
+      "fast_path_threshold": null,
       "eval_2019": {
         "period": {
           "start": "2019-01-01T00:00:00+00:00",
@@ -507,6 +508,7 @@
       "k": 8,
       "threshold": 23.143082512848462,
       "persistence_windows": 1,
+      "fast_path_threshold": null,
       "eval_2019": {
         "period": {
           "start": "2019-01-01T00:00:00+00:00",
@@ -997,6 +999,7 @@
       "k": 10,
       "threshold": 23.96349005983214,
       "persistence_windows": 2,
+      "fast_path_threshold": null,
       "eval_2019": {
         "period": {
           "start": "2019-01-01T00:00:00+00:00",
@@ -1486,6 +1489,7 @@
       "k": 6,
       "threshold": 6.404309411032491,
       "persistence_windows": 1,
+      "fast_path_threshold": null,
       "eval_2019": {
         "period": {
           "start": "2019-01-01T00:00:00+00:00",
@@ -1986,6 +1990,7 @@
       "k": 6,
       "threshold": 1.5790984699537165,
       "persistence_windows": 1,
+      "fast_path_threshold": null,
       "eval_2019": {
         "period": {
           "start": "2019-01-01T00:00:00+00:00",
@@ -2476,6 +2481,7 @@
       "k": 5,
       "threshold": 1.3664359811445281,
       "persistence_windows": 32,
+      "fast_path_threshold": 27.328719622890564,
       "eval_2019": {
         "period": {
           "start": "2019-01-01T00:00:00+00:00",
@@ -2915,11 +2921,11 @@
         },
         "time_to_detection_h": {
           "median": 11.33,
-          "mean": 20.094444444444445,
+          "mean": 19.316666666666666,
           "values": [
             3.0,
             94.17,
-            8.0,
+            1.0,
             8.17,
             11.33,
             14.42,
@@ -2985,5 +2991,5 @@
     "bdt_score_timeline_2019_rebaselined.png",
     "bdt_detection_per_leak_2019_rebaselined.png"
   ],
-  "wall_s": 161.3
+  "wall_s": 83.9
 }

@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-21T00:38:41+00:00",
-    "git_commit": "a7898f5",
+    "generated_at": "2026-11-21T01:18:29+00:00",
+    "git_commit": "d5931bf",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -59,9 +59,9 @@
   "placements": {
     "localizer": {
       "2018": {
-        "total_score_eur": 68059.51,
-        "true_positives": 6,
-        "false_positives": 31,
+        "total_score_eur": 73937.13,
+        "true_positives": 7,
+        "false_positives": 30,
         "detections": 45,
         "alerts": 45
       },
@@ -94,24 +94,23 @@
   "revisit_rule": {
     "rule": "no second report at a pipe within d days of the last one kept there; d with the best 2018 score, ties to the shorter window (D-042)",
     "scores_2018": {
-      "0": 68059.51,
-      "3": 71059.51,
-      "7": 71559.51,
-      "14": 73559.51,
-      "30": 75559.51
+      "0": 73937.13,
+      "3": 76937.13,
+      "7": 77437.13,
+      "14": 79437.13,
+      "30": 81437.13
     },
     "chosen_days": 30.0
   },
   "carry_forward": {
     "enabled": true,
     "previous_reports": 24,
-    "closed_by_a_repair": 9,
+    "closed_by_a_repair": 10,
     "open_pipes": [
       "p254",
       "p147",
       "p660",
       "p295",
-      "p296",
       "p144",
       "p89",
       "p346",
@@ -125,7 +124,7 @@
   "steps_2019": {
     "placement_only": 160576.58,
     "with_revisit_rule": 217076.58,
-    "with_carry_forward": 235933.37
+    "with_carry_forward": 236433.37
   },
   "random_baseline": {
     "2018": {
@@ -134,8 +133,8 @@
       "mean_eur": 58690.54,
       "p95_eur": 83330.95,
       "max_eur": 105348.75,
-      "system_eur": 75559.51,
-      "p_value": 0.1443
+      "system_eur": 81437.13,
+      "p_value": 0.0697
     },
     "2019": {
       "draws": 200,
@@ -152,24 +151,24 @@
       "role": "development (rules applied to 2018)",
       "placement": "localizer",
       "revisit_days": 30.0,
-      "total_score_eur": 75559.51,
-      "true_positives": 6,
-      "false_positives": 16,
-      "false_negatives": 8,
+      "total_score_eur": 81437.13,
+      "true_positives": 7,
+      "false_positives": 15,
+      "false_negatives": 7,
       "repeated_detections": 2,
-      "tp_rate": 0.4286,
+      "tp_rate": 0.5,
       "leaks": 14,
       "detections": 24,
       "detected_leaks": [
         "p257",
         "p673",
+        "p461",
         "p538",
         "p31",
         "p183",
         "p158"
       ],
       "missed_leaks": [
-        "p461",
         "p232",
         "p427",
         "p628",
@@ -232,22 +231,24 @@
           "label": "repeat"
         },
         {
-          "link_id": "p674",
-          "ts": "2018-03-05T23:45:00+00:00",
+          "link_id": "p155",
+          "ts": "2018-03-05T16:45:00+00:00",
           "leak": "p673",
-          "distance_m": 44.2,
-          "score_eur": 9442.87,
+          "distance_m": 78.1,
+          "score_eur": 9545.49,
           "label": "tp",
-          "delay_h": 8.0,
-          "water_saved_m3": 11895.7
+          "delay_h": 1.0,
+          "water_saved_m3": 12094.5
         },
         {
-          "link_id": "p296",
-          "ts": "2018-03-23T18:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "link_id": "p506",
+          "ts": "2018-03-23T11:30:00+00:00",
+          "leak": "p461",
+          "distance_m": 226.8,
+          "score_eur": 5275.0,
+          "label": "tp",
+          "delay_h": 1423.08,
+          "water_saved_m3": 7066.3
         },
         {
           "link_id": "p251",
@@ -391,14 +392,14 @@
       "role": "test (official)",
       "placement": "localizer",
       "revisit_days": 30.0,
-      "total_score_eur": 235933.37,
+      "total_score_eur": 236433.37,
       "true_positives": 14,
-      "false_positives": 50,
+      "false_positives": 49,
       "false_negatives": 9,
       "repeated_detections": 19,
       "tp_rate": 0.6087,
       "leaks": 23,
-      "detections": 83,
+      "detections": 82,
       "detected_leaks": [
         "p257",
         "p654",
@@ -427,7 +428,7 @@
         "p426"
       ],
       "alerts": 196,
-      "carried_forward": 12,
+      "carried_forward": 11,
       "rank_among_top6": 3,
       "above_all_tabulated": false,
       "below_tabulated": false,
@@ -469,14 +470,6 @@
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
-        },
-        {
-          "link_id": "p296",
-          "ts": "2019-01-01T00:05:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
         },
         {
           "link_id": "p144",

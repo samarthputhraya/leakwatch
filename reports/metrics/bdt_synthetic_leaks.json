@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-20T18:08:30+00:00",
-    "git_commit": "a98cf8c",
+    "generated_at": "2026-11-21T01:05:18+00:00",
+    "git_commit": "d5931bf",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -34,6 +34,7 @@
       "score": "distance",
       "threshold": 6.404309411032491,
       "persistence_windows": 1,
+      "fast_path_threshold": null,
       "detection_rate": 0.5111,
       "by_diameter_mm": {
         "10": 0.1,
@@ -63,6 +64,7 @@
       "score": "combined",
       "threshold": 1.5790984699537165,
       "persistence_windows": 1,
+      "fast_path_threshold": null,
       "detection_rate": 0.7222,
       "by_diameter_mm": {
         "10": 0.2167,
@@ -92,6 +94,7 @@
       "score": "combined",
       "threshold": 1.3664359811445281,
       "persistence_windows": 32,
+      "fast_path_threshold": 27.328719622890564,
       "detection_rate": 0.6,
       "by_diameter_mm": {
         "10": 0.0833,
@@ -229,7 +232,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.17
+        "ttd_h": 1.92
       }
     },
     {
@@ -286,7 +289,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.92
+        "ttd_h": 0.42
       }
     },
     {
@@ -856,7 +859,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.08
+        "ttd_h": 1.08
       }
     },
     {
@@ -913,7 +916,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.08
+        "ttd_h": 0.58
       }
     },
     {
@@ -1198,7 +1201,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.08
+        "ttd_h": 1.08
       }
     },
     {
@@ -1369,7 +1372,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.83
+        "ttd_h": 0.58
       }
     },
     {
@@ -1692,7 +1695,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.08
+        "ttd_h": 0.58
       }
     },
     {
@@ -1711,7 +1714,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.83
+        "ttd_h": 0.33
       }
     },
     {
@@ -1749,7 +1752,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.08
+        "ttd_h": 0.58
       }
     },
     {
@@ -1768,7 +1771,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.83
+        "ttd_h": 0.33
       }
     },
     {
@@ -1977,7 +1980,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.83
+        "ttd_h": 0.33
       }
     },
     {
@@ -1996,7 +1999,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.83
+        "ttd_h": 0.08
       }
     },
     {
@@ -2053,7 +2056,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.08
+        "ttd_h": 0.83
       }
     },
     {
@@ -2091,7 +2094,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.08
+        "ttd_h": 0.83
       }
     },
     {
@@ -2110,7 +2113,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.83
+        "ttd_h": 0.33
       }
     },
     {
@@ -2167,7 +2170,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.83
+        "ttd_h": 0.58
       }
     },
     {
@@ -2395,7 +2398,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.0
+        "ttd_h": 0.75
       }
     },
     {
@@ -2566,7 +2569,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.0
+        "ttd_h": 1.0
       }
     },
     {
@@ -2680,7 +2683,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.0
+        "ttd_h": 1.0
       }
     },
     {
@@ -2832,7 +2835,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.0
+        "ttd_h": 0.75
       }
     },
     {
@@ -2851,7 +2854,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.0
+        "ttd_h": 0.25
       }
     },
     {
@@ -2889,7 +2892,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.92
+        "ttd_h": 0.67
       }
     },
     {
@@ -2908,7 +2911,7 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 7.92
+        "ttd_h": 0.42
       }
     },
     {
@@ -3535,9 +3538,9 @@
       },
       "rebaselined": {
         "detected": true,
-        "ttd_h": 8.0
+        "ttd_h": 2.5
       }
     }
   ],
-  "wall_s": 131.2
+  "wall_s": 114.0
 }
