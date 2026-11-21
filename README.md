@@ -52,8 +52,8 @@ file records the git commit of the code that produced it. Subject report drafts:
 | Mutation score, 6 core modules (D-040) | 88.1% of mutants killed (3,448 mutants of the scorer, detection metrics, re-baselining, alert rule, SQL guard and guardrails) | `st_mutation.json` |
 | Copilot v3 (nvidia/nemotron-3-ultra-550b-a55b) | SQL execution 93.8%, answers 94.4%, hallucinated numbers after guardrail 0.0%, refusals 100.0%; data answers median 6.9 s (aim ≤ 10 s, free endpoint) | `pe_eval_v3.json` |
 | Live scored stream at 360× (micro-batch time) | p50 7.0 s, p95 10.4 s (aim ≤ 10 s) | `bdt_live_replay_2019.json` |
-| Demo rehearsal (inject → alert → top 5 → work order) | 4 of 5 runs within 30 s; slowest 46.3 s; nearest of the localizer's top 5 to the leak: n100 0 m / n300 0 m / n470 0 m / n100 0 m / n300 2,345 m (at the alert, before refinement: 0 m / 0 m / 0 m / 0 m / 2,345 m) | `demo_runs.json` |
-| Tests | 677 passed, 0 failed; line coverage 74.0%, core modules 93.0% | `test_summary.json` |
+| Demo rehearsal (inject → alert → top 5 → work order) | 4 of 5 runs within 30 s; slowest 37.2 s; nearest of the localizer's top 5 to the leak: n100 59 m / n300 2,495 m / n470 0 m / n100 0 m / n300 0 m (at the alert, before refinement: 59 m / 2,495 m / 0 m / 0 m / 0 m) | `demo_runs.json` |
+| Tests | 831 passed, 0 failed; line coverage 73.7%, core modules 93.0% | `test_summary.json` |
 <!-- results:end -->
 
 What the numbers say, briefly (details and figures in the report drafts):
