@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from leakwatch.bdt.alerts import AlertRule, run_alerts
+from leakwatch.bdt.alerts import AlertRule, fast_threshold, run_alerts
 from leakwatch.bdt.data import load_features, series_area_map, write_alerts, write_scores
 from leakwatch.bdt.report import sensor_drop_detections
 from leakwatch.bdt.scorer import KMeansParams, KMeansScorer
@@ -56,9 +56,14 @@ def year_bounds(year: int) -> tuple[pd.Timestamp, pd.Timestamp]:
 
 
 def score_and_alert(
-    params: KMeansParams, features: pd.DataFrame, cfg: dict, areas: dict, now: datetime
+    params: KMeansParams,
+    features: pd.DataFrame,
+    cfg: dict,
+    areas: dict,
+    now: datetime,
+    fast: float | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Scores for every window and the final state of every alert."""
+    """Scores for every window and the final state of every alert (``fast``: D-043 fast path)."""
     scorer = KMeansScorer(params)
     scored, shares = scorer.score_frame(features)
     rule = AlertRule(
@@ -69,6 +74,7 @@ def score_and_alert(
         series_area=areas,
         origin="batch",
         model="kmeans",
+        fast_threshold=fast,
     )
     alerts = run_alerts(
         scored,
@@ -186,7 +192,8 @@ def main(argv: list[str] | None = None) -> int:
         params = KMeansParams.load(directory)
         view = str(params.meta.get("feature_view", "absolute"))
         rows = feature_view(features, spec, view, cfg)
-        scored, alerts = score_and_alert(params, rows, cfg, areas, now)
+        fast = fast_threshold(cfg, name, float(params.threshold))  # type: ignore[arg-type]
+        scored, alerts = score_and_alert(params, rows, cfg, areas, now, fast)
         official = {}
         if view in ("residual", "rebaselined"):
             if scorer_official is None:
@@ -218,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
             "k": params.k,
             "threshold": params.threshold,
             "persistence_windows": params.persistence_windows,
+            "fast_path_threshold": fast,
             "eval_2019": ev,
             "in_sample_2018": {
                 k: ev_train[k]

@@ -86,6 +86,10 @@ bdt:
   # Model used for live alerts and the lake's batch alerts: the residual-feature variant, chosen on
   # 2018 validation leak onsets (D-020); `kmeans` is the PRD §7.2 all-feature baseline.
   live_model: kmeans_rebaselined   # D-038: best official BattLeDIM score on 2018 (D-030: residual_ci)
+  # D-043 fast path for the live model: one window above k x tau opens an alert at once (no 8 h
+  # wait). `make bdt-fast-path` picks k on 2018; null = off.
+  fast_path_grid: [20, 12, 8, 5, 3, 2]
+  fast_path_factor: null
   train_year: 2018
   eval_year: 2019
   # Time-blocked split of normal 2018 windows (overlapping windows: never split at random):

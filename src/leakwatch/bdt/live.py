@@ -28,7 +28,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from leakwatch.bdt.alerts import AlertRule, AlertTracker, epoch_seconds
+from leakwatch.bdt.alerts import AlertRule, AlertTracker, epoch_seconds, fast_threshold
 from leakwatch.bdt.scorer import KMeansParams, KMeansScorer
 from leakwatch.common.schemas import ALERT_LAKE_COLUMNS, SCORE_COLUMNS
 
@@ -112,6 +112,7 @@ class LiveScoring:
             series_area=dict(series_area),
             origin=origin,
             model=str(bdt["model"]),
+            fast_threshold=fast_threshold(cfg, directory.name, float(params.threshold)),
         )
         inflow = [f"{s}__residual" for s in bdt["inflow_series"]]
         live = cls(KMeansScorer(params), rule, inflow, str(bdt["model"]), publish)

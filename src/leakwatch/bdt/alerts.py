@@ -5,6 +5,8 @@ Per (source, scenario), windows are processed in time order:
 - a window is *above* when its score exceeds the threshold τ;
 - ``m`` consecutive windows above τ open an alert; its ``start_ts`` is the end of the m-th window,
   i.e. the event time at which the system could raise it (time to detection uses this);
+- *fast path* (D-043): one window above ``fast_threshold`` (a multiple of τ, set for the live model
+  only, ``bdt.fast_path_factor``) opens the alert at once, without waiting for m windows;
 - while open, every window above τ adds to the alert (max score, sensor shares, estimated loss);
 - ``close_after`` consecutive windows below τ close it; ``end_ts`` = end of its last window above τ.
 
@@ -50,10 +52,21 @@ class AlertRule:
     series_area: Mapping[str, str]
     origin: str
     model: str
+    fast_threshold: float | None = None  # one window above this opens at once (D-043)
 
     def __post_init__(self) -> None:
         if self.persistence_windows < 1 or self.close_after_windows < 1:
             raise ValueError("persistence and close-after must be at least 1 window")
+        if self.fast_threshold is not None and self.fast_threshold <= self.threshold:
+            raise ValueError("the fast-path threshold must be above the threshold")
+
+
+def fast_threshold(cfg: Mapping[str, Any], model: str, threshold: float) -> float | None:
+    """Fast-path threshold of ``model``: ``bdt.fast_path_factor`` × τ, for the live model only."""
+    factor = cfg["bdt"].get("fast_path_factor")
+    if not factor or model != str(cfg["bdt"]["live_model"]):
+        return None
+    return float(factor) * float(threshold)
 
 
 def epoch_seconds(ts: pd.Series) -> np.ndarray:
@@ -138,7 +151,10 @@ class AlertTracker:
                 }
                 if self.alert is None:
                     self.run.append(window)
-                    if len(self.run) >= self.rule.persistence_windows:
+                    fast = self.rule.fast_threshold
+                    if len(self.run) >= self.rule.persistence_windows or (
+                        fast is not None and score > fast
+                    ):
                         self._open(now)
                         changed[self.alert["alert_id"]] = self.alert  # type: ignore[index]
                 else:

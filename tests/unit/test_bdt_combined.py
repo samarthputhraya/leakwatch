@@ -74,3 +74,12 @@ def test_window_means_of_a_signature():
 def test_alert_starts(above, contiguous, m, expected):
     got = alert_starts(np.array(above, bool), np.array(contiguous, bool), m, close_after=2)
     assert got == expected
+
+
+def test_alert_starts_fast_path_opens_on_the_first_very_high_window():
+    above = np.array([1, 1, 1, 0, 0, 1, 1], bool)
+    fast = np.array([0, 1, 0, 0, 0, 0, 0], bool)
+    contiguous = np.ones(7, bool)
+    assert alert_starts(above, contiguous, 4, close_after=2) == []
+    assert alert_starts(above, contiguous, 4, close_after=2, fast=fast) == [1]
+    assert alert_starts(above, contiguous, 2, close_after=2, fast=fast) == [1, 6]

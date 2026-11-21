@@ -178,3 +178,29 @@ def test_run_alerts_keeps_each_groups_source_scenario_and_id():
     feats = pd.DataFrame({"flow__p1__residual": [np.nan] * len(scored)})
     out2 = run_alerts(scored, shares, SERIES, rule(m=3), ["flow__p1__residual"], feats)
     assert out2["est_loss_m3h"].isna().all()
+
+
+def test_fast_path_opens_at_once_on_a_very_high_window():
+    import dataclasses
+
+    fast = dataclasses.replace(rule(m=5), fast_threshold=10.0)
+    t = AlertTracker(fast, "battledim", None, SERIES)
+    assert feed(t, [2, 2, 3]) == []  # above tau, below the fast threshold, run of 3 < m = 5
+    rows = feed(t, [12], start=3)  # one window above 10: opens now, not after m windows
+    assert len(rows) == 1 and rows[0]["status"] == "open"
+    assert rows[0]["start_ts"] == pd.Timestamp(T0 + 4 * 900, unit="s", tz="UTC")
+    assert rows[0]["windows_above"] == 4  # the run so far belongs to the alert
+    slow = AlertTracker(rule(m=4), "battledim", None, SERIES)
+    assert feed(slow, [12]) == []  # without a fast path one window is not enough
+    with pytest.raises(ValueError, match="fast-path"):
+        dataclasses.replace(rule(), fast_threshold=1.0)
+
+
+def test_fast_threshold_is_for_the_live_model_only():
+    from leakwatch.bdt.alerts import fast_threshold
+
+    cfg = {"bdt": {"live_model": "kmeans_rebaselined", "fast_path_factor": 8}}
+    assert fast_threshold(cfg, "kmeans_rebaselined", 1.5) == pytest.approx(12.0)
+    assert fast_threshold(cfg, "kmeans_residual", 1.5) is None
+    assert fast_threshold({"bdt": {"live_model": "x", "fast_path_factor": None}}, "x", 1.5) is None
+    assert fast_threshold({"bdt": {}}, "x", 1.5) is None

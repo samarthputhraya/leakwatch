@@ -32,6 +32,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from leakwatch.bdt.alerts import fast_threshold
 from leakwatch.bdt.data import load_features, normal_mask
 from leakwatch.bdt.scorer import KMeansParams, KMeansScorer
 from leakwatch.bdt.train import MODELS, VARIANTS, model_dir
@@ -61,11 +62,18 @@ def window_means(
     return pd.DataFrame(padded[pos].mean(axis=1), columns=delta.columns)
 
 
-def alert_starts(above: np.ndarray, contiguous: np.ndarray, m: int, close_after: int) -> list[int]:
+def alert_starts(
+    above: np.ndarray,
+    contiguous: np.ndarray,
+    m: int,
+    close_after: int,
+    fast: np.ndarray | None = None,
+) -> list[int]:
     """Indices where the rule opens an alert: m consecutive above; closes after N below.
 
     ``contiguous[i]`` is False when window i does not directly follow window i-1 (a gap in the
-    background); runs and open alerts do not continue across a gap.
+    background); runs and open alerts do not continue across a gap. ``fast[i]`` True (the window
+    is above the fast-path threshold, D-043) opens the alert at once.
     """
     starts, run, below, open_ = [], 0, 0, False
     for i, a in enumerate(above):
@@ -73,7 +81,7 @@ def alert_starts(above: np.ndarray, contiguous: np.ndarray, m: int, close_after:
             run, below, open_ = 0, 0, False
         if a:
             run, below = run + 1, 0
-            if not open_ and run >= m:
+            if not open_ and (run >= m or (fast is not None and fast[i])):
                 starts.append(i)
                 open_ = True
         else:
@@ -135,6 +143,10 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
             variants[v] = KMeansScorer(KMeansParams.load(d))
     if not variants:
         raise FileNotFoundError("no trained residual detector: run `make bdt-train`")
+    fast = {
+        v: fast_threshold(cfg, MODELS[v], float(s.params.threshold))  # type: ignore[arg-type]
+        for v, s in variants.items()
+    }
     frames = {v: bg for v in variants}
     rebased = [v for v in variants if VARIANTS[v][1] == "rebaselined"]
     if rebased:
@@ -170,12 +182,14 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
                     series = c.removesuffix("__residual")
                     if series in shift.columns:
                         x[:, j] += shift[series].to_numpy()
-                above = scorer.score_matrix(x)["score"] > float(scorer.params.threshold)
+                score = scorer.score_matrix(x)["score"]
+                above = score > float(scorer.params.threshold)
                 fired = alert_starts(
                     above,
                     contiguous[rows.index.to_numpy()],
                     int(scorer.params.persistence_windows),
                     int(cfg["bdt"]["close_after_windows"]),
+                    None if fast[v] is None else score > fast[v],
                 )
                 hits = [k for k in fired if win_end.iloc[k] > start]
                 rec[v] = {
@@ -192,14 +206,13 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
     results = {}
     for v, scorer in variants.items():
         cols = list(scorer.params.feature_columns)
-        above = scorer.score_matrix(frames[v][cols].to_numpy("float64"))["score"] > float(
-            scorer.params.threshold
-        )
+        score = scorer.score_matrix(frames[v][cols].to_numpy("float64"))["score"]
         fa = alert_starts(
-            above,
+            score > float(scorer.params.threshold),
             contiguous,
             int(scorer.params.persistence_windows),
             int(cfg["bdt"]["close_after_windows"]),
+            None if fast[v] is None else score > fast[v],
         )
         det = df[v].map(lambda r: r["detected"])
         ttd = df[v].map(lambda r: r["ttd_h"]).dropna()
@@ -208,6 +221,7 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
             "score": scorer.params.meta.get("score", "distance"),
             "threshold": float(scorer.params.threshold),
             "persistence_windows": int(scorer.params.persistence_windows),
+            "fast_path_threshold": fast[v],
             "detection_rate": round(float(det.mean()), 4),
             "by_diameter_mm": {
                 f"{d * 1000:g}": round(float(det[df["diameter_m"] == d].mean()), 4)
