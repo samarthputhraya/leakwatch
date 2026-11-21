@@ -1,0 +1,378 @@
+{
+  "meta": {
+    "generated_at": "2026-11-21T13:08:19+00:00",
+    "git_commit": "e45a4f1",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "question": "which localizer candidate places a report best when several new leaks appear together (simulated, 2019 not used)?",
+  "rule": "highest share of top-1 reports within 300 m of any new leak, pooled over leak counts >= 2; ties: best-of-5 share, then the D-044 mean rank. Fixed before the first run",
+  "scenarios": 600,
+  "leak_counts": [
+    1,
+    2,
+    3,
+    5,
+    8
+  ],
+  "scenarios_per_count": 120,
+  "reference_pairs": 39,
+  "leak_diameter_m": [
+    0.005,
+    0.03
+  ],
+  "within_m": 300.0,
+  "candidates": {
+    "posterior": {
+      "by_leak_count": {
+        "1": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.7,
+          "within_m_of_a_leak_best_of_top5": 0.8083,
+          "within_m_of_the_largest_top1": 0.7,
+          "median_distance_to_nearest_leak_top1_m": 216.5
+        },
+        "2": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.75,
+          "within_m_of_a_leak_best_of_top5": 0.9167,
+          "within_m_of_the_largest_top1": 0.6917,
+          "median_distance_to_nearest_leak_top1_m": 179.7
+        },
+        "3": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.7333,
+          "within_m_of_a_leak_best_of_top5": 0.9,
+          "within_m_of_the_largest_top1": 0.625,
+          "median_distance_to_nearest_leak_top1_m": 169.7
+        },
+        "5": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.7917,
+          "within_m_of_a_leak_best_of_top5": 0.95,
+          "within_m_of_the_largest_top1": 0.6083,
+          "median_distance_to_nearest_leak_top1_m": 140.7
+        },
+        "8": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.725,
+          "within_m_of_a_leak_best_of_top5": 0.9417,
+          "within_m_of_the_largest_top1": 0.425,
+          "median_distance_to_nearest_leak_top1_m": 204.2
+        }
+      },
+      "pooled_overlapping": {
+        "n": 480,
+        "within_m_of_a_leak_top1": 0.75,
+        "within_m_of_a_leak_best_of_top5": 0.9271,
+        "within_m_of_the_largest_top1": 0.5875,
+        "median_distance_to_nearest_leak_top1_m": 171.1
+      }
+    },
+    "gls_sim": {
+      "by_leak_count": {
+        "1": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.8833,
+          "within_m_of_a_leak_best_of_top5": 0.9583,
+          "within_m_of_the_largest_top1": 0.8833,
+          "median_distance_to_nearest_leak_top1_m": 114.4
+        },
+        "2": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9083,
+          "within_m_of_a_leak_best_of_top5": 0.9583,
+          "within_m_of_the_largest_top1": 0.8083,
+          "median_distance_to_nearest_leak_top1_m": 79.7
+        },
+        "3": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.925,
+          "within_m_of_a_leak_best_of_top5": 1.0,
+          "within_m_of_the_largest_top1": 0.7417,
+          "median_distance_to_nearest_leak_top1_m": 80.8
+        },
+        "5": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.95,
+          "within_m_of_a_leak_best_of_top5": 0.9833,
+          "within_m_of_the_largest_top1": 0.75,
+          "median_distance_to_nearest_leak_top1_m": 93.8
+        },
+        "8": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9083,
+          "within_m_of_a_leak_best_of_top5": 0.9833,
+          "within_m_of_the_largest_top1": 0.6083,
+          "median_distance_to_nearest_leak_top1_m": 109.9
+        }
+      },
+      "pooled_overlapping": {
+        "n": 480,
+        "within_m_of_a_leak_top1": 0.9229,
+        "within_m_of_a_leak_best_of_top5": 0.9812,
+        "within_m_of_the_largest_top1": 0.7271,
+        "median_distance_to_nearest_leak_top1_m": 95.0
+      }
+    },
+    "gls_real": {
+      "by_leak_count": {
+        "1": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.7167,
+          "within_m_of_a_leak_best_of_top5": 0.8167,
+          "within_m_of_the_largest_top1": 0.7167,
+          "median_distance_to_nearest_leak_top1_m": 139.5
+        },
+        "2": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.8333,
+          "within_m_of_a_leak_best_of_top5": 0.8917,
+          "within_m_of_the_largest_top1": 0.6667,
+          "median_distance_to_nearest_leak_top1_m": 86.6
+        },
+        "3": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.95,
+          "within_m_of_a_leak_best_of_top5": 0.9833,
+          "within_m_of_the_largest_top1": 0.6333,
+          "median_distance_to_nearest_leak_top1_m": 60.3
+        },
+        "5": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9417,
+          "within_m_of_a_leak_best_of_top5": 0.9667,
+          "within_m_of_the_largest_top1": 0.5833,
+          "median_distance_to_nearest_leak_top1_m": 85.9
+        },
+        "8": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9167,
+          "within_m_of_a_leak_best_of_top5": 0.975,
+          "within_m_of_the_largest_top1": 0.5,
+          "median_distance_to_nearest_leak_top1_m": 96.0
+        }
+      },
+      "pooled_overlapping": {
+        "n": 480,
+        "within_m_of_a_leak_top1": 0.9104,
+        "within_m_of_a_leak_best_of_top5": 0.9542,
+        "within_m_of_the_largest_top1": 0.5958,
+        "median_distance_to_nearest_leak_top1_m": 80.6
+      }
+    },
+    "gls_sim_prior": {
+      "by_leak_count": {
+        "1": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.7417,
+          "within_m_of_a_leak_best_of_top5": 0.8333,
+          "within_m_of_the_largest_top1": 0.7417,
+          "median_distance_to_nearest_leak_top1_m": 156.6
+        },
+        "2": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.875,
+          "within_m_of_a_leak_best_of_top5": 0.9667,
+          "within_m_of_the_largest_top1": 0.8083,
+          "median_distance_to_nearest_leak_top1_m": 104.6
+        },
+        "3": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9333,
+          "within_m_of_a_leak_best_of_top5": 0.9917,
+          "within_m_of_the_largest_top1": 0.775,
+          "median_distance_to_nearest_leak_top1_m": 71.8
+        },
+        "5": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9417,
+          "within_m_of_a_leak_best_of_top5": 0.9833,
+          "within_m_of_the_largest_top1": 0.75,
+          "median_distance_to_nearest_leak_top1_m": 92.4
+        },
+        "8": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.925,
+          "within_m_of_a_leak_best_of_top5": 0.9833,
+          "within_m_of_the_largest_top1": 0.6167,
+          "median_distance_to_nearest_leak_top1_m": 108.2
+        }
+      },
+      "pooled_overlapping": {
+        "n": 480,
+        "within_m_of_a_leak_top1": 0.9187,
+        "within_m_of_a_leak_best_of_top5": 0.9812,
+        "within_m_of_the_largest_top1": 0.7375,
+        "median_distance_to_nearest_leak_top1_m": 96.4
+      }
+    },
+    "gls_real_prior": {
+      "by_leak_count": {
+        "1": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.775,
+          "within_m_of_a_leak_best_of_top5": 0.8583,
+          "within_m_of_the_largest_top1": 0.775,
+          "median_distance_to_nearest_leak_top1_m": 121.6
+        },
+        "2": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.85,
+          "within_m_of_a_leak_best_of_top5": 0.9083,
+          "within_m_of_the_largest_top1": 0.7,
+          "median_distance_to_nearest_leak_top1_m": 92.8
+        },
+        "3": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9333,
+          "within_m_of_a_leak_best_of_top5": 0.9833,
+          "within_m_of_the_largest_top1": 0.625,
+          "median_distance_to_nearest_leak_top1_m": 62.9
+        },
+        "5": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9417,
+          "within_m_of_a_leak_best_of_top5": 0.9667,
+          "within_m_of_the_largest_top1": 0.5833,
+          "median_distance_to_nearest_leak_top1_m": 85.9
+        },
+        "8": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.9167,
+          "within_m_of_a_leak_best_of_top5": 0.975,
+          "within_m_of_the_largest_top1": 0.5,
+          "median_distance_to_nearest_leak_top1_m": 92.8
+        }
+      },
+      "pooled_overlapping": {
+        "n": 480,
+        "within_m_of_a_leak_top1": 0.9104,
+        "within_m_of_a_leak_best_of_top5": 0.9583,
+        "within_m_of_the_largest_top1": 0.6021,
+        "median_distance_to_nearest_leak_top1_m": 82.3
+      }
+    },
+    "rank_all_sim": {
+      "by_leak_count": {
+        "1": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.775,
+          "within_m_of_a_leak_best_of_top5": 0.8833,
+          "within_m_of_the_largest_top1": 0.775,
+          "median_distance_to_nearest_leak_top1_m": 203.6
+        },
+        "2": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.8167,
+          "within_m_of_a_leak_best_of_top5": 0.925,
+          "within_m_of_the_largest_top1": 0.75,
+          "median_distance_to_nearest_leak_top1_m": 158.1
+        },
+        "3": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.825,
+          "within_m_of_a_leak_best_of_top5": 0.95,
+          "within_m_of_the_largest_top1": 0.6917,
+          "median_distance_to_nearest_leak_top1_m": 136.6
+        },
+        "5": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.85,
+          "within_m_of_a_leak_best_of_top5": 0.95,
+          "within_m_of_the_largest_top1": 0.65,
+          "median_distance_to_nearest_leak_top1_m": 109.7
+        },
+        "8": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.8667,
+          "within_m_of_a_leak_best_of_top5": 0.9667,
+          "within_m_of_the_largest_top1": 0.5,
+          "median_distance_to_nearest_leak_top1_m": 151.9
+        }
+      },
+      "pooled_overlapping": {
+        "n": 480,
+        "within_m_of_a_leak_top1": 0.8396,
+        "within_m_of_a_leak_best_of_top5": 0.9479,
+        "within_m_of_the_largest_top1": 0.6479,
+        "median_distance_to_nearest_leak_top1_m": 142.2
+      }
+    },
+    "rank_all_real": {
+      "by_leak_count": {
+        "1": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.7583,
+          "within_m_of_a_leak_best_of_top5": 0.875,
+          "within_m_of_the_largest_top1": 0.7583,
+          "median_distance_to_nearest_leak_top1_m": 206.1
+        },
+        "2": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.7917,
+          "within_m_of_a_leak_best_of_top5": 0.9083,
+          "within_m_of_the_largest_top1": 0.7333,
+          "median_distance_to_nearest_leak_top1_m": 145.0
+        },
+        "3": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.8083,
+          "within_m_of_a_leak_best_of_top5": 0.95,
+          "within_m_of_the_largest_top1": 0.6917,
+          "median_distance_to_nearest_leak_top1_m": 140.9
+        },
+        "5": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.85,
+          "within_m_of_a_leak_best_of_top5": 0.9583,
+          "within_m_of_the_largest_top1": 0.6417,
+          "median_distance_to_nearest_leak_top1_m": 122.8
+        },
+        "8": {
+          "n": 120,
+          "within_m_of_a_leak_top1": 0.8417,
+          "within_m_of_a_leak_best_of_top5": 0.95,
+          "within_m_of_the_largest_top1": 0.4917,
+          "median_distance_to_nearest_leak_top1_m": 145.8
+        }
+      },
+      "pooled_overlapping": {
+        "n": 480,
+        "within_m_of_a_leak_top1": 0.8229,
+        "within_m_of_a_leak_best_of_top5": 0.9417,
+        "within_m_of_the_largest_top1": 0.6396,
+        "median_distance_to_nearest_leak_top1_m": 141.1
+      }
+    }
+  },
+  "d044_mean_rank": {
+    "posterior": 5.667,
+    "gls_sim": 2.0,
+    "gls_real": 3.0,
+    "gls_sim_prior": 3.333,
+    "gls_real_prior": 3.333,
+    "rank_all_sim": 4.0,
+    "rank_all_real": 4.667
+  },
+  "chosen": "gls_sim",
+  "chosen_config": {
+    "gls": "sim",
+    "network": false,
+    "sensor_prior_m": null,
+    "interpolation": false,
+    "fusion": "product",
+    "interpolation_m": 300.0
+  },
+  "configured": {
+    "gls": "sim",
+    "network": false,
+    "sensor_prior_m": null,
+    "interpolation": false,
+    "fusion": "product"
+  },
+  "config_matches_choice": true,
+  "simulation_wall_s": 75.5,
+  "wall_s": 119.6
+}
