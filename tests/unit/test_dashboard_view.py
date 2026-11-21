@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
@@ -417,3 +418,107 @@ def test_pressure_chart_takes_the_alerts_pressure_sensors_first_then_the_largest
     out = view.charts_view([], rows, incident, [LEAK], TZ, 0.01)["pressure"]
     assert [s["sensor"] for s in out["series"]] == ["n296", "n31", "n4"]
     assert out["why"] == "the alert's, then the deepest"
+
+
+# Work orders of the same run, as the lake holds them (text fields shortened).
+SOP = {
+    "doc": "LeakWatch leak response standard operating procedure",
+    "chapter": "6. Confirm the leak before digging",
+    "page": "n/a",
+}
+ORDER = {
+    "priority": "P1",
+    "pipes_to_inspect": ["p437", "p438", "p439", "p440", "p95", "p435", "p436"],
+    "recommended_actions": [
+        "Check the top sensors' recent readings.",
+        "Walk the pipes.",
+        "Confirm.",
+        "Isolate.",
+        "Record.",
+    ],
+    "manual_citations": [SOP, SOP],
+    "summary": "A possible leak was detected in area A.",
+}
+TEMPLATE = {
+    "alert_id": "5bab5c3a",
+    "generator": "template",
+    "generated_at": "2026-11-21T16:03:17.146328Z",
+    "work_order_json": json.dumps({**ORDER, "estimated_loss_m3_per_hour": 40.814}),
+}
+MODEL = {
+    "alert_id": "5bab5c3a",
+    "generator": "llm",
+    "generated_at": "2026-11-21T16:04:02.889945Z",
+    "work_order_json": json.dumps({**ORDER, "estimated_loss_m3_per_hour": 56.037}),
+}
+LOSS_VERSIONS = [
+    {
+        "updated_at": "2026-11-21T16:03:13.791Z",
+        "est_loss_m3h": 40.814,
+        "last_window_end": "2018-11-19T21:00:00Z",
+    },
+    {
+        "updated_at": "2026-11-21T16:03:57.372Z",
+        "est_loss_m3h": 56.037,
+        "last_window_end": "2018-11-21T10:00:00Z",
+    },
+    {
+        "updated_at": "2026-11-21T16:04:05.530Z",
+        "est_loss_m3h": 55.622,
+        "last_window_end": "2018-11-21T14:00:00Z",
+    },
+]
+
+
+def test_order_card_before_any_order_and_when_none_can_be_read():
+    assert view.order_view([], LOSS_VERSIONS, LEAK, TZ) == {"state": "writing"}
+    broken = {**TEMPLATE, "work_order_json": "{not json"}
+    assert view.order_view([broken], LOSS_VERSIONS, LEAK, TZ) == {"state": "unreadable"}
+    assert (
+        view.order_view([{**TEMPLATE, "work_order_json": None}], [], LEAK, TZ)["state"]
+        == "unreadable"
+    )
+
+
+def test_template_order_comes_first_with_its_own_loss_time():
+    out = view.order_view([TEMPLATE], LOSS_VERSIONS, LEAK, TZ)
+    assert out["state"] == "template" and out["priority"] == "P1"
+    assert out["loss_m3h"] == 40.8 and out["loss_at"] == "02:30 IST"  # version 1, 21:00 UTC
+    assert out["version"] == (
+        "Template version, 18 s after the click. The model's version replaces it when it arrives."
+    )
+
+
+def test_model_order_replaces_the_template_and_names_both_times():
+    out = view.order_view([MODEL, TEMPLATE], LOSS_VERSIONS, LEAK, TZ)
+    assert out["state"] == "model"
+    assert out["loss_m3h"] == 56.0 and out["loss_at"] == "15:30 IST"  # version 5
+    assert out["version"] == "Model version, 64 s after the click; template version at 18 s"
+    assert out["pipes"] == ORDER["pipes_to_inspect"] and len(out["actions"]) == 5
+    assert out["sources"] == [  # the duplicate merged, no "p. n/a"
+        f"{SOP['doc']}, section 6. Confirm the leak before digging"
+    ]
+    broken = {**MODEL, "work_order_json": "{not json"}
+    assert view.order_view([TEMPLATE, broken], LOSS_VERSIONS, LEAK, TZ)["state"] == "template"
+
+
+def test_loss_time_falls_back_to_the_newest_version_before_the_order():
+    at = view.loss_time(99.9, MODEL["generated_at"], LOSS_VERSIONS)
+    assert at == datetime(2018, 11, 21, 10, 0, tzinfo=UTC)
+    assert view.loss_time(None, None, LOSS_VERSIONS) is None
+    assert view.sources_view([{"doc": "CPHEEO manual", "chapter": "15.3", "page": "412"}, "x"]) == [
+        "CPHEEO manual, section 15.3, p. 412"
+    ]
+
+
+def test_live_view_puts_the_order_of_the_shown_alert_on_the_incident():
+    other = {**MODEL, "alert_id": "someone else"}
+    out = view.live_view(
+        state=state(leaks=[LEAK]),
+        alerts=[RUN_ALERT],
+        now=NOW,
+        cfg=CFG,
+        versions=VERSIONS,
+        orders=[TEMPLATE, other],
+    )
+    assert out["incident"]["order"]["state"] == "template"

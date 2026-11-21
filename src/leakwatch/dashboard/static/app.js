@@ -166,6 +166,7 @@ function Legend({ net, drops, incident, floor }) {
     <span><i class="ramp" aria-hidden="true"></i>Drop along the pipes, interpolated between sensors (0 to ${metres(net.tint_full_m)})</span>
     ${incident && incident.candidates.length > 0 && html`<span><svg width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="var(--amber)"/>
       <text x="9" y="13" text-anchor="middle" font-size="11" font-weight="700" fill="var(--sheet)">1</text></svg>Candidate, by rank</span>`}
+    ${incident && incident.order && incident.order.pipes && incident.order.pipes.length > 0 && html`<span><svg width="26" height="12" aria-hidden="true"><path d="M2 6H24" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/></svg>Pipe to inspect, numbered in order</span>`}
     ${drops && html`<span class="when">Readings of the window ending ${drops.time}</span>`}
   </div>`;
 }
@@ -246,7 +247,7 @@ function LeakStep({ leaks, net, size, canStart, why, busy, onStart }) {
       <div class="working" role="progressbar" aria-label="Simulating the leak"></div>` };
   }
   if (active) {
-    return { on: true, title: `Leak started at ${active.node_id}`, when: active.started, body: html`
+    return { on: true, title: `Leak started at ${active.node_id}`, when: active.started, short: `${active.diameter_mm} mm`, body: html`
       <p><b>${active.diameter_mm} mm</b> hole, simulated with EPANET${leaks.active.length > 1 ? `. ${leaks.active.length - 1} earlier leak${leaks.active.length > 2 ? 's' : ''} still running.` : ''}</p>` };
   }
   const known = net && net.junctions.includes(node);
@@ -273,7 +274,8 @@ function AlertStep({ inc }) {
   } else {
     timing = 'It began before any leak started from this screen.';
   }
-  return { on: true, title: STEPS[1], when: inc.started, body: html`
+  const short = `Area ${inc.area}${inc.after_click_s != null ? `, ${inc.after_click_s} s after the click` : ''}`;
+  return { on: true, title: STEPS[1], when: inc.started, short, body: html`
     <p>Area ${inc.area}. ${timing}${inc.ratio != null ? html` Score <b>${inc.ratio} times</b> the threshold.` : ''}</p>
     ${inc.sensors.length > 0 && html`<p>Moved most, share of the score:
       ${inc.sensors.map((s, i) => html`${i ? ', ' : ' '}<b>${s.label}</b>${s.share_pct != null ? ` ${s.share_pct}%` : ''}`)}</p>`}` };
@@ -285,26 +287,106 @@ function LocatedStep({ inc }) {
     return { on: false, title: STEPS[2], body: html`<p>The localizer has not answered for this alert yet.</p>` };
   }
   const n = inc.candidates.length;
-  return { on: true, title: STEPS[2], body: html`
+  return { on: true, title: STEPS[2], short: `candidate 1: ${inc.candidates[0]}`, body: html`
     <p>${COUNT[n] || n} candidate junction${n === 1 ? '' : 's'}, best first${inc.located_after_s != null
       ? html`, <b>${inc.located_after_s} s</b> after the click` : ''}.</p>
     <ol class="cands" aria-label="Candidate junctions, best first">${inc.candidates.map((c, i) => html`<li><i>${i + 1}</i>${c}</li>`)}</ol>` };
 }
 
+// A number that counts to its new value (the loss when the model's order replaces the template's).
+function useTicker(value) {
+  const [shown, setShown] = useState(value);
+  const last = useRef(value);
+  useEffect(() => {
+    const from = last.current;
+    last.current = value;
+    if (value == null || from == null || from === value || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setShown(value);
+      return undefined;
+    }
+    let frame = 0;
+    const t0 = performance.now();
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / 700);
+      setShown(from + (value - from) * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return shown;
+}
+
+function OrderCard({ order, inc }) {
+  const loss = useTicker(order.loss_m3h);
+  const more = order.actions.length - 1;
+  return html`<div class="wo" data-state=${order.state}>
+    <div class="wo-top">
+      ${order.priority && html`<span class="pri">Priority ${order.priority}</span>`}
+      <span class="gen">${order.version}</span>
+    </div>
+    <dl class="wo-body">
+      <div class="wo-loss">
+        <dt>Estimated loss${order.loss_at ? ` at ${order.loss_at}` : ''}</dt>
+        <dd class="big">${loss == null ? html`<span class="fine">not in the order</span>` : loss.toFixed(1)}${loss != null && html` <small>m³ per hour</small>`}</dd>
+        ${inc.loss_now_m3h != null && html`<dd class="now">${inc.loss_now_m3h.toFixed(1)} m³/h now</dd>`}
+      </div>
+      <div class="wo-pipes">
+        <dt>Pipes to inspect, in order</dt>
+        <dd>${order.pipes.length ? html`<ol class="chips">${order.pipes.map((p, i) => html`<li><i>${i + 1}</i>${p}</li>`)}</ol>`
+          : html`<span class="fine">none named</span>`}</dd>
+      </div>
+    </dl>
+    ${order.actions.length > 0 && html`<details class="wo-act">
+      <summary>1. ${order.actions[0]}${more > 0 && html` <small>and ${more} more step${more === 1 ? '' : 's'}</small>`}</summary>
+      <ol start="2">${order.actions.slice(1).map((step) => html`<li>${step}</li>`)}</ol>
+    </details>`}
+    ${order.sources.length > 0 && html`<p class="wo-src">Source: ${order.sources.join('; ')}</p>`}
+  </div>`;
+}
+
+function OrderStep({ inc }) {
+  const title = STEPS[3];
+  if (!inc) return { on: false, title };
+  const o = inc.order;
+  if (!o || o.state === 'writing') {
+    return { on: false, title, body: html`<p>Writing the work order for this alert.</p>
+      <div class="working" role="progressbar" aria-label="Writing the work order"></div>` };
+  }
+  if (o.state === 'unreadable') {
+    return { on: false, title, body: html`<p class="problem">The work order in the lake could not be read.</p>` };
+  }
+  const short = [o.priority, o.loss_m3h != null && `${o.loss_m3h.toFixed(1)} m³/h`, o.pipes.length && `${o.pipes.length} pipes`]
+    .filter(Boolean).join(', ');
+  return { on: true, title, short, body: html`<${OrderCard} order=${o} inc=${inc} />` };
+}
+
 function Rail({ vm, net, size, canStart, why, busy, onStart, notice }) {
+  const [unfolded, setUnfolded] = useState({});
   const first = LeakStep({ leaks: vm.leaks, net, size, canStart, why, busy, onStart });
   const inc = vm.incident;
-  const steps = [first, AlertStep({ inc }), LocatedStep({ inc }), ...STEPS.slice(3).map((title) => ({ on: false, title }))];
+  const steps = [first, AlertStep({ inc }), LocatedStep({ inc }), OrderStep({ inc }),
+    ...STEPS.slice(4).map((title) => ({ on: false, title }))];
   const now = steps.reduce((last, s, i) => (s.on ? i : last), 0);
+  // Finished steps fold to one line once the work order is on screen, so the open step fits.
+  const foldable = (i) => steps[3].on && i < 3;
+  const id = (i) => `${inc ? inc.alert_id : ''}:${i}`;
+  const folded = (i) => foldable(i) && !unfolded[id(i)];
+  const toggle = (i) => setUnfolded({ ...unfolded, [id(i)]: !unfolded[id(i)] });
   return html`<aside class="rail" aria-label="Incident, step by step">
     <h2>Incident</h2>
     ${notice && html`<p class="problem" role="alert">${notice}</p>`}
     <ol class="steps">
-      ${steps.map((s, i) => html`<li class=${`${s.on ? 'on' : ''} ${i === now && s.on ? 'now' : ''}`}>
-        <span class="n">${i + 1}</span>
-        <div><h3>${s.title}${s.when && html`<span class="when">${s.when}</span>`}</h3>
-          ${s.body && html`<div class="body">${s.body}</div>`}</div>
-      </li>`)}
+      ${steps.map((s, i) => {
+        const fold = folded(i);
+        const head = html`${s.title}${fold && s.short && html`<span class="short">${s.short}</span>`}${s.when && html`<span class="when">${s.when}</span>`}`;
+        return html`<li class=${`${s.on ? 'on' : ''} ${i === now && s.on ? 'now' : ''} ${fold ? 'fold' : ''}`}>
+          <span class="n">${i + 1}</span>
+          <div><h3>${foldable(i) ? html`<button class="fold-toggle" aria-expanded=${fold ? 'false' : 'true'}
+            onClick=${() => toggle(i)}>${head}</button>` : head}</h3>
+            ${s.body && !fold && html`<div class="body">${s.body}</div>`}</div>
+        </li>`;
+      })}
     </ol>
   </aside>`;
 }

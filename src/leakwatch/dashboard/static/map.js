@@ -33,6 +33,7 @@ export function createMap(el, net, { onPick, onError }) {
   const xy = (n) => net.nodes[n];
   const [x0, y0, x1, y1] = net.bounds;
   const pipes = net.pipes.map((p) => ({ ...p, path: [xy(p.a), xy(p.b)], heat: 0 }));
+  const pipeById = Object.fromEntries(pipes.map((p) => [p.id, p]));
   const grid = [];
   const gx0 = Math.floor(x0 / 500) * 500 - 500, gx1 = Math.ceil(x1 / 500) * 500 + 500;
   const gy0 = Math.floor(y0 / 500) * 500 - 500, gy1 = Math.ceil(y1 / 500) * 500 + 500;
@@ -74,6 +75,22 @@ export function createMap(el, net, { onPick, onError }) {
   }
   const drop = (s) => (st.drops ? st.drops.values[s] || 0 : 0);
 
+  // The work order's pipes, numbered in inspection order (numbers once the view is close enough).
+  function orderLayers(inc, z, key) {
+    const ids = inc && inc.order && inc.order.pipes ? inc.order.pipes : [];
+    const data = ids.map((id, i) => ({ p: pipeById[id], n: String(i + 1) })).filter((d) => d.p);
+    if (!data.length) return [];
+    const out = [new PathLayer({ id: 'order-pipes', data, getPath: (d) => d.p.path, getColor: C.ink,
+      getWidth: st.zoomed ? 5 : 3.5, widthUnits: 'pixels', capRounded: true, updateTriggers: { getWidth: z } })];
+    if (st.zoomed) {
+      out.push(new TextLayer({ id: 'order-numbers', data, getText: (d) => d.n, getSize: 12.5, getColor: C.sheet,
+        getPosition: (d) => [(d.p.path[0][0] + d.p.path[1][0]) / 2, (d.p.path[0][1] + d.p.path[1][1]) / 2],
+        fontFamily: FONT, fontWeight: 700, background: true, getBackgroundColor: C.ink, backgroundPadding: [4, 1],
+        updateTriggers: { getText: key } }));
+    }
+    return out;
+  }
+
   function layers() {
     const z = st.zoomed ? 1.4 : 1;
     const key = st.key;
@@ -94,6 +111,7 @@ export function createMap(el, net, { onPick, onError }) {
       new PathLayer({ id: 'pipes', data: pipes, getPath: (d) => d.path, getColor: (d) => mix(C.pipe, C.amber, d.heat),
         getWidth: (d) => (d.d >= 0.2 ? 3 : d.d >= 0.15 ? 2 : 1.15), widthUnits: 'pixels', capRounded: true,
         updateTriggers: { getColor: key }, transitions: { getColor: move(MOVE_MS) } }),
+      ...orderLayers(inc, z, key),
       new ScatterplotLayer({ id: 'rings', data: net.sensors, getPosition: (d) => xy(d), radiusUnits: 'pixels',
         getRadius: (s) => (drop(s) > 0 ? (6 + Math.sqrt(drop(s)) * 12) * z : 0),
         getFillColor: [...C.amber, 56], stroked: true, getLineColor: C.amber, lineWidthUnits: 'pixels', getLineWidth: 1.5,
@@ -228,7 +246,8 @@ export function createMap(el, net, { onPick, onError }) {
   return {
     set(patch) {
       Object.assign(st, patch);
-      const key = `${st.drops ? st.drops.window_end : ''}|${st.incident ? st.incident.alert_id : ''}`;
+      const order = st.incident && st.incident.order ? `${st.incident.order.state}:${(st.incident.order.pipes || []).join(',')}` : '';
+      const key = `${st.drops ? st.drops.window_end : ''}|${st.incident ? st.incident.alert_id : ''}|${order}`;
       if (key !== st.key) { st.key = key; updateHeat(); }
       draw();
     },

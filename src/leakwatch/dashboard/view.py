@@ -7,6 +7,7 @@ number on screen. Inputs are UTC; times are shown in ``project.display_timezone`
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
@@ -356,6 +357,104 @@ def incident_view(
     }
 
 
+def loss_time(
+    loss: float | None, made: Any, versions: Sequence[Mapping[str, Any]]
+) -> datetime | None:
+    """Simulated time of the alert version an order's loss figure came from.
+
+    The order copies the alert's ``est_loss_m3h`` at the moment it was written: the version with
+    the same value (to the 3 decimals the lake keeps), else the newest version before the order.
+    """
+    made_at = to_utc(made)
+    same = [
+        v
+        for v in versions
+        if loss is not None
+        and (x := number(v.get("est_loss_m3h"))) is not None
+        and round(x, 3) == round(loss, 3)
+    ]
+    before = [
+        v for v in versions if made_at and (t := to_utc(v.get("updated_at"))) and t <= made_at
+    ]
+    pick = newest(same, "updated_at") or newest(before, "updated_at")
+    return None if pick is None else to_utc(pick.get("last_window_end"))
+
+
+def sources_view(citations: Any) -> list[str]:
+    """Manual citations as plain lines: duplicates merged, no "p. n/a"."""
+    out: list[str] = []
+    for c in citations if isinstance(citations, list) else []:
+        if not isinstance(c, Mapping) or not c.get("doc"):
+            continue
+        line = str(c["doc"])
+        if c.get("chapter"):
+            line += f", section {c['chapter']}"
+        page = str(c.get("page") or "").strip()
+        if page and page.lower() not in ("n/a", "na", "none", "-"):
+            line += f", p. {page}"
+        if line not in out:
+            out.append(line)
+    return out
+
+
+def order_view(
+    orders: Sequence[Mapping[str, Any]],
+    versions: Sequence[Mapping[str, Any]],
+    leak: Mapping[str, Any] | None,
+    tz: str,
+) -> dict[str, Any]:
+    """The work order card: the newest readable order of one alert.
+
+    ``orders`` are its ``work_orders`` rows (``generator``: ``template`` or ``llm``). The template
+    version arrives within seconds and the model version replaces it. States: ``writing`` (no
+    order yet), ``unreadable`` (no row parses), ``template``, ``model``.
+    """
+    if not orders:
+        return {"state": "writing"}
+    dated = sorted(
+        orders, key=lambda o: to_utc(o.get("generated_at")) or datetime.min.replace(tzinfo=UTC)
+    )
+    readable = []
+    for o in dated:
+        try:
+            doc = json.loads(str(o.get("work_order_json") or ""))
+        except ValueError:
+            continue
+        if isinstance(doc, dict):
+            readable.append((o, doc))
+    if not readable:
+        return {"state": "unreadable"}
+    row, doc = readable[-1]
+    asked = None if leak is None else leak.get("requested_at")
+    arrived: dict[str, int | None] = {}
+    for o in dated:
+        kind = "template" if o.get("generator") == "template" else "model"
+        arrived.setdefault(kind, seconds_between(o.get("generated_at"), asked))
+    state = "template" if row.get("generator") == "template" else "model"
+    loss = number(doc.get("estimated_loss_m3_per_hour"))
+    at = loss_time(loss, row.get("generated_at"), versions)
+    actions = [str(a) for a in doc.get("recommended_actions") or [] if a]
+    after = arrived.get(state)
+    if state == "model":
+        line = "Model version" + ("" if after is None else f", {after} s after the click")
+        if arrived.get("template") is not None:
+            line += f"; template version at {arrived['template']} s"
+    else:
+        line = "Template version" + ("" if after is None else f", {after} s after the click")
+        line += ". The model's version replaces it when it arrives."
+    return {
+        "state": state,
+        "priority": str(doc.get("priority") or "") or None,
+        "loss_m3h": None if loss is None else round(loss, 1),
+        "loss_at": None if at is None else fmt_time(at, tz, date=False),
+        "pipes": [str(p) for p in doc.get("pipes_to_inspect") or []],
+        "actions": actions,
+        "sources": sources_view(doc.get("manual_citations")),
+        "summary": str(doc.get("summary") or ""),
+        "version": line,
+    }
+
+
 def newest(rows: Sequence[Mapping[str, Any]], key: str) -> Mapping[str, Any] | None:
     """The row with the latest timestamp in ``key`` (rows without one are skipped)."""
     dated = [(t, r) for r in rows if (t := to_utc(r.get(key))) is not None]
@@ -509,6 +608,7 @@ def live_view(
     versions: Sequence[Mapping[str, Any]] = (),
     residuals: Sequence[Mapping[str, Any]] = (),
     scores: Sequence[Mapping[str, Any]] = (),
+    orders: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Everything the live page shows, from the runner state and the newest lake rows.
 
@@ -524,6 +624,7 @@ def live_view(
         residuals: ``features_stream`` windows, oldest first: ``window_end`` + one residual per
             sensor id.
         scores: ``scores`` windows, oldest first (``window_end``, ``score``, ``threshold``).
+        orders: ``work_orders`` rows (``alert_id``, ``generator``, ``generated_at``, JSON).
 
     """
     tz = str(cfg["project"]["display_timezone"])
@@ -537,13 +638,19 @@ def live_view(
     )
     if runner["code"] == "starting":
         # the lake still holds the previous replay; the runner wipes it as it starts
-        alerts, versions, residuals, scores = [], [], [], []
+        alerts, versions, residuals, scores, orders = [], [], [], [], []
     open_alerts = [a for a in alerts if a.get("status") == "open"]
     current = newest(open_alerts, "start_ts")
     incident = None
     if current is not None:
         mine = [v for v in versions if v.get("alert_id") == current.get("alert_id")]
         incident = incident_view(current, state.get("leaks") or [], mine, tz)
+        leak = next(
+            (lk for lk in state.get("leaks") or [] if lk.get("leak_id") == incident["leak_id"]),
+            None,
+        )
+        theirs = [o for o in orders if o.get("alert_id") == current.get("alert_id")]
+        incident["order"] = order_view(theirs, mine, leak, tz)
     last = residuals[-1] if residuals else None
     drops = None
     if last is not None:

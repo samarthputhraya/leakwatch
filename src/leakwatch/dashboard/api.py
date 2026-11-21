@@ -336,6 +336,7 @@ class LiveSource:
             versions=rows.get("versions", []),
             residuals=rows.get("residuals", []),
             scores=rows.get("scores", []),
+            orders=rows.get("orders", []),
         )
         out["generated_at"] = datetime.now(UTC)
         out["build_ms"] = round((time.perf_counter() - started) * 1000, 1)
