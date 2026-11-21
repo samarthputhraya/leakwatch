@@ -117,7 +117,9 @@ def run(cfg: Mapping[str, Any]) -> dict[str, Any]:
         seconds=spec.window_s
     )
 
-    night_end = pd.DatetimeIndex(r.index).tz_localize("UTC") + pd.Timedelta(hours=hours[1] + 1)
+    nights = pd.DatetimeIndex(r.index)
+    nights = nights.tz_localize("UTC") if nights.tz is None else nights.tz_convert("UTC")
+    night_end = nights + pd.Timedelta(hours=hours[1] + 1)
     horizons = [float(h) for h in scfg["horizons_h"]]
     rows: list[dict[str, Any]] = []
     for leak in synthetic_leaks(cfg, spec):
