@@ -213,6 +213,140 @@ def leaks_view(
     }
 
 
+def number(value: Any) -> float | None:
+    """A finite float, or None for anything else (None, NaN, text, booleans)."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    out = float(value)
+    return out if math.isfinite(out) else None
+
+
+def sensor_id(name: Any) -> str:
+    """``pressure__n469`` or ``pressure__n469__residual`` -> ``n469``; a plain id stays as it is."""
+    parts = str(name).split("__")
+    return parts[1] if len(parts) > 1 else parts[0]
+
+
+def seconds_between(later: Any, earlier: Any) -> int | None:
+    """Whole seconds from ``earlier`` to ``later``; None if one is missing or the order is wrong."""
+    a, b = to_utc(later), to_utc(earlier)
+    if a is None or b is None or a < b:
+        return None
+    return round((a - b).total_seconds())
+
+
+def drops_view(
+    window_end: Any,
+    residuals: Mapping[str, Any],
+    floor_m: float,
+    tz: str,
+    label_sensors: Sequence[str] = (),
+) -> dict[str, Any] | None:
+    """Pressure drop per sensor in one window: metres below the usual level, 0 under the floor.
+
+    ``residuals`` maps sensor id -> window mean minus the hour-of-week baseline (negative = below
+    the usual level). A missing value draws no ring. ``label_sensors`` (the alert's top sensors)
+    get a text label on the map while their drop is shown.
+    """
+    end = to_utc(window_end)
+    if end is None:
+        return None
+    values: dict[str, float] = {}
+    for sensor, residual in residuals.items():
+        r = number(residual)
+        drop = 0.0 if r is None else max(0.0, -r)
+        values[str(sensor)] = round(drop, 2) if drop >= floor_m else 0.0
+    labels = [
+        {"sensor": s, "text": f"{s}  −{values[s]:.1f} m"}
+        for s in label_sensors
+        if values.get(s, 0.0) > 0
+    ]
+    return {
+        "window_end": end.isoformat(),
+        "time": fmt_time(end, tz, date=False),
+        "floor_m": floor_m,
+        "values": values,
+        "shown": sum(1 for v in values.values() if v > 0),
+        "labels": labels,
+    }
+
+
+def match_leak(
+    alert: Mapping[str, Any], leaks: Sequence[Mapping[str, Any]]
+) -> Mapping[str, Any] | None:
+    """The leak an alert belongs to: the newest leak that began at or before the alert did."""
+    start = to_utc(alert.get("start_ts"))
+    if start is None:
+        return None
+    before = [
+        (began, leak)
+        for leak in leaks
+        if (began := to_utc(leak.get("start_ts"))) is not None and began <= start
+    ]
+    return max(before, key=lambda pair: pair[0])[1] if before else None
+
+
+def incident_view(
+    alert: Mapping[str, Any],
+    leaks: Sequence[Mapping[str, Any]],
+    versions: Sequence[Mapping[str, Any]],
+    tz: str,
+) -> dict[str, Any]:
+    """The open alert, shaped for rail steps 2 (alert) and 3 (located) and for the map.
+
+    ``versions`` are this alert's rows in ``alert_events`` (``updated_at``, ``located``: whether
+    that version had localizer candidates). Seconds "after the click" are measured from the
+    matching leak's ``requested_at``; candidates are given by rank only.
+    """
+    leak = match_leak(alert, leaks)
+    start = to_utc(alert.get("start_ts"))
+    began = None if leak is None else to_utc(leak.get("start_ts"))
+    asked = None if leak is None else leak.get("requested_at")
+    sensors = []
+    for item in alert.get("top_sensors") or []:
+        if isinstance(item, Mapping) and item.get("sensor_id"):
+            share = number(item.get("contribution"))
+            sensors.append(
+                {
+                    "id": sensor_id(item["sensor_id"]),
+                    "share_pct": None if share is None else round(share * 100),
+                }
+            )
+    sensors = sensors[:3]
+    candidates = [
+        str(c["node_id"])
+        for c in alert.get("gnn_top5") or []
+        if isinstance(c, Mapping) and c.get("node_id")
+    ][:5]
+    located = [t for v in versions if v.get("located") and (t := to_utc(v.get("updated_at")))]
+    located_at = min(located) if located else (alert.get("updated_at") if candidates else None)
+    loss = number(alert.get("est_loss_m3h"))
+    return {
+        "alert_id": str(alert.get("alert_id")),
+        "area": alert.get("area"),
+        "status": alert.get("status"),
+        "start_ts": None if start is None else start.isoformat(),
+        "started": None if start is None else fmt_time(start, tz, date=False),
+        "leak_id": None if leak is None else leak.get("leak_id"),
+        "after_click_s": seconds_between(alert.get("created_at"), asked),
+        "after_leak_min": None
+        if start is None or began is None
+        else round((start - began).total_seconds() / 60),
+        "ratio": score_ratio(alert),
+        "sensors": sensors,
+        "candidates": candidates,
+        "located_after_s": seconds_between(located_at, asked) if candidates else None,
+        "loss_now_m3h": None if loss is None else round(loss, 1),
+        "focus": list(candidates),  # the camera frames these (the sensors may be far away)
+    }
+
+
+def newest(rows: Sequence[Mapping[str, Any]], key: str) -> Mapping[str, Any] | None:
+    """The row with the latest timestamp in ``key`` (rows without one are skipped)."""
+    dated = [(t, r) for r in rows if (t := to_utc(r.get(key))) is not None]
+    return max(dated, key=lambda pair: pair[0])[1] if dated else None
+
+
 def unavailable_view(now: datetime) -> dict[str, Any]:
     """What the page shows when the server could not build the live view at all."""
     title = "Screen data unavailable"
@@ -226,6 +360,8 @@ def unavailable_view(now: datetime) -> dict[str, Any]:
         },
         "open_alerts": 0,
         "leaks": {"pending": [], "active": [], "failed": []},
+        "incident": None,
+        "drops": None,
         "error": "snapshot failed",
         "generated_at": now,
     }
@@ -240,8 +376,24 @@ def live_view(
     n_pressure: int | None = None,
     lake_error: str | None = None,
     failed_leaks: Sequence[Mapping[str, Any]] = (),
+    versions: Sequence[Mapping[str, Any]] = (),
+    residuals: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
-    """Everything the live page shows, from the runner state and the newest alerts."""
+    """Everything the live page shows, from the runner state and the newest lake rows.
+
+    Args:
+        state: the runner's ``state.json``.
+        alerts: current alerts (``alerts`` view, newest version of each).
+        now: wall-clock time of this snapshot (UTC).
+        cfg: configuration (``project``, ``dashboard``, ``demo``).
+        n_pressure: number of pressure sensors (for the idle banner).
+        lake_error: sentence for the screen when the lake could not be read.
+        failed_leaks: leaks that vanished from the state without starting.
+        versions: ``alert_events`` rows (``alert_id``, ``updated_at``, ``located``).
+        residuals: ``features_stream`` windows, oldest first: ``window_end`` + one residual per
+            sensor id.
+
+    """
     tz = str(cfg["project"]["display_timezone"])
     dash = cfg["dashboard"]
     runner = runner_view(
@@ -252,13 +404,31 @@ def live_view(
         busy=bool(state.get("pending_leaks")),
     )
     if runner["code"] == "starting":
-        alerts = []  # the lake still holds the previous replay; the runner wipes it as it starts
+        # the lake still holds the previous replay; the runner wipes it as it starts
+        alerts, versions, residuals = [], [], []
     open_alerts = [a for a in alerts if a.get("status") == "open"]
+    current = newest(open_alerts, "start_ts")
+    incident = None
+    if current is not None:
+        mine = [v for v in versions if v.get("alert_id") == current.get("alert_id")]
+        incident = incident_view(current, state.get("leaks") or [], mine, tz)
+    last = residuals[-1] if residuals else None
+    drops = None
+    if last is not None:
+        drops = drops_view(
+            last.get("window_end"),
+            {k: v for k, v in last.items() if k != "window_end"},
+            float(dash["ring_floor_m"]),
+            tz,
+            [s["id"] for s in incident["sensors"]] if incident else (),
+        )
     return {
         "runner": runner,
         "clock": clock_view(state, cfg["demo"], tz) if state else None,
         "banner": banner_view(runner, open_alerts, n_pressure, lake_error, tz),
         "open_alerts": len(open_alerts),
         "leaks": leaks_view(state, failed_leaks, tz),
+        "incident": incident,
+        "drops": drops,
         "error": lake_error,
     }

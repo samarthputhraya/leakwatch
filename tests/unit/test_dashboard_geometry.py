@@ -100,3 +100,53 @@ def test_pipe_distance_follows_the_pipes(built):
     there, back = built.pipe_distance_m("n469", "n470"), built.pipe_distance_m("n470", "n469")
     assert there == back and 40 < there < 80  # 48.9 m apart in a straight line
     assert built.pipe_distance_m("n470", "no such node") is None
+
+
+def test_outline_of_a_grid_runs_at_the_buffer_distance_around_it():
+    grid = [(x, y) for x in range(0, 301, 50) for y in range(0, 201, 50)]
+    rings = geometry.outline(grid, buffer_m=40, alpha_m=80)
+    assert len(rings) == 1  # one outer ring, no holes
+    ring = rings[0]
+    assert ring[0] == ring[-1]  # closed
+    xs, ys = [p[0] for p in ring], [p[1] for p in ring]
+    assert min(xs) == pytest.approx(-40, abs=0.1) and max(xs) == pytest.approx(340, abs=0.1)
+    assert min(ys) == pytest.approx(-40, abs=1) and max(ys) == pytest.approx(240, abs=1)
+    for x, y in ring:  # every outline point is about the buffer away from the nearest grid point
+        nearest = min(math.hypot(x - gx, y - gy) for gx, gy in grid)
+        assert nearest == pytest.approx(40, abs=0.5)
+
+
+def test_outline_keeps_far_apart_groups_apart_and_drops_holes():
+    left = [(x, y) for x in range(0, 101, 50) for y in range(0, 101, 50)]
+    right = [(x + 1000, y) for x, y in left]
+    assert len(geometry.outline(left + right, buffer_m=40, alpha_m=80)) == 2
+    frame = [
+        (x, y)
+        for x in range(0, 601, 50)
+        for y in range(0, 601, 50)
+        if not 100 < x < 500 or not 100 < y < 500
+    ]
+    rings = geometry.outline(frame, buffer_m=40, alpha_m=80)
+    assert len(rings) == 1 and min(p[0] for p in rings[0]) < 0  # the outer ring, not the hole
+    assert geometry.outline([], buffer_m=40, alpha_m=80) == []
+
+
+def test_area_points_follow_long_pipes_inside_the_area_only():
+    nodes = {"a": [0.0, 0.0], "b": [200.0, 0.0], "c": [200.0, 500.0]}
+    areas = {"a": "A", "b": "A", "c": "B"}
+    pipes = [
+        {"a": "a", "b": "b", "kind": "Pipe"},
+        {"a": "b", "b": "c", "kind": "Pipe"},  # crosses into another area
+    ]
+    out = geometry.area_points(nodes, areas, pipes, ["a", "b", "c"], step_m=60)
+    assert out["A"][:2] == [[0.0, 0.0], [200.0, 0.0]]
+    assert [p[0] for p in out["A"][2:]] == pytest.approx([50.0, 100.0, 150.0])  # 3 points on 200 m
+    assert out["B"] == [[200.0, 500.0]]
+
+
+@pytest.mark.needs_data
+def test_every_area_has_an_outline_around_its_junctions(built):
+    p = built.payload
+    assert set(p["outlines"]) == {"A", "B", "C"}
+    for area, rings in p["outlines"].items():
+        assert rings and all(r[0] == r[-1] and len(r) > 4 for r in rings), area

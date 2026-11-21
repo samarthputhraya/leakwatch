@@ -115,10 +115,10 @@ def test_live_source_reports_an_unreadable_lake_instead_of_an_empty_one(monkeypa
     monkeypatch.setattr(runner, "read_state", lambda: {"status": "running", "updated_at": now})
     monkeypatch.setattr(source, "_pressure_sensors", lambda: 33)
 
-    def unreadable() -> list:
+    def unreadable() -> dict:
         raise OSError("No files found")
 
-    monkeypatch.setattr(source, "_alerts", unreadable)
+    monkeypatch.setattr(source, "_read_lake", unreadable)
     out = source()
     assert out["error"] and out["banner"] == {
         "kind": "unknown",
@@ -126,19 +126,26 @@ def test_live_source_reports_an_unreadable_lake_instead_of_an_empty_one(monkeypa
         "sub": "The demo lake could not be read. It is retried every second.",
     }
 
-    monkeypatch.setattr(source, "_alerts", lambda: [])
+    monkeypatch.setattr(source, "_read_lake", lambda: {})
     out = source()
     assert out["error"] is None and out["banner"]["title"] == "No open alerts"
+    assert out["incident"] is None and out["drops"] is None
     assert out["build_ms"] >= 0
 
 
-def test_live_source_reads_nothing_from_a_lake_without_alerts(monkeypatch, tmp_path):
+def test_live_source_reads_nothing_from_an_empty_lake(monkeypatch, tmp_path):
     from leakwatch.demo import runner
 
     monkeypatch.setattr(runner, "demo_lake", lambda: tmp_path / "lake")
     source = api.LiveSource(CFG)
-    assert source._alerts() == []
-    assert source._con is None  # it reconnects once the first alert exists
+    assert source._read_lake() == {
+        "alerts": [],
+        "versions": [],
+        "orders": [],
+        "residuals": [],
+        "scores": [],
+    }
+    assert source._con is None  # it connects once the first files exist
 
 
 def test_files_signature_counts_parquet_files_and_notices_changes(tmp_path):
@@ -156,7 +163,7 @@ def test_files_signature_counts_parquet_files_and_notices_changes(tmp_path):
     assert two[0] == 2 and two != one
 
 
-def test_alerts_are_queried_again_only_when_the_alert_files_change(monkeypatch, tmp_path):
+def test_each_lake_read_runs_again_only_when_its_files_change(monkeypatch, tmp_path):
     from leakwatch.common import lake
     from leakwatch.demo import runner
 
@@ -174,11 +181,87 @@ def test_alerts_are_queried_again_only_when_the_alert_files_change(monkeypatch, 
     source = api.LiveSource(CFG)
     monkeypatch.setattr(source, "_connection", lambda: object())
     monkeypatch.setattr(lake, "query_df", fake_query)
-    assert source._alerts() == [{"alert_id": "a", "status": "open", "end_ts": None}]
-    assert source._alerts() == source._alerts() and len(queries) == 1  # unchanged files: no query
+    rows = source._read_lake()
+    assert rows["alerts"] == [{"alert_id": "a", "status": "open", "end_ts": None}]
+    assert rows["residuals"] == [] and rows["scores"] == []  # no files: not queried
+    assert len(queries) == 3  # alerts, their versions, their orders
+    assert source._read_lake() == rows and len(queries) == 3  # unchanged files: no query
     (folder / "part-1.parquet").write_bytes(b"x")
-    source._alerts()
-    assert len(queries) == 2
+    source._read_lake()
+    assert len(queries) == 6
     for path in folder.glob("*.parquet"):
         path.unlink()
-    assert source._alerts() == [] and len(queries) == 2  # a wiped lake is not queried
+    assert source._read_lake()["alerts"] == [] and len(queries) == 6  # a wiped lake is not queried
+
+
+def test_residuals_are_read_per_sensor_for_the_chart_hours(monkeypatch, tmp_path):
+    """Real DuckDB over a small features_stream layer: sensor ids, time order, the time window."""
+    from leakwatch.common import lake
+    from leakwatch.demo import runner
+
+    root = tmp_path / "lake"
+    monkeypatch.setattr(runner, "demo_lake", lambda: root)
+    folder = lake.layer_dirs(root)["features_stream"] / "source=battledim" / "window=1h"
+    folder = folder / "date=2018-11-21"
+    folder.mkdir(parents=True)
+    ends = pd.date_range("2018-11-20 00:00", periods=30 * 4, freq="15min", tz="UTC")
+    pd.DataFrame(
+        {
+            "window_end": ends,
+            "pressure__n469__residual": -np.arange(len(ends)) / 100,
+            "pressure__n469__mean": 50.0,
+            "pressure__n114__residual": 0.1,
+        }
+    ).to_parquet(folder / "part-0.parquet")
+    rows = api.LiveSource(CFG)._read_lake()["residuals"]
+    hours = CFG["dashboard"]["chart_hours"]
+    assert len(rows) == hours * 4  # 15-minute steps, strictly after the newest minus the hours
+    assert set(rows[0]) == {"window_end", "n469", "n114"}
+    assert rows[-1]["window_end"] == ends[-1].to_pydatetime()
+    assert rows[0]["window_end"] > ends[-1].to_pydatetime() - pd.Timedelta(hours=hours)
+    assert rows[-1]["n469"] == pytest.approx(-(len(ends) - 1) / 100)
+
+
+def test_a_schema_read_without_residual_columns_is_read_again():
+    """A DESCRIBE that raced a file replacement must not hide the rings for the whole run."""
+    source = api.LiveSource(CFG)
+    schemas = [[("window_end",)], [("window_end",), ("pressure__n469__residual",)]]
+
+    class Result:
+        def __init__(self, rows: list) -> None:
+            self.rows = rows
+
+        def fetchall(self) -> list:
+            return self.rows
+
+    class Con:
+        def execute(self, sql: str) -> Result:
+            return Result(schemas.pop(0))
+
+    con = Con()
+    assert source._residual_columns(con) == []
+    assert source._residual_columns(con) == [("pressure__n469__residual", "n469")]
+    assert source._residual_columns(con) == [("pressure__n469__residual", "n469")]  # now kept
+
+
+def test_snapshot_builds_never_overlap():
+    """The first page request and the refresh thread must not share the connection at once."""
+    import threading
+    import time
+
+    inside, most = [0], [0]
+
+    def source() -> dict:
+        inside[0] += 1
+        most[0] = max(most[0], inside[0])
+        time.sleep(0.05)
+        inside[0] -= 1
+        return VM
+
+    snaps = api.Snapshots(source, 60)
+    threads = [threading.Thread(target=snaps.refresh) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert most[0] == 1 and snaps.latest() == VM

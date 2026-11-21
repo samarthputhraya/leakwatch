@@ -13,7 +13,7 @@ TZ = "Asia/Kolkata"
 NOW = datetime(2026, 11, 21, 14, 20, 30, tzinfo=UTC)
 CFG = {
     "project": {"display_timezone": TZ},
-    "dashboard": {"stale_after_s": 15, "starting_stale_after_s": 180},
+    "dashboard": {"stale_after_s": 15, "starting_stale_after_s": 180, "ring_floor_m": 0.7},
     "demo": {"background_start": "2018-11-19 00:00", "background_hours": 168},
 }
 # The alert of the demo run of 21 Nov 2026 (leak at n470), as the lake returned it.
@@ -194,3 +194,132 @@ def test_live_view_without_a_runner_has_no_clock_and_no_false_all_clear():
     out = view.live_view(state={}, alerts=[], now=NOW, cfg=CFG)
     assert out["clock"] is None and out["runner"]["code"] == "offline"
     assert out["banner"]["kind"] == "unknown"
+
+
+# The demo run of 21 Nov 2026, 16:03 UTC (leak at n470), as the state file and the lake hold it.
+LEAK = {
+    "leak_id": "demo-21d0e4",
+    "node_id": "n470",
+    "diameter_m": 0.03,
+    "requested_at": "2026-11-21T16:02:59.222032+00:00",
+    "est_flow_m3h": 57.03,
+    "start_ts": "2018-11-19T19:35:00+00:00",
+}
+RUN_ALERT = {
+    "alert_id": "5bab5c3a",
+    "status": "open",
+    "area": "A",
+    "start_ts": "2018-11-19T20:15:00+00:00",
+    "kmeans_score_max": 108.14352,
+    "threshold": 1.3664359811,
+    "est_loss_m3h": 53.966,
+    "top_sensors": [
+        {"sensor_id": "pressure__n469", "contribution": 0.7899},
+        {"sensor_id": "pressure__n114", "contribution": 0.0838},
+        {"sensor_id": "pressure__n516", "contribution": 0.0358},
+    ],
+    "gnn_top5": [
+        {"node_id": "n469", "prob": 1.0},
+        {"node_id": "n470", "prob": 0.0},
+        {"node_id": "n471", "prob": 0.0},
+        {"node_id": "n94", "prob": 0.0},
+        {"node_id": "n468", "prob": 0.0},
+    ],
+    "created_at": "2026-11-21T16:03:13.791235+00:00",
+    "updated_at": "2026-11-21T16:04:53.129395+00:00",
+}
+VERSIONS = [
+    {"alert_id": "5bab5c3a", "updated_at": "2026-11-21T16:03:13.791235+00:00", "located": True},
+    {"alert_id": "5bab5c3a", "updated_at": "2026-11-21T16:03:20.347019+00:00", "located": True},
+]
+
+
+def test_sensor_ids_lose_their_column_prefix_and_suffix():
+    assert view.sensor_id("pressure__n469") == "n469"
+    assert view.sensor_id("pressure__n469__residual") == "n469"
+    assert view.sensor_id("n469") == "n469"
+
+
+def test_drops_are_metres_below_the_usual_level_and_hidden_under_the_floor():
+    drops = view.drops_view(
+        "2018-11-23T06:30:00Z",
+        {"n469": -1.994, "n114": -0.81, "n516": -0.69, "n54": 0.4, "n1": None, "n4": float("nan")},
+        0.7,
+        TZ,
+        ["n469", "n114", "n516"],
+    )
+    assert drops["values"] == {
+        "n469": 1.99,
+        "n114": 0.81,
+        "n516": 0.0,
+        "n54": 0.0,
+        "n1": 0.0,
+        "n4": 0.0,
+    }
+    assert drops["shown"] == 2 and drops["time"] == "12:00 IST" and drops["floor_m"] == 0.7
+    assert drops["labels"] == [
+        {"sensor": "n469", "text": "n469  −2.0 m"},
+        {"sensor": "n114", "text": "n114  −0.8 m"},
+    ]
+    assert view.drops_view(None, {"n469": -2.0}, 0.7, TZ) is None
+
+
+def test_an_alert_belongs_to_the_newest_leak_that_began_before_it():
+    early = {**LEAK, "leak_id": "early", "start_ts": "2018-11-19T08:00:00+00:00"}
+    after = {**LEAK, "leak_id": "after", "start_ts": "2018-11-20T08:00:00+00:00"}
+    assert view.match_leak(RUN_ALERT, [early, LEAK, after])["leak_id"] == "demo-21d0e4"
+    assert view.match_leak(RUN_ALERT, [after]) is None
+    assert view.match_leak({"start_ts": None}, [LEAK]) is None
+
+
+def test_incident_of_the_demo_run():
+    out = view.incident_view(RUN_ALERT, [LEAK], VERSIONS, TZ)
+    assert out["started"] == "01:45 IST" and out["area"] == "A"
+    assert out["after_click_s"] == 15  # 16:03:13.8 - 16:02:59.2
+    assert out["after_leak_min"] == 40  # 19:35 -> 20:15 simulated
+    assert out["ratio"] == 79
+    assert out["sensors"] == [
+        {"id": "n469", "share_pct": 79},
+        {"id": "n114", "share_pct": 8},
+        {"id": "n516", "share_pct": 4},
+    ]
+    assert out["candidates"] == ["n469", "n470", "n471", "n94", "n468"]  # rank only
+    assert out["located_after_s"] == 15  # the first version already had candidates
+    assert out["loss_now_m3h"] == 54.0
+    assert out["focus"] == out["candidates"]
+
+
+def test_incident_without_candidates_or_a_leak_from_this_screen():
+    bare = {**RUN_ALERT, "gnn_top5": None, "top_sensors": None, "est_loss_m3h": None}
+    out = view.incident_view(bare, [], [], TZ)
+    assert out["candidates"] == [] and out["located_after_s"] is None
+    assert out["after_click_s"] is None and out["after_leak_min"] is None
+    assert out["sensors"] == [] and out["loss_now_m3h"] is None and out["leak_id"] is None
+    later = {**VERSIONS[1], "located": True}
+    out = view.incident_view(RUN_ALERT, [LEAK], [{**VERSIONS[0], "located": False}, later], TZ)
+    assert out["located_after_s"] == 21  # the localizer answered with the second version
+
+
+def test_live_view_shows_the_newest_open_alert_and_the_newest_window():
+    older = {**RUN_ALERT, "alert_id": "old", "start_ts": "2018-11-19T02:00:00+00:00"}
+    residuals = [
+        {"window_end": "2018-11-23T06:15:00Z", "n469": -1.9, "n114": -0.3},
+        {"window_end": "2018-11-23T06:30:00Z", "n469": -2.0, "n114": -0.75},
+    ]
+    out = view.live_view(
+        state=state(leaks=[LEAK]),
+        alerts=[older, RUN_ALERT],
+        now=NOW,
+        cfg=CFG,
+        versions=VERSIONS,
+        residuals=residuals,
+    )
+    assert out["incident"]["alert_id"] == "5bab5c3a" and out["incident"]["after_click_s"] == 15
+    assert out["drops"]["values"] == {"n469": 2.0, "n114": 0.75}
+    assert [label["sensor"] for label in out["drops"]["labels"]] == ["n469", "n114"]
+    quiet = view.live_view(state=state(), alerts=[], now=NOW, cfg=CFG, residuals=residuals)
+    assert quiet["incident"] is None and quiet["drops"]["labels"] == []
+    starting = view.live_view(
+        state=state("starting"), alerts=[RUN_ALERT], now=NOW, cfg=CFG, residuals=residuals
+    )
+    assert starting["incident"] is None and starting["drops"] is None  # the previous replay's

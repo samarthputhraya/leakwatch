@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import re
 import threading
 import time
 from collections.abc import AsyncGenerator, Callable, Mapping
@@ -43,12 +44,27 @@ from leakwatch.dashboard import view
 
 log = get_logger("leakwatch.dashboard.api")
 STATIC = Path(__file__).with_name("static")
-LIVE_VIEWS = ("alerts",)
+LAYERS = ("alert_events", "work_orders", "features_stream", "scores")
+#: Lake reads, each re-run only when the Parquet files of its layers change.
+GROUPS = {
+    "alerts": ("alert_events", "work_orders"),
+    "residuals": ("features_stream",),
+    "scores": ("scores",),
+}
 ALERT_COLUMNS = (
     "alert_id, origin, status, start_ts, end_ts, area, kmeans_score_max, threshold, "
     "est_loss_m3h, windows_above, last_window_end, top_sensors, gnn_top5, work_order_json, "
     "work_order_generator, created_at, updated_at"
 )
+VERSION_SQL = (
+    "SELECT alert_id, version, updated_at, est_loss_m3h, last_window_end, "
+    "coalesce(len(gnn_top5) > 0, false) AS located FROM alert_events ORDER BY updated_at"
+)
+ORDER_SQL = (
+    "SELECT alert_id, generator, generated_at, work_order_json FROM work_orders "
+    "ORDER BY generated_at"
+)
+RESIDUAL_COLUMN = re.compile(r"^pressure__(\w+?)__residual$")
 NOT_FROM_PAGE = "This request did not come from the dashboard page."
 KAFKA_DOWN = "The command could not be sent: Kafka did not accept it. Start Kafka with `make up`."
 
@@ -177,54 +193,113 @@ class LiveSource:
     def __init__(self, cfg: Mapping[str, Any] | None = None) -> None:
         self.cfg = cfg or load_config()
         self._con: Any = None
+        self._layers: frozenset[str] = frozenset()
+        self._columns: list[tuple[str, str]] | None = None
+        self._cache: dict[str, tuple[tuple[int, int], Any]] = {}
         self._n_pressure: int | None = None
-        self._alert_files: tuple[int, int] | None = None
-        self._alert_rows: list[dict[str, Any]] = []
         self._failed = FailedLeaks(float(self.cfg["dashboard"]["failed_leak_seconds"]))
 
     def _connection(self) -> Any:
-        """One DuckDB connection over the demo lake, rebuilt until its views exist."""
-        from leakwatch.common import lake
-        from leakwatch.demo.runner import demo_lake
-
-        if self._con is None:
-            con = lake.connect(lake_root=demo_lake(), only=LIVE_VIEWS)
-            # One thread and a small memory cap: Spark needs the laptop more than this does.
-            con.execute("SET threads = 1")
-            con.execute(f"SET memory_limit = '{self.cfg['dashboard']['duckdb_memory']}'")
-            names = {r[0] for r in con.execute("SELECT view_name FROM duckdb_views()").fetchall()}
-            if "alerts" not in names:  # a fresh demo lake has no alert yet: nothing to read
-                con.close()
-                return None
-            self._con = con
-        return self._con
-
-    def _alerts(self) -> list[dict[str, Any]]:
-        """Newest alerts; the lake is queried only when its alert files changed."""
+        """One DuckDB connection over the demo lake, rebuilt when a layer appears or vanishes."""
         from leakwatch.common import lake
         from leakwatch.demo.runner import demo_lake
 
         dirs = lake.layer_dirs(demo_lake())
-        files = files_signature(dirs["alert_events"], dirs["work_orders"])
-        if files == self._alert_files:
-            return self._alert_rows
-        if files[0] == 0:  # wiped by a restart: the old views point at nothing
-            self._con, self._alert_files, self._alert_rows = None, files, []
-            return []
+        present = frozenset(name for name in LAYERS if lake.has_parquet(dirs[name]))
+        if self._con is not None and present == self._layers:
+            return self._con
+        self._con, self._columns, self._layers = None, None, present
+        if not present:
+            return None
+        only = [*sorted(present), *(["alerts"] if "alert_events" in present else [])]
+        con = lake.connect(lake_root=demo_lake(), only=only)
+        # One thread and a small memory cap: Spark needs the laptop more than this does.
+        con.execute("SET threads = 1")
+        con.execute(f"SET memory_limit = '{self.cfg['dashboard']['duckdb_memory']}'")
+        self._con = con
+        return con
+
+    def _cached(self, group: str, read: Callable[[Any], Any], empty: Any) -> Any:
+        """``read(connection)`` for a group of layers, re-run only when their files changed."""
+        from leakwatch.common import lake
+        from leakwatch.demo.runner import demo_lake
+
+        dirs = lake.layer_dirs(demo_lake())
+        files = files_signature(*(dirs[name] for name in GROUPS[group]))
+        hit = self._cache.get(group)
+        if hit is not None and hit[0] == files:
+            return hit[1]
+        if files[0] == 0:  # not written yet, or wiped by a restart
+            self._cache[group] = (files, empty)
+            return empty
         con = self._connection()
         if con is None:
-            return []
-        limit = int(self.cfg["dashboard"]["alerts_limit"])
+            return empty
         try:
-            df = lake.query_df(
-                con, f"SELECT {ALERT_COLUMNS} FROM alerts ORDER BY start_ts DESC LIMIT {limit}"
-            )
+            value = read(con)
         except Exception:
             self._con = None  # files moved under the view (demo reset): reconnect next time
             raise
-        self._alert_rows = [plain(row) for row in df.to_dict("records")]
-        self._alert_files = files
-        return self._alert_rows
+        if value:  # an empty answer over existing files is asked again next time
+            self._cache[group] = (files, value)
+        return value
+
+    def _read_alerts(self, con: Any) -> dict[str, list[dict[str, Any]]]:
+        from leakwatch.common import lake
+
+        limit = int(self.cfg["dashboard"]["alerts_limit"])
+        rows = {
+            "alerts": f"SELECT {ALERT_COLUMNS} FROM alerts ORDER BY start_ts DESC LIMIT {limit}",
+            "versions": VERSION_SQL,
+            "orders": ORDER_SQL,
+        }
+        return {
+            name: [plain(r) for r in lake.query_df(con, sql).to_dict("records")]
+            for name, sql in rows.items()
+        }
+
+    def _residual_columns(self, con: Any) -> list[tuple[str, str]]:
+        """``(column, sensor id)`` of the per-sensor pressure residuals in ``features_stream``."""
+        if self._columns is None:
+            names = [r[0] for r in con.execute("DESCRIBE features_stream").fetchall()]
+            found = ((name, RESIDUAL_COLUMN.match(name)) for name in names)
+            columns = [(name, m.group(1)) for name, m in found if m]
+            # None again if the schema was read while a file was being replaced
+            self._columns = columns or None
+            return columns
+        return self._columns
+
+    def _recent(self, table: str, select: str) -> str:
+        hours = int(self.cfg["dashboard"]["chart_hours"])
+        return (
+            f"SELECT {select} FROM {table} WHERE window_end > "
+            f"(SELECT max(window_end) FROM {table}) - INTERVAL {hours} HOUR ORDER BY window_end"
+        )
+
+    def _read_residuals(self, con: Any) -> list[dict[str, Any]]:
+        from leakwatch.common import lake
+
+        columns = self._residual_columns(con)
+        if not columns:
+            return []
+        select = ", ".join(["window_end", *(f'"{c}" AS "{s}"' for c, s in columns)])
+        df = lake.query_df(con, self._recent("features_stream", select))
+        return [plain(r) for r in df.to_dict("records")]
+
+    def _read_scores(self, con: Any) -> list[dict[str, Any]]:
+        from leakwatch.common import lake
+
+        df = lake.query_df(con, self._recent("scores", "window_end, score, threshold, above"))
+        return [plain(r) for r in df.to_dict("records")]
+
+    def _read_lake(self) -> dict[str, list[dict[str, Any]]]:
+        """Newest alerts with their versions and orders, and the recent windows of the stream."""
+        out = dict(
+            self._cached("alerts", self._read_alerts, {"alerts": [], "versions": [], "orders": []})
+        )
+        out["residuals"] = self._cached("residuals", self._read_residuals, [])
+        out["scores"] = self._cached("scores", self._read_scores, [])
+        return out
 
     def _pressure_sensors(self) -> int | None:
         if self._n_pressure is None:
@@ -243,21 +318,23 @@ class LiveSource:
         started = time.perf_counter()
         now = datetime.now(UTC)
         state = read_state()
-        alerts: list[dict[str, Any]] = []
+        rows: dict[str, list[dict[str, Any]]] = {}
         error: str | None = None
         try:
-            alerts = self._alerts()
+            rows = self._read_lake()
         except Exception as exc:
             log.warning("demo lake not readable: %s", exc)
             error = "The demo lake could not be read. It is retried every second."
         out = view.live_view(
             state=state,
-            alerts=alerts,
+            alerts=rows.get("alerts", []),
             now=now,
             cfg=self.cfg,
             n_pressure=self._pressure_sensors(),
             lake_error=error,
             failed_leaks=self._failed.update(state, now),
+            versions=rows.get("versions", []),
+            residuals=rows.get("residuals", []),
         )
         out["generated_at"] = datetime.now(UTC)
         out["build_ms"] = round((time.perf_counter() - started) * 1000, 1)
@@ -271,18 +348,24 @@ class Snapshots:
         self.source = source
         self.interval_s = interval_s
         self._latest: dict[str, Any] | None = None
+        self._lock = threading.Lock()  # one build at a time: the source holds one DuckDB connection
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
     def refresh(self) -> dict[str, Any]:
-        """Build one snapshot now (a failure becomes an ``error`` snapshot, not an exception)."""
-        try:
-            latest = self.source()
-        except Exception as exc:
-            log.error("snapshot failed: %s", exc)
-            latest = view.unavailable_view(datetime.now(UTC))
-        self._latest = latest
-        return latest
+        """Build one snapshot now (a failure becomes an ``error`` snapshot, not an exception).
+
+        Builds never overlap: the first page request can arrive while the refresh thread is
+        still building the first snapshot, and both would use the same DuckDB connection.
+        """
+        with self._lock:
+            try:
+                latest = self.source()
+            except Exception as exc:
+                log.error("snapshot failed: %s", exc)
+                latest = view.unavailable_view(datetime.now(UTC))
+            self._latest = latest
+            return latest
 
     def latest(self) -> dict[str, Any]:
         """The newest snapshot (built now if there is none yet)."""
@@ -397,6 +480,7 @@ def create_app(
                     "default": round(float(cfg["demo"]["leak_diameter_m"]) * 1000),
                 },
                 "speeds": [int(s) for s in dash["speeds"]],
+                "ring_floor_m": float(dash["ring_floor_m"]),
             }
         )
 

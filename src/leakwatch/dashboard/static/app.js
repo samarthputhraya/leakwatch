@@ -135,20 +135,37 @@ function Banner({ banner, runner, onRestart }) {
   </div>`;
 }
 
-function MapView({ net, selected, onPick, onError }) {
+function MapView({ net, selected, drops, incident, onReady, onPick, onError }) {
   const el = useRef(null);
   const map = useRef(null);
   const handlers = useRef({});
-  handlers.current = { onPick, onError };
+  handlers.current = { onPick, onError, onReady };
   useEffect(() => {
     map.current = createMap(el.current, net, {
       onPick: (node, at) => handlers.current.onPick(node, at),
       onError: (error) => handlers.current.onError(error),
     });
-    return () => { if (map.current) map.current.destroy(); };
+    handlers.current.onReady(map.current);
+    return () => { if (map.current) map.current.destroy(); map.current = null; handlers.current.onReady(null); };
   }, [net]);
-  useEffect(() => { if (map.current) map.current.set({ selected }); }, [selected]);
+  useEffect(() => { if (map.current) map.current.set({ selected, drops, incident }); }, [selected, drops, incident]);
   return html`<div class="deck" ref=${el}></div>`;
+}
+
+const metres = (m) => `${Number(m.toFixed(1))} m`;
+
+function Legend({ net, drops, incident, floor }) {
+  return html`<div class="legend" aria-label="Map legend">
+    <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="4.2" fill="var(--sheet)" stroke="var(--ink)" stroke-width="1.5"/></svg>
+      Pressure sensor (${net.counts.pressure_sensors})</span>
+    <span><svg width="26" height="26" aria-hidden="true"><circle cx="13" cy="13" r="11" fill="var(--amber)" fill-opacity=".22" stroke="var(--amber)" stroke-width="1.5"/>
+      <circle cx="13" cy="13" r="4.2" fill="var(--sheet)" stroke="var(--ink)" stroke-width="1.5"/></svg>
+      Measured drop, ring size (${metres(floor)} or more)</span>
+    <span><i class="ramp" aria-hidden="true"></i>Drop along the pipes, interpolated between sensors (0 to ${metres(net.tint_full_m)})</span>
+    ${incident && incident.candidates.length > 0 && html`<span><svg width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="var(--amber)"/>
+      <text x="9" y="13" text-anchor="middle" font-size="11" font-weight="700" fill="var(--sheet)">1</text></svg>Candidate, by rank</span>`}
+    ${drops && html`<span class="when">Readings of the window ending ${drops.time}</span>`}
+  </div>`;
 }
 
 function PickCard({ pick, net, size, canStart, why, busy, onStart, onClose }) {
@@ -195,14 +212,45 @@ function LeakStep({ leaks, net, size, canStart, why, busy, onStart }) {
     ${!canStart && html`<p class="fine">${why}</p>`}` };
 }
 
+const COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five'];
+
+function AlertStep({ inc }) {
+  if (!inc) return { on: false, title: STEPS[1] };
+  let timing;
+  if (inc.after_click_s != null) {
+    timing = html`<b>${inc.after_click_s} s</b> after the click${inc.after_leak_min != null
+      ? html`, <b>${inc.after_leak_min} simulated minutes</b> after the leak began` : ''}.`;
+  } else {
+    timing = 'It began before any leak started from this screen.';
+  }
+  return { on: true, title: STEPS[1], when: inc.started, body: html`
+    <p>Area ${inc.area}. ${timing}${inc.ratio != null ? html` Score <b>${inc.ratio} times</b> the threshold.` : ''}</p>
+    ${inc.sensors.length > 0 && html`<p>Moved most, share of the score:
+      ${inc.sensors.map((s, i) => html`${i ? ', ' : ' '}<b>${s.id}</b>${s.share_pct != null ? ` ${s.share_pct}%` : ''}`)}</p>`}` };
+}
+
+function LocatedStep({ inc }) {
+  if (!inc) return { on: false, title: STEPS[2] };
+  if (!inc.candidates.length) {
+    return { on: false, title: STEPS[2], body: html`<p>The localizer has not answered for this alert yet.</p>` };
+  }
+  const n = inc.candidates.length;
+  return { on: true, title: STEPS[2], body: html`
+    <p>${COUNT[n] || n} candidate junction${n === 1 ? '' : 's'}, best first${inc.located_after_s != null
+      ? html`, <b>${inc.located_after_s} s</b> after the click` : ''}.</p>
+    <ol class="cands" aria-label="Candidate junctions, best first">${inc.candidates.map((c, i) => html`<li><i>${i + 1}</i>${c}</li>`)}</ol>` };
+}
+
 function Rail({ vm, net, size, canStart, why, busy, onStart, notice }) {
   const first = LeakStep({ leaks: vm.leaks, net, size, canStart, why, busy, onStart });
-  const steps = [first, ...STEPS.slice(1).map((title) => ({ on: false, title }))];
+  const inc = vm.incident;
+  const steps = [first, AlertStep({ inc }), LocatedStep({ inc }), ...STEPS.slice(3).map((title) => ({ on: false, title }))];
+  const now = steps.reduce((last, s, i) => (s.on ? i : last), 0);
   return html`<aside class="rail" aria-label="Incident, step by step">
     <h2>Incident</h2>
     ${notice && html`<p class="problem" role="alert">${notice}</p>`}
     <ol class="steps">
-      ${steps.map((s, i) => html`<li class=${s.on ? 'on' : ''}>
+      ${steps.map((s, i) => html`<li class=${`${s.on ? 'on' : ''} ${i === now && s.on ? 'now' : ''}`}>
         <span class="n">${i + 1}</span>
         <div><h3>${s.title}${s.when && html`<span class="when">${s.when}</span>`}</h3>
           ${s.body && html`<div class="body">${s.body}</div>`}</div>
@@ -218,7 +266,32 @@ const SERVER_LOST = {
   clock: null,
   banner: { kind: 'unknown', title: 'Dashboard server not reachable', sub: 'This page stopped receiving data. Start the demo again with `make demo`.' },
   leaks: { pending: [], active: [], failed: [] },
+  incident: null,
+  drops: null,
 };
+
+// The camera flies to the candidates once per alert, and back home when the alert is gone.
+function useCamera(map, incident) {
+  const [zoomed, setZoomed] = useState(false);
+  const flown = useRef(null);
+  const target = incident && incident.candidates.length ? incident.alert_id : null;
+  useEffect(() => {
+    if (!map) return;
+    if (target && flown.current !== target) {
+      flown.current = target;
+      setZoomed(map.focus(incident.focus));
+    } else if (!target && flown.current) {
+      flown.current = null;
+      map.home();
+      setZoomed(false);
+    }
+  }, [map, target]);
+  const toggle = () => {
+    if (!map || !incident) return;
+    if (zoomed) { map.home(); setZoomed(false); } else setZoomed(map.focus(incident.focus));
+  };
+  return { zoomed, toggle };
+}
 
 function App() {
   const { vm, lost, settings } = useLive();
@@ -228,7 +301,9 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
   const [mapError, setMapError] = useState(null);
+  const [map, setMap] = useState(null);
   const mapBox = useRef(null);
+  const camera = useCamera(map, lost ? null : vm && vm.incident);
   if (!vm && !lost) return html`<div class="app" aria-busy="true"></div>`;
   const shown = lost ? { ...(vm || {}), ...SERVER_LOST } : vm;
   const leakSize = size ?? (settings ? settings.leak_mm.default : 30);
@@ -252,10 +327,16 @@ function App() {
       <${Controls} settings=${settings} clock=${shown.clock} runner=${shown.runner} size=${leakSize} setSize=${setSize} notify=${setNotice} />
     <//>
     <main class="map" ref=${mapBox}>
-      ${net && !mapError && html`<${MapView} net=${net} selected=${pick ? pick.node : null} onPick=${onPick}
+      ${net && !mapError && html`<${MapView} net=${net} selected=${pick ? pick.node : null} drops=${shown.drops}
+        incident=${shown.incident} onReady=${setMap} onPick=${onPick}
         onError=${() => setMapError('The map needs WebGL 2, which this browser did not provide. The panels on the right still work.')} />`}
       ${(netError || mapError) && html`<p class="map-note" role="alert">${mapError || netError}</p>`}
       <${Banner} banner=${shown.banner} runner=${shown.runner} onRestart=${restart} />
+      ${map && shown.incident && shown.incident.candidates.length > 0 && html`<div class="map-buttons">
+        <button class="btn ghost" onClick=${camera.toggle}>${camera.zoomed ? 'Show the whole network' : 'Zoom to the candidates'}</button>
+      </div>`}
+      ${net && !mapError && html`<${Legend} net=${net} drops=${shown.drops} incident=${shown.incident}
+        floor=${shown.drops ? shown.drops.floor_m : settings ? settings.ring_floor_m : 0} />`}
       ${pick && net && html`<${PickCard} pick=${pick} net=${net} size=${leakSize} canStart=${canStart} why=${why}
         busy=${busy} onStart=${() => start(pick.node)} onClose=${() => setPick(null)} />`}
     </main>
