@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-21T01:18:29+00:00",
-    "git_commit": "d5931bf",
+    "generated_at": "2026-11-21T07:39:09+00:00",
+    "git_commit": "208f706",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -59,16 +59,16 @@
   "placements": {
     "localizer": {
       "2018": {
-        "total_score_eur": 73937.13,
-        "true_positives": 7,
-        "false_positives": 30,
+        "total_score_eur": 75144.04,
+        "true_positives": 8,
+        "false_positives": 26,
         "detections": 45,
         "alerts": 45
       },
       "2019": {
-        "total_score_eur": 160576.58,
-        "true_positives": 13,
-        "false_positives": 155,
+        "total_score_eur": 83106.17,
+        "true_positives": 10,
+        "false_positives": 124,
         "detections": 196,
         "alerts": 196
       }
@@ -94,56 +94,133 @@
   "revisit_rule": {
     "rule": "no second report at a pipe within d days of the last one kept there; d with the best 2018 score, ties to the shorter window (D-042)",
     "scores_2018": {
-      "0": 73937.13,
-      "3": 76937.13,
-      "7": 77437.13,
-      "14": 79437.13,
-      "30": 81437.13
+      "0": 75144.04,
+      "3": 77644.04,
+      "7": 78144.04,
+      "14": 79644.04,
+      "30": 80644.04
     },
     "chosen_days": 30.0
   },
   "carry_forward": {
     "enabled": true,
-    "previous_reports": 24,
-    "closed_by_a_repair": 10,
+    "previous_reports": 30,
+    "closed_by_a_repair": 18,
     "open_pipes": [
-      "p254",
-      "p147",
-      "p660",
-      "p295",
-      "p144",
-      "p89",
-      "p346",
-      "p291",
-      "p701",
-      "p468",
-      "p253"
+      "p547",
+      "p257",
+      "p279",
+      "p4",
+      "p273",
+      "p386",
+      "p278",
+      "p125",
+      "p356",
+      "p506",
+      "p270"
     ],
     "reported_at": "2019-01-01T00:05:00+00:00"
   },
   "steps_2019": {
-    "placement_only": 160576.58,
-    "with_revisit_rule": 217076.58,
-    "with_carry_forward": 236433.37
+    "placement_only": 83106.17,
+    "with_revisit_rule": 114606.17,
+    "with_carry_forward": 115210.15
   },
   "random_baseline": {
     "2018": {
       "draws": 200,
       "alerts_per_draw": 45,
-      "mean_eur": 58690.54,
-      "p95_eur": 83330.95,
-      "max_eur": 105348.75,
-      "system_eur": 81437.13,
-      "p_value": 0.0697
+      "mean_eur": 66056.47,
+      "p95_eur": 89172.57,
+      "max_eur": 108059.56,
+      "system_eur": 80644.04,
+      "p_value": 0.1542
     },
     "2019": {
       "draws": 200,
       "alerts_per_draw": 196,
-      "mean_eur": 228929.76,
-      "p95_eur": 285871.45,
-      "max_eur": 331077.32,
-      "system_eur": 217076.58,
-      "p_value": 0.597
+      "mean_eur": 160388.77,
+      "p95_eur": 213256.25,
+      "max_eur": 256447.81,
+      "system_eur": 114606.17,
+      "p_value": 0.9602
+    }
+  },
+  "timing_tests": {
+    "why": "the random-timing baseline mixes timing with placement; these tests isolate timing (D-047): (a) every report at the true leak, system vs random alert times; (b) hours from each leak's start to its first correct report (system placement) and to the first alert of any kind, system vs random times (same draws, same count)",
+    "2018": {
+      "oracle_placement_eur": {
+        "observed": 169673.35,
+        "random_mean": 153917.21,
+        "random_p5": 141252.56,
+        "random_p95": 164771.55,
+        "draws": 200,
+        "p_value": 0.01
+      },
+      "oracle_placement_true_positives": {
+        "observed": 13.0,
+        "random_mean": 12.68,
+        "random_p5": 11.0,
+        "random_p95": 14.0,
+        "draws": 200,
+        "p_value": 0.6269
+      },
+      "median_delay_to_first_correct_report_h": {
+        "observed": 77.17,
+        "random_mean": 277.56,
+        "random_p5": 89.11,
+        "random_p95": 641.88,
+        "draws": 200,
+        "p_value": 0.0398,
+        "leaks_found": 8
+      },
+      "median_delay_to_first_alert_h": {
+        "observed": 14.42,
+        "random_mean": 119.6,
+        "random_p5": 59.04,
+        "random_p95": 195.0,
+        "draws": 200,
+        "p_value": 0.005,
+        "leaks_with_an_alert": 13,
+        "leaks_starting_in_year": 14
+      }
+    },
+    "2019": {
+      "oracle_placement_eur": {
+        "observed": 500484.29,
+        "random_mean": 516115.23,
+        "random_p5": 512513.66,
+        "random_p95": 519119.59,
+        "draws": 200,
+        "p_value": 1.0
+      },
+      "oracle_placement_true_positives": {
+        "observed": 23.0,
+        "random_mean": 23.0,
+        "random_p5": 23.0,
+        "random_p95": 23.0,
+        "draws": 200,
+        "p_value": 0.995
+      },
+      "median_delay_to_first_correct_report_h": {
+        "observed": 248.08,
+        "random_mean": 349.65,
+        "random_p5": 108.8,
+        "random_p95": 662.74,
+        "draws": 200,
+        "p_value": 0.3035,
+        "leaks_found": 10
+      },
+      "median_delay_to_first_alert_h": {
+        "observed": 20.75,
+        "random_mean": 31.42,
+        "random_p5": 15.33,
+        "random_p95": 50.25,
+        "draws": 200,
+        "p_value": 0.1443,
+        "leaks_with_an_alert": 19,
+        "leaks_starting_in_year": 19
+      }
     }
   },
   "years": {
@@ -151,27 +228,27 @@
       "role": "development (rules applied to 2018)",
       "placement": "localizer",
       "revisit_days": 30.0,
-      "total_score_eur": 81437.13,
-      "true_positives": 7,
+      "total_score_eur": 80644.04,
+      "true_positives": 8,
       "false_positives": 15,
-      "false_negatives": 7,
-      "repeated_detections": 2,
-      "tp_rate": 0.5,
+      "false_negatives": 6,
+      "repeated_detections": 7,
+      "tp_rate": 0.5714,
       "leaks": 14,
-      "detections": 24,
+      "detections": 30,
       "detected_leaks": [
-        "p257",
+        "p232",
         "p673",
-        "p461",
+        "p257",
+        "p628",
         "p538",
         "p31",
         "p183",
         "p158"
       ],
       "missed_leaks": [
-        "p232",
+        "p461",
         "p427",
-        "p628",
         "p866",
         "p654",
         "p810",
@@ -189,7 +266,7 @@
           "label": "fp"
         },
         {
-          "link_id": "p79",
+          "link_id": "p547",
           "ts": "2018-01-08T16:30:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -197,61 +274,69 @@
           "label": "fp"
         },
         {
-          "link_id": "p254",
+          "link_id": "p312",
           "ts": "2018-01-09T05:00:00+00:00",
-          "leak": "p257",
-          "distance_m": 146.1,
-          "score_eur": 44521.56,
-          "label": "tp",
-          "delay_h": 15.5,
-          "water_saved_m3": 55956.4
-        },
-        {
-          "link_id": "p147",
-          "ts": "2018-01-09T17:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p660",
+          "link_id": "p292",
+          "ts": "2018-01-10T08:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p619",
           "ts": "2018-02-04T00:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "leak": "p232",
+          "distance_m": 158.9,
+          "score_eur": 2888.09,
+          "label": "tp",
+          "delay_h": 94.17,
+          "water_saved_m3": 3941.1
         },
         {
-          "link_id": "p295",
-          "ts": "2018-02-10T18:15:00+00:00",
+          "link_id": "p611",
+          "ts": "2018-02-04T22:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p155",
+          "link_id": "p313",
+          "ts": "2018-02-10T18:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p75",
           "ts": "2018-03-05T16:45:00+00:00",
           "leak": "p673",
-          "distance_m": 78.1,
-          "score_eur": 9545.49,
+          "distance_m": 138.9,
+          "score_eur": 9444.13,
           "label": "tp",
           "delay_h": 1.0,
           "water_saved_m3": 12094.5
         },
         {
-          "link_id": "p506",
+          "link_id": "p257",
           "ts": "2018-03-23T11:30:00+00:00",
-          "leak": "p461",
-          "distance_m": 226.8,
-          "score_eur": 5275.0,
+          "leak": "p257",
+          "distance_m": 0.0,
+          "score_eur": 36643.54,
           "label": "tp",
-          "delay_h": 1423.08,
-          "water_saved_m3": 7066.3
+          "delay_h": 1774.0,
+          "water_saved_m3": 45804.4
         },
         {
-          "link_id": "p251",
+          "link_id": "p313",
           "ts": "2018-05-15T05:00:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -259,33 +344,43 @@
           "label": "fp"
         },
         {
-          "link_id": "p144",
+          "link_id": "p630",
           "ts": "2018-05-15T22:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "leak": "p628",
+          "distance_m": 50.9,
+          "score_eur": 9234.35,
+          "label": "tp",
+          "delay_h": 319.83,
+          "water_saved_m3": 11649.0
         },
         {
-          "link_id": "p226",
+          "link_id": "p627",
+          "ts": "2018-05-17T20:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p537",
           "ts": "2018-05-18T16:45:00+00:00",
           "leak": "p538",
-          "distance_m": 237.3,
-          "score_eur": 8673.34,
+          "distance_m": 39.4,
+          "score_eur": 9003.16,
           "label": "tp",
           "delay_h": 8.17,
           "water_saved_m3": 11336.1
         },
         {
-          "link_id": "p89",
+          "link_id": "p505",
           "ts": "2018-05-23T15:30:00+00:00",
           "leak": null,
           "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "score_eur": 0.0,
+          "label": "repeat"
         },
         {
-          "link_id": "p147",
+          "link_id": "p279",
           "ts": "2018-05-30T05:45:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -293,7 +388,7 @@
           "label": "fp"
         },
         {
-          "link_id": "p147",
+          "link_id": "p547",
           "ts": "2018-07-05T15:00:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -301,7 +396,7 @@
           "label": "fp"
         },
         {
-          "link_id": "p346",
+          "link_id": "p4",
           "ts": "2018-07-08T15:15:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -319,15 +414,39 @@
           "water_saved_m3": 8148.2
         },
         {
-          "link_id": "p291",
-          "ts": "2018-07-20T03:30:00+00:00",
+          "link_id": "p273",
+          "ts": "2018-07-16T09:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p701",
+          "link_id": "p386",
+          "ts": "2018-07-18T15:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p278",
+          "ts": "2018-07-19T09:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p33",
+          "ts": "2018-07-20T03:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p125",
           "ts": "2018-07-20T17:00:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -335,23 +454,7 @@
           "label": "fp"
         },
         {
-          "link_id": "p468",
-          "ts": "2018-07-25T16:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p147",
-          "ts": "2018-08-04T18:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p347",
+          "link_id": "p356",
           "ts": "2018-08-08T12:30:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -359,14 +462,30 @@
           "label": "fp"
         },
         {
-          "link_id": "p856",
+          "link_id": "p830",
           "ts": "2018-08-09T14:45:00+00:00",
           "leak": "p183",
-          "distance_m": 55.6,
-          "score_eur": 7133.69,
+          "distance_m": 50.1,
+          "score_eur": 7142.72,
           "label": "tp",
           "delay_h": 60.17,
           "water_saved_m3": 9032.8
+        },
+        {
+          "link_id": "p240",
+          "ts": "2018-08-11T02:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p506",
+          "ts": "2018-08-13T02:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
         },
         {
           "link_id": "p53",
@@ -379,7 +498,15 @@
           "water_saved_m3": 9727.5
         },
         {
-          "link_id": "p253",
+          "link_id": "p161",
+          "ts": "2018-10-08T21:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p270",
           "ts": "2018-10-26T10:30:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -392,61 +519,69 @@
       "role": "test (official)",
       "placement": "localizer",
       "revisit_days": 30.0,
-      "total_score_eur": 236433.37,
-      "true_positives": 14,
-      "false_positives": 49,
-      "false_negatives": 9,
-      "repeated_detections": 19,
-      "tp_rate": 0.6087,
+      "total_score_eur": 115210.15,
+      "true_positives": 10,
+      "false_positives": 70,
+      "false_negatives": 13,
+      "repeated_detections": 48,
+      "tp_rate": 0.4348,
       "leaks": 23,
-      "detections": 82,
+      "detections": 128,
       "detected_leaks": [
         "p257",
-        "p654",
         "p523",
         "p827",
-        "p653",
         "p280",
-        "p710",
+        "p514",
         "p277",
-        "p680",
-        "p721",
         "p586",
         "p800",
-        "p762",
-        "p879"
+        "p879",
+        "p455"
       ],
       "missed_leaks": [
         "p427",
+        "p654",
         "p810",
-        "p514",
+        "p653",
+        "p710",
         "p331",
         "p193",
         "p142",
+        "p680",
+        "p721",
         "p123",
-        "p455",
+        "p762",
         "p426"
       ],
       "alerts": 196,
       "carried_forward": 11,
-      "rank_among_top6": 3,
+      "rank_among_top6": null,
       "above_all_tabulated": false,
-      "below_tabulated": false,
+      "below_tabulated": true,
       "sixth_place_eur": 127626,
       "teams_in_competition": 18,
       "per_detection": [
         {
-          "link_id": "p254",
+          "link_id": "p547",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p257",
           "ts": "2019-01-01T00:05:00+00:00",
           "leak": "p257",
-          "distance_m": 146.1,
-          "score_eur": 46828.13,
+          "distance_m": 0.0,
+          "score_eur": 47071.68,
           "label": "tp",
           "delay_h": 8578.58,
           "water_saved_m3": 58839.6
         },
         {
-          "link_id": "p147",
+          "link_id": "p279",
           "ts": "2019-01-01T00:05:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -454,17 +589,63 @@
           "label": "fp"
         },
         {
-          "link_id": "p660",
+          "link_id": "p4",
           "ts": "2019-01-01T00:05:00+00:00",
-          "leak": "p654",
-          "distance_m": 297.9,
-          "score_eur": 37374.62,
-          "label": "tp",
-          "delay_h": 4316.42,
-          "water_saved_m3": 47338.9
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
         },
         {
-          "link_id": "p295",
+          "link_id": "p273",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p386",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p278",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p125",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p356",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p506",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p270",
           "ts": "2019-01-01T00:05:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -472,83 +653,27 @@
           "label": "repeat"
         },
         {
-          "link_id": "p144",
-          "ts": "2019-01-01T00:05:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p89",
-          "ts": "2019-01-01T00:05:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p346",
-          "ts": "2019-01-01T00:05:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p291",
-          "ts": "2019-01-01T00:05:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p701",
-          "ts": "2019-01-01T00:05:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p468",
-          "ts": "2019-01-01T00:05:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p253",
-          "ts": "2019-01-01T00:05:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p523",
+          "link_id": "p499",
           "ts": "2019-01-16T07:30:00+00:00",
           "leak": "p523",
-          "distance_m": 0.0,
-          "score_eur": 8712.18,
+          "distance_m": 155.0,
+          "score_eur": 8453.89,
           "label": "tp",
           "delay_h": 8.5,
           "water_saved_m3": 10890.2
         },
         {
-          "link_id": "p822",
+          "link_id": "p824",
           "ts": "2019-01-25T03:00:00+00:00",
           "leak": "p827",
-          "distance_m": 254.1,
-          "score_eur": 6248.62,
+          "distance_m": 152.5,
+          "score_eur": 6418.05,
           "label": "tp",
           "delay_h": 8.5,
           "water_saved_m3": 8340.2
         },
         {
-          "link_id": "p147",
+          "link_id": "p567",
           "ts": "2019-02-01T18:30:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -556,7 +681,7 @@
           "label": "fp"
         },
         {
-          "link_id": "p253",
+          "link_id": "p254",
           "ts": "2019-02-07T12:30:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -564,7 +689,15 @@
           "label": "repeat"
         },
         {
-          "link_id": "p240",
+          "link_id": "p547",
+          "ts": "2019-02-12T18:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p310",
           "ts": "2019-02-13T10:30:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -572,7 +705,7 @@
           "label": "fp"
         },
         {
-          "link_id": "p346",
+          "link_id": "p373",
           "ts": "2019-02-15T14:00:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -580,7 +713,65 @@
           "label": "fp"
         },
         {
-          "link_id": "p147",
+          "link_id": "p241",
+          "ts": "2019-02-16T09:15:00+00:00",
+          "leak": "p280",
+          "distance_m": 212.0,
+          "score_eur": 31375.02,
+          "label": "tp",
+          "delay_h": 140.17,
+          "water_saved_m3": 39660.4
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-02-23T08:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p386",
+          "ts": "2019-02-26T15:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p292",
+          "ts": "2019-02-27T08:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p301",
+          "ts": "2019-03-06T09:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p125",
+          "ts": "2019-03-08T14:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p4",
+          "ts": "2019-03-09T15:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p506",
           "ts": "2019-03-13T14:45:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -588,8 +779,32 @@
           "label": "fp"
         },
         {
-          "link_id": "p240",
+          "link_id": "p279",
           "ts": "2019-03-16T12:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p299",
+          "ts": "2019-03-20T11:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p6",
+          "ts": "2019-03-22T07:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-03-27T05:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
@@ -597,24 +812,46 @@
         },
         {
           "link_id": "p346",
-          "ts": "2019-03-18T12:30:00+00:00",
+          "ts": "2019-03-31T09:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p657",
-          "ts": "2019-03-21T15:00:00+00:00",
-          "leak": "p653",
-          "distance_m": 204.4,
-          "score_eur": 9833.92,
-          "label": "tp",
-          "delay_h": 433.83,
-          "water_saved_m3": 12718.2
+          "link_id": "p42",
+          "ts": "2019-04-04T10:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
         },
         {
-          "link_id": "p347",
+          "link_id": "p301",
+          "ts": "2019-04-06T10:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p125",
+          "ts": "2019-04-09T15:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p292",
+          "ts": "2019-04-11T12:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p373",
           "ts": "2019-04-12T10:00:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -622,15 +859,15 @@
           "label": "fp"
         },
         {
-          "link_id": "p254",
+          "link_id": "p310",
           "ts": "2019-04-13T07:15:00+00:00",
           "leak": null,
           "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
+          "score_eur": -500.0,
+          "label": "fp"
         },
         {
-          "link_id": "p147",
+          "link_id": "p506",
           "ts": "2019-04-17T15:00:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -638,51 +875,73 @@
           "label": "fp"
         },
         {
-          "link_id": "p346",
-          "ts": "2019-04-18T14:45:00+00:00",
+          "link_id": "p347",
+          "ts": "2019-04-21T09:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p378",
-          "ts": "2019-04-22T08:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p240",
+          "link_id": "p278",
           "ts": "2019-04-23T07:15:00+00:00",
           "leak": null,
           "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p279",
+          "ts": "2019-04-27T07:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p547",
+          "ts": "2019-04-30T15:15:00+00:00",
+          "leak": "p514",
+          "distance_m": 275.4,
+          "score_eur": 6354.06,
+          "label": "tp",
+          "delay_h": 666.58,
+          "water_saved_m3": 8516.3
+        },
+        {
+          "link_id": "p30",
+          "ts": "2019-05-05T04:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p6",
+          "ts": "2019-05-10T07:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p4",
+          "ts": "2019-05-14T15:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p299",
-          "ts": "2019-05-05T04:45:00+00:00",
-          "leak": "p280",
-          "distance_m": 43.6,
-          "score_eur": 23895.3,
-          "label": "tp",
-          "delay_h": 2007.67,
-          "water_saved_m3": 29959.9
+          "link_id": "p42",
+          "ts": "2019-05-17T12:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
         },
         {
-          "link_id": "p79",
-          "ts": "2019-05-13T15:30:00+00:00",
-          "leak": "p710",
-          "distance_m": 280.0,
-          "score_eur": 23895.5,
-          "label": "tp",
-          "delay_h": 1201.25,
-          "water_saved_m3": 30452.8
-        },
-        {
-          "link_id": "p346",
+          "link_id": "p125",
           "ts": "2019-05-21T15:15:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -690,176 +949,8 @@
           "label": "fp"
         },
         {
-          "link_id": "p12",
+          "link_id": "p241",
           "ts": "2019-05-24T00:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p147",
-          "ts": "2019-05-26T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p292",
-          "ts": "2019-06-01T06:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p347",
-          "ts": "2019-06-07T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p701",
-          "ts": "2019-06-08T13:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p569",
-          "ts": "2019-06-10T15:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p346",
-          "ts": "2019-06-25T15:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p240",
-          "ts": "2019-06-28T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p347",
-          "ts": "2019-07-08T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p701",
-          "ts": "2019-07-10T15:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p251",
-          "ts": "2019-07-12T04:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p298",
-          "ts": "2019-07-17T17:00:00+00:00",
-          "leak": "p277",
-          "distance_m": 172.2,
-          "score_eur": 21856.68,
-          "label": "tp",
-          "delay_h": 1147.08,
-          "water_saved_m3": 27679.6
-        },
-        {
-          "link_id": "p147",
-          "ts": "2019-07-22T15:30:00+00:00",
-          "leak": "p680",
-          "distance_m": 275.9,
-          "score_eur": 16256.17,
-          "label": "tp",
-          "delay_h": 294.75,
-          "water_saved_m3": 20895.1
-        },
-        {
-          "link_id": "p7",
-          "ts": "2019-07-26T07:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p346",
-          "ts": "2019-07-27T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p292",
-          "ts": "2019-07-31T05:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p79",
-          "ts": "2019-08-04T09:00:00+00:00",
-          "leak": "p721",
-          "distance_m": 279.1,
-          "score_eur": 28612.61,
-          "label": "tp",
-          "delay_h": 54.0,
-          "water_saved_m3": 36347.2
-        },
-        {
-          "link_id": "p569",
-          "ts": "2019-08-05T15:45:00+00:00",
-          "leak": "p586",
-          "distance_m": 109.7,
-          "score_eur": 11246.82,
-          "label": "tp",
-          "delay_h": 241.08,
-          "water_saved_m3": 14287.1
-        },
-        {
-          "link_id": "p240",
-          "ts": "2019-08-07T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p347",
-          "ts": "2019-08-08T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p676",
-          "ts": "2019-08-11T09:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
@@ -867,14 +958,234 @@
         },
         {
           "link_id": "p567",
-          "ts": "2019-08-12T16:00:00+00:00",
+          "ts": "2019-05-26T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p386",
+          "ts": "2019-05-28T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p278",
+          "ts": "2019-06-01T06:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p254",
+          "link_id": "p373",
+          "ts": "2019-06-04T11:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p341",
+          "ts": "2019-06-07T14:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p125",
+          "ts": "2019-06-27T15:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p266",
+          "ts": "2019-06-28T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p347",
+          "ts": "2019-07-06T10:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p373",
+          "ts": "2019-07-08T09:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p581",
+          "ts": "2019-07-10T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p305",
+          "ts": "2019-07-12T04:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p292",
+          "ts": "2019-07-14T05:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p256",
+          "ts": "2019-07-17T17:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p547",
+          "ts": "2019-07-22T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p14",
+          "ts": "2019-07-26T07:45:00+00:00",
+          "leak": "p277",
+          "distance_m": 260.6,
+          "score_eur": 21094.94,
+          "label": "tp",
+          "delay_h": 1353.83,
+          "water_saved_m3": 26911.7
+        },
+        {
+          "link_id": "p340",
+          "ts": "2019-07-27T09:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p841",
+          "ts": "2019-07-28T08:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p125",
+          "ts": "2019-07-29T16:00:00+00:00",
+          "leak": "p586",
+          "distance_m": 206.9,
+          "score_eur": 11204.61,
+          "label": "tp",
+          "delay_h": 73.33,
+          "water_saved_m3": 14436.8
+        },
+        {
+          "link_id": "p312",
+          "ts": "2019-07-31T05:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p270",
+          "ts": "2019-08-03T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p386",
+          "ts": "2019-08-04T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p33",
+          "ts": "2019-08-07T04:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p341",
+          "ts": "2019-08-08T09:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p347",
+          "ts": "2019-08-09T09:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p356",
+          "ts": "2019-08-11T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p6",
+          "ts": "2019-08-16T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p251",
+          "ts": "2019-08-19T05:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p373",
+          "ts": "2019-08-24T10:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p313",
           "ts": "2019-08-28T07:00:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -890,25 +1201,33 @@
           "label": "fp"
         },
         {
-          "link_id": "p181",
+          "link_id": "p173",
           "ts": "2019-08-31T10:00:00+00:00",
           "leak": "p800",
-          "distance_m": 80.8,
-          "score_eur": 11957.49,
+          "distance_m": 116.9,
+          "score_eur": 11897.32,
           "label": "tp",
           "delay_h": 356.0,
           "water_saved_m3": 15115.2
         },
         {
-          "link_id": "p12",
+          "link_id": "p279",
           "ts": "2019-09-01T07:45:00+00:00",
           "leak": null,
           "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "score_eur": 0.0,
+          "label": "repeat"
         },
         {
           "link_id": "p292",
+          "ts": "2019-09-04T02:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p312",
           "ts": "2019-09-07T01:15:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -916,23 +1235,31 @@
           "label": "repeat"
         },
         {
-          "link_id": "p240",
+          "link_id": "p284",
           "ts": "2019-09-10T08:00:00+00:00",
           "leak": null,
           "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "score_eur": 0.0,
+          "label": "repeat"
         },
         {
-          "link_id": "p7",
+          "link_id": "p125",
+          "ts": "2019-09-11T15:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p291",
           "ts": "2019-09-13T03:45:00+00:00",
           "leak": null,
           "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "score_eur": 0.0,
+          "label": "repeat"
         },
         {
-          "link_id": "p341",
+          "link_id": "p340",
           "ts": "2019-09-14T08:45:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -940,15 +1267,47 @@
           "label": "fp"
         },
         {
-          "link_id": "p147",
+          "link_id": "p12",
           "ts": "2019-09-15T08:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p269",
+          "ts": "2019-09-16T08:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p347",
+          "link_id": "p240",
+          "ts": "2019-09-22T05:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p241",
+          "ts": "2019-09-24T05:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p265",
+          "ts": "2019-09-27T07:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p373",
           "ts": "2019-09-28T09:45:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -956,31 +1315,63 @@
           "label": "fp"
         },
         {
-          "link_id": "p346",
-          "ts": "2019-10-01T15:30:00+00:00",
+          "link_id": "p356",
+          "ts": "2019-10-05T09:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p240",
+          "link_id": "p386",
+          "ts": "2019-10-09T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p6",
           "ts": "2019-10-11T07:45:00+00:00",
           "leak": null,
           "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "score_eur": 0.0,
+          "label": "repeat"
         },
         {
-          "link_id": "p12",
-          "ts": "2019-10-13T08:30:00+00:00",
+          "link_id": "p341",
+          "ts": "2019-10-12T10:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p298",
+          "link_id": "p251",
+          "ts": "2019-10-13T08:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p125",
+          "ts": "2019-10-14T16:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p310",
+          "ts": "2019-10-19T08:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p257",
           "ts": "2019-10-20T09:00:00+00:00",
           "leak": null,
           "distance_m": null,
@@ -988,8 +1379,16 @@
           "label": "repeat"
         },
         {
-          "link_id": "p704",
-          "ts": "2019-10-21T15:30:00+00:00",
+          "link_id": "p20",
+          "ts": "2019-10-23T07:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p278",
+          "ts": "2019-10-26T07:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
@@ -997,45 +1396,59 @@
         },
         {
           "link_id": "p347",
-          "ts": "2019-10-31T08:45:00+00:00",
+          "ts": "2019-10-27T08:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p346",
+          "link_id": "p295",
           "ts": "2019-11-02T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p796",
-          "ts": "2019-11-04T16:00:00+00:00",
-          "leak": "p762",
-          "distance_m": 225.7,
-          "score_eur": 13047.41,
-          "label": "tp",
-          "delay_h": 629.75,
-          "water_saved_m3": 16779.5
-        },
-        {
-          "link_id": "p251",
-          "ts": "2019-11-10T08:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p240",
-          "ts": "2019-11-14T07:45:00+00:00",
+          "link_id": "p4",
+          "ts": "2019-11-03T15:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
+        },
+        {
+          "link_id": "p254",
+          "ts": "2019-11-07T08:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p373",
+          "ts": "2019-11-08T10:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-11-10T08:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p251",
+          "ts": "2019-11-14T07:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
         },
         {
           "link_id": "p266",
@@ -1046,8 +1459,16 @@
           "label": "repeat"
         },
         {
-          "link_id": "p12",
+          "link_id": "p241",
           "ts": "2019-11-17T08:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p386",
+          "ts": "2019-11-19T15:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
@@ -1062,16 +1483,42 @@
           "label": "repeat"
         },
         {
-          "link_id": "p147",
-          "ts": "2019-11-24T09:00:00+00:00",
+          "link_id": "p6",
+          "ts": "2019-11-22T09:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
+          "link_id": "p313",
+          "ts": "2019-11-23T08:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p841",
+          "ts": "2019-11-24T09:00:00+00:00",
+          "leak": "p879",
+          "distance_m": 219.3,
+          "score_eur": 2533.28,
+          "label": "tp",
+          "delay_h": 93.08,
+          "water_saved_m3": 3623.5
+        },
+        {
+          "link_id": "p125",
+          "ts": "2019-11-25T15:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
           "link_id": "p346",
-          "ts": "2019-12-03T15:30:00+00:00",
+          "ts": "2019-12-01T08:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
@@ -1086,8 +1533,26 @@
           "label": "fp"
         },
         {
-          "link_id": "p12",
-          "ts": "2019-12-20T09:15:00+00:00",
+          "link_id": "p506",
+          "ts": "2019-12-11T15:15:00+00:00",
+          "leak": "p455",
+          "distance_m": 246.0,
+          "score_eur": 3807.3,
+          "label": "tp",
+          "delay_h": 1657.25,
+          "water_saved_m3": 5271.6
+        },
+        {
+          "link_id": "p267",
+          "ts": "2019-12-14T09:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p356",
+          "ts": "2019-12-19T08:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
@@ -1102,22 +1567,44 @@
           "label": "fp"
         },
         {
-          "link_id": "p882",
-          "ts": "2019-12-23T15:30:00+00:00",
-          "leak": "p879",
-          "distance_m": 152.8,
-          "score_eur": 1167.92,
-          "label": "tp",
-          "delay_h": 795.58,
-          "water_saved_m3": 1778.3
+          "link_id": "p125",
+          "ts": "2019-12-25T15:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
         },
         {
-          "link_id": "p254",
+          "link_id": "p341",
+          "ts": "2019-12-27T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p373",
+          "ts": "2019-12-28T10:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p269",
           "ts": "2019-12-29T08:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
+        },
+        {
+          "link_id": "p386",
+          "ts": "2019-12-31T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
         }
       ]
     }
