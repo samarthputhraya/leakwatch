@@ -307,3 +307,108 @@ def test_mutation_section_and_row(metrics_dir):
     assert "| `src/leakwatch/x.py` | 80 | 10 | 0 | 0 | 88.9% |" in text
     row = next(r for r in reports.readme_results().splitlines() if "Mutation score" in r)
     assert "88.9% of mutants killed (100 mutants" in row
+
+
+def test_dispatch_rules_and_random_baseline_in_the_score_section(metrics_dir):
+    year = {
+        "role": "test (official)",
+        "total_score_eur": 200_000.0,
+        "true_positives": 12,
+        "leaks": 23,
+        "false_positives": 90,
+        "alerts": 150,
+        "rank_among_top6": 4,
+    }
+    write(
+        metrics_dir,
+        "battledim_score",
+        {
+            "detector": "kmeans_rebaselined",
+            "years": {"2019": year},
+            "placement": "localizer",
+            "revisit_rule": {"scores_2018": {"0": 50_000.0, "14": 60_000.0}, "chosen_days": 14.0},
+            "carry_forward": {
+                "enabled": True,
+                "previous_reports": 20,
+                "closed_by_a_repair": 5,
+                "open_pipes": ["p1", "p2"],
+            },
+            "steps_2019": {
+                "placement_only": 150_000.0,
+                "with_revisit_rule": 170_000.0,
+                "with_carry_forward": 200_000.0,
+            },
+            "random_baseline": {
+                "2019": {
+                    "draws": 200,
+                    "alerts_per_draw": 150,
+                    "mean_eur": 40_000.0,
+                    "p95_eur": 90_000.0,
+                    "system_eur": 170_000.0,
+                    "p_value": 0.005,
+                }
+            },
+        },
+    )
+    text = reports.bdt_report()
+    assert "network × sensor prior, D-042" in text
+    assert "0 d €50,000; 14 d €60,000 → d = 14 days" in text
+    assert "Of 20 final 2018 reports, 5 were followed by a repair" in text and "the 2 other" in text
+    assert "placement only €150,000 → with the revisit rule €170,000" in text
+    assert "| 2019 | 200 | 150 | €40,000 | €90,000 | €170,000 | 0.0050 |" in text
+    row = next(r for r in reports.readme_results().splitlines() if "official score" in r)
+    assert "p = 0.0050" in row
+
+
+def test_posterior_localizer_section_and_row(metrics_dir):
+    loc = {"median_distance_top1_m": 900.0, "within_m_top1": 0.2, "within_m_best_of_top5": 0.3}
+    post = {"median_distance_top1_m": 700.0, "within_m_top1": 0.4, "within_m_best_of_top5": 0.5}
+    gain = {"within_m_top1_gain": {"estimate": 0.2, "ci95": [0.05, 0.35], "draws": 100}}
+    test = {"top1": 0.1, "top5": 0.3, "mean_distance_top1_m": 400, "within_m_best_of_top5": 0.8}
+    write(
+        metrics_dir,
+        "dl_gnn",
+        {
+            "models": {"gcn": {"test": test}},
+            "chosen_model": "gcn",
+            "gnn_beats_mlp_top5": True,
+            "dataset": {"test": 10, "unseen_sizes": 0, "unseen_diameter_m": [0.014, 0.017]},
+            "real_leaks": {
+                y: {"leaks": 19, "localizers": {"nearest_sensor": loc, "gcn": loc}}
+                for y in ("2018", "2019")
+            },
+        },
+    )
+    write(
+        metrics_dir,
+        "dl_gnn_prior",
+        {
+            "official_score_by_length": {
+                "none": {
+                    "2018": {"total_score_eur": 10.0, "true_positives": 1},
+                    "2019": {"total_score_eur": 20.0, "true_positives": 2},
+                },
+                "300": {
+                    "2018": {"total_score_eur": 30.0, "true_positives": 3},
+                    "2019": {"total_score_eur": 40.0, "true_positives": 4},
+                },
+            },
+            "chosen_sensor_prior_m": 300.0,
+            "config_matches_choice": True,
+            "real_leaks": {
+                y: {
+                    "leaks": 19,
+                    "localizers": {"nearest_sensor": loc, "network": loc, "posterior": post},
+                    "posterior_gain": {"network": gain, "nearest_sensor": gain},
+                }
+                for y in ("2018", "2019")
+            },
+        },
+    )
+    text = reports.dl_report()
+    assert "**Posterior localizer (D-042).**" in text
+    assert "| 300 m | €30 (3 TP) | €40 (4 TP) |" in text and "Chosen L = 300 m." in text
+    assert "| 2019 | posterior | 700 | 40.0% | 50.0% |" in text
+    assert "2019 vs network: 20.0% [5.0%, 35.0%]" in text
+    row = next(r for r in reports.readme_results().splitlines() if "2019 BattLeDIM leaks" in r)
+    assert "40.0% within 300 m" in row and "gain over the network 20.0%" in row

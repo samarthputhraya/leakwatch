@@ -443,7 +443,11 @@ def official_score_lines() -> list[str]:
             )
         y19 = _get(sys_score, "years", "2019") or {}
         placements = sys_score.get("placements") or {}
-        names = {"localizer": "localizer top-1", "sensor_drop": "most-dropped pressure sensor"}
+        names = {
+            "localizer": "localizer top-1"
+            + (" (network × sensor prior, D-042)" if sys_score.get("revisit_rule") else ""),
+            "sensor_drop": "most-dropped pressure sensor",
+        }
         chosen = str(sys_score.get("placement") or "localizer")  # files before D-041: localizer
         how = (
             [
@@ -467,6 +471,8 @@ def official_score_lines() -> list[str]:
             "",
             table(["year", "role", "score", "leaks found", "false positives", "alerts"], rows),
             *how,
+            *dispatch_rule_lines(sys_score),
+            *random_baseline_lines(sys_score),
             "",
             "Competition results (Vrachimis et al. 2022, Table 4, top 6 of 18 teams): "
             + "; ".join(
@@ -481,6 +487,142 @@ def official_score_lines() -> list[str]:
             ),
         ]
     return lines if (rows or sys_score) else []
+
+
+def dispatch_rule_lines(sys_score: dict[str, Any]) -> list[str]:
+    """Revisit window chosen on 2018 and the 2018 backlog carried into 2019 (D-042)."""
+    revisit = sys_score.get("revisit_rule")
+    if not revisit:
+        return []
+    grid = "; ".join(f"{d} d €{num(v, 0)}" for d, v in (revisit.get("scores_2018") or {}).items())
+    lines = [
+        "",
+        "Dispatch rules (D-042). *Revisit*: no second crew to a pipe within d days of the last "
+        f"report kept there; 2018 scores {grid} → d = {num(revisit.get('chosen_days'), 0)} days.",
+    ]
+    carry = sys_score.get("carry_forward") or {}
+    if carry.get("enabled"):
+        lines += [
+            "",
+            "*Carry-forward*: a 2018 report that no repair in the utility's 2018 repair report "
+            "(`2018_Fixed_Leakages_Report.txt`, given to every team) explains stays an open work "
+            f"order. Of {carry.get('previous_reports')} final 2018 reports, "
+            f"{carry.get('closed_by_a_repair')} were followed by a repair within 300 m; the "
+            f"{len(carry.get('open_pipes') or [])} other pipes are reported at 00:05 on "
+            "1 January 2019. There is nothing to tune and no 2017 to try it on, so 2019 is shown "
+            "with and without it.",
+        ]
+    steps = sys_score.get("steps_2019") or {}
+    if steps:
+        lines += [
+            "",
+            "2019 score step by step: placement only "
+            f"€{num(steps.get('placement_only'), 0)} → with the revisit rule "
+            f"€{num(steps.get('with_revisit_rule'), 0)} → with the carry-forward "
+            f"€{num(steps.get('with_carry_forward'), 0)}.",
+        ]
+    return lines
+
+
+def random_baseline_lines(sys_score: dict[str, Any]) -> list[str]:
+    """Chance timing: random alert times, same count, placement and revisit rule (D-042)."""
+    rb = sys_score.get("random_baseline")
+    if not rb:
+        return []
+    rows = [
+        [
+            year,
+            r.get("draws"),
+            r.get("alerts_per_draw"),
+            f"€{num(r.get('mean_eur'), 0)}",
+            f"€{num(r.get('p95_eur'), 0)}",
+            f"€{num(r.get('system_eur'), 0)}",
+            num(r.get("p_value"), 4),
+        ]
+        for year, r in rb.items()
+    ]
+    return [
+        "",
+        "Is the timing better than chance? Random alert times drawn uniformly from each year (as "
+        "many as the real alerts), placed and filtered by the same rules, without the backlog:",
+        "",
+        table(
+            [
+                "year",
+                "draws",
+                "alerts",
+                "random mean",
+                "random 95th pct",
+                "system",
+                "p (one-sided)",
+            ],
+            rows,
+        ),
+    ]
+
+
+def posterior_lines() -> list[str]:
+    """The posterior localizer: prior length chosen on 2018, real-leak gains (D-042)."""
+    m = load("dl_gnn_prior")
+    if not m:
+        return []
+    grid = m.get("official_score_by_length") or {}
+    rows = [
+        [
+            "network alone" if k == "none" else f"{k} m",
+            f"€{num(_get(v, '2018', 'total_score_eur'), 0)} ({_get(v, '2018', 'true_positives')} TP)",
+            f"€{num(_get(v, '2019', 'total_score_eur'), 0)} ({_get(v, '2019', 'true_positives')} TP)",
+        ]
+        for k, v in grid.items()
+    ]
+    chosen = m.get("chosen_sensor_prior_m")
+    lines = [
+        "",
+        "**Posterior localizer (D-042).** The network's node probabilities times a prior "
+        "exp(−d / L) around the pressure sensor that fell most (d: pipe distance). L is chosen on "
+        "the official 2018 score of the live model's alerts, each reported at the posterior's top "
+        f"node; 2019 is shown for every L but never used ({src('dl_gnn_prior', m)}):",
+        "",
+        table(["prior length L", "2018 (development)", "2019 (reported only)"], rows),
+        "",
+        f"Chosen L = {num(chosen, 0)} m"
+        + ("" if m.get("config_matches_choice") else " (the config differs: rerun after updating)")
+        + ".",
+    ]
+    rows = []
+    for year in ("2018", "2019"):
+        b = _get(m, "real_leaks", year) or {}
+        for name in ("nearest_sensor", "network", "posterior"):
+            s = _get(b, "localizers", name) or {}
+            rows.append(
+                [
+                    year,
+                    name,
+                    num(s.get("median_distance_top1_m"), 0),
+                    num(s.get("within_m_top1"), 3, pct=True),
+                    num(s.get("within_m_best_of_top5"), 3, pct=True),
+                ]
+            )
+    gains = []
+    for year in ("2018", "2019"):
+        for other in ("nearest_sensor", "network"):
+            g = _get(m, "real_leaks", year, "posterior_gain", other, "within_m_top1_gain") or {}
+            if g:
+                lo, hi = g.get("ci95") or [None, None]
+                gains.append(
+                    f"{year} vs {other}: {num(g.get('estimate'), 3, pct=True)} "
+                    f"[{num(lo, 3, pct=True)}, {num(hi, 3, pct=True)}]"
+                )
+    lines += [
+        "",
+        "Recorded leaks, localized 2 h after the outflow first reaches half its peak:",
+        "",
+        table(["year", "localizer", "median (m)", "≤ 300 m", "≤ 300 m (best of 5)"], rows),
+        "",
+        "Gain of the posterior in leaks found within 300 m (top-1), paired bootstrap over leaks, "
+        "95% interval: " + "; ".join(gains) + ".",
+    ]
+    return lines
 
 
 def medium_large_top5(model: dict[str, Any]) -> float | None:
@@ -727,6 +869,7 @@ def gnn_lines(gnn: dict[str, Any] | None, ds: dict[str, Any] | None) -> list[str
                 + " (D-038).",
             ]
         lines += real_leak_lines(gnn) if gnn.get("real_leaks") else legacy_2019_lines(gnn)
+        lines += posterior_lines()
     else:
         lines.append(MISSING.format(cmd="make gnn"))
     return lines
@@ -1281,7 +1424,23 @@ def readme_results() -> str:
         )
         r19 = _get(m, "real_leaks", "2019", "localizers")
         name = m.get("chosen_model")
-        if r19 and name in r19:
+        post = load("dl_gnn_prior")
+        p19 = _get(post, "real_leaks", "2019", "localizers")
+        if p19 and "posterior" in p19:
+            g = _get(post, "real_leaks", "2019", "posterior_gain", "network", "within_m_top1_gain")
+            add(
+                f"Localizer on the 2019 BattLeDIM leaks ({_get(post, 'real_leaks', '2019', 'leaks')}, "
+                "network × sensor prior, D-042)",
+                f"{num(p19['posterior']['within_m_top1'], 3, pct=True)} within 300 m (best of 5: "
+                f"{num(p19['posterior']['within_m_best_of_top5'], 3, pct=True)}); network alone "
+                f"{num(_get(p19, 'network', 'within_m_top1'), 3, pct=True)}, most-dropped sensor "
+                f"{num(_get(p19, 'nearest_sensor', 'within_m_top1'), 3, pct=True)}; gain over the "
+                f"network {num(_get(g, 'estimate'), 3, pct=True)} (95% CI "
+                f"{num(_get(g, 'ci95', 0), 3, pct=True)} to {num(_get(g, 'ci95', 1), 3, pct=True)})",
+                "dl_gnn_prior",
+                post,
+            )
+        elif r19 and name in r19:
             add(
                 f"Localizer on the 2019 BattLeDIM leaks ({_get(m, 'real_leaks', '2019', 'leaks')}, D-038)",
                 f"median {num(r19[name]['median_distance_top1_m'], 0)} m from the top-1 junction to the "
@@ -1310,10 +1469,16 @@ def readme_results() -> str:
             if rank
             else f"below the 6 tabulated teams (6th €{num(y19.get('sixth_place_eur'), 0)})"
         )
+        p = _get(m, "random_baseline", "2019", "p_value")
+        chance = (
+            f"; random alert timing scores at least as well with p = {num(p, 4)}"
+            if p is not None
+            else ""
+        )
         add(
             "BattLeDIM 2020 official score, 2019 (D-037)",
             f"€{num(y19['total_score_eur'], 0)}: {y19['true_positives']} of {y19['leaks']} leaks, "
-            f"{y19['false_positives']} false positives; {place}",
+            f"{y19['false_positives']} false positives; {place}{chance}",
             "battledim_score",
             m,
         )
