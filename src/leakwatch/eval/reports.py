@@ -370,6 +370,7 @@ def bdt_report() -> str:
         "`LEAKWATCH_CONFIG=configs/full.yaml make sim-scale` → `make sim-ingest` → `make bdt-scaling` → `make reports`.",
     ]
     lines += official_score_lines()
+    lines += slow_detector_lines()
     return "\n".join(lines) + "\n"
 
 
@@ -473,6 +474,7 @@ def official_score_lines() -> list[str]:
             *how,
             *dispatch_rule_lines(sys_score),
             *random_baseline_lines(sys_score),
+            *timing_test_lines(sys_score),
             "",
             "Competition results (Vrachimis et al. 2022, Table 4, top 6 of 18 teams): "
             + "; ".join(
@@ -522,6 +524,142 @@ def dispatch_rule_lines(sys_score: dict[str, Any]) -> list[str]:
             f"€{num(steps.get('with_carry_forward'), 0)}.",
         ]
     return lines
+
+
+def localizer_lines() -> list[str]:
+    """The system localizer: GLS inversion, PRD metric, choice on sims + 2018 (D-044)."""
+    m = load("dl_localizer")
+    if not m:
+        return []
+    sims = m.get("simulated_test") or {}
+    rows = []
+    for name in (
+        "gls_sim",
+        "gls_real",
+        "sensitivity_cosine",
+        "network",
+        "candidate:posterior",
+        "nearest_sensor",
+        "interpolation",
+        "candidate:rank_all_sim",
+    ):
+        r = sims.get(name)
+        if not r:
+            continue
+        ml, al = r["medium_large"], r["all_sizes"]
+        rows.append(
+            [
+                name.removeprefix("candidate:"),
+                num(ml["top5"], 3),
+                f"{num(ml['top5_ci95'][0], 3)}–{num(ml['top5_ci95'][1], 3)}",
+                num(al["top5"], 3),
+                num(ml["within_m_top1"], 3, pct=True),
+                num(ml["within_m_best_of_top5"], 3, pct=True),
+            ]
+        )
+    cands = m.get("candidates") or {}
+    crow = [
+        [
+            n,
+            c.get("description"),
+            num(_get(c, "sims", "medium_large", "top5"), 3),
+            num(_get(c, "recorded_2018", "within_m_top1"), 3, pct=True),
+            f"€{num(_get(c, 'official_2018', 'total_score_eur'), 0)}",
+            num(c.get("mean_rank"), 2),
+        ]
+        for n, c in cands.items()
+    ]
+    r19 = _get(m, "recorded_2019_reported_only", "localizers") or {}
+    return [
+        "",
+        "### System localizer: GLS inversion (D-044)",
+        "",
+        "Each junction is scored by the weighted error of its best leak-size fit to the sensitivity "
+        "matrix, the weights being the inverse noise covariance (simulated training residuals or "
+        f"2018 normal windows). PRD metric: {m.get('prd_metric')} ({src('dl_localizer', m)}).",
+        "",
+        table(
+            [
+                "cue",
+                "medium + large top-5",
+                "95% CI",
+                "all sizes top-5",
+                "≤ 300 m (top-1)",
+                "≤ 300 m (best of 5)",
+            ],
+            rows,
+        ),
+        "",
+        f"Choice ({m.get('rule')}): **{m.get('chosen')}**; the official score alone would pick "
+        f"{m.get('official_only_rule_choice')}.",
+        "",
+        table(
+            ["candidate", "cues", "sims top-5", "2018 leaks ≤ 300 m", "2018 official", "mean rank"],
+            crow,
+        ),
+        "",
+        "2019 recorded leaks within 300 m (computed after the choice, reported only): "
+        + "; ".join(f"{n} {num(v.get('within_m_top1'), 3, pct=True)}" for n, v in r19.items())
+        + ".",
+    ]
+
+
+def slow_detector_lines() -> list[str]:
+    """Slow detectors for small leaks on the bdt-synthetic leaks (D-048)."""
+    m = load("bdt_slow_detectors")
+    if not m:
+        return []
+    rows = []
+    for name, d in (m.get("detectors") or {}).items():
+        for hz, r in d.items():
+            if not isinstance(r, dict):
+                continue
+            b = r.get("by_diameter_mm", {})
+            rows.append(
+                [name, hz, b.get("10"), b.get("20"), b.get("30"), d.get("background_alarms")]
+            )
+    n = m.get("night_inflow") or {}
+    return [
+        "",
+        "## Slow detectors for small leaks (D-048)",
+        "",
+        f"Thresholds: {m.get('threshold_rule')}; night inflow spread on 2018 normal nights "
+        f"{num(n.get('spread_mad_m3h'))} m³/h vs leak flows {n.get('median_leak_flow_m3h')} "
+        f"({src('bdt_slow_detectors', m)}).",
+        "",
+        table(["detector", "within", "10 mm", "20 mm", "30 mm", "background alarms"], rows),
+    ]
+
+
+def timing_test_lines(sys_score: dict[str, Any]) -> list[str]:
+    """Timing tests that isolate the detector from the localizer (D-047)."""
+    tt = sys_score.get("timing_tests")
+    if not tt:
+        return []
+    rows = []
+    for year in ("2018", "2019"):
+        t = tt.get(year) or {}
+        for key, label in (
+            ("oracle_placement_eur", "oracle placement, € (higher is better)"),
+            ("median_delay_to_first_correct_report_h", "median h to first correct report"),
+            ("median_delay_to_first_alert_h", "median h to first alert"),
+        ):
+            r = t.get(key) or {}
+            rows.append(
+                [
+                    year,
+                    label,
+                    num(r.get("observed"), 1),
+                    num(r.get("random_mean"), 1),
+                    num(r.get("p_value"), 4),
+                ]
+            )
+    return [
+        "",
+        "**Timing tests (D-047).** " + str(tt.get("why", "")),
+        "",
+        table(["year", "measure", "system", "random mean", "p (one-sided)"], rows),
+    ]
 
 
 def random_baseline_lines(sys_score: dict[str, Any]) -> list[str]:
@@ -870,6 +1008,7 @@ def gnn_lines(gnn: dict[str, Any] | None, ds: dict[str, Any] | None) -> list[str
             ]
         lines += real_leak_lines(gnn) if gnn.get("real_leaks") else legacy_2019_lines(gnn)
         lines += posterior_lines()
+        lines += localizer_lines()
     else:
         lines.append(MISSING.format(cmd="make gnn"))
     return lines
@@ -1460,6 +1599,37 @@ def readme_results() -> str:
                 "dl_gnn",
                 m,
             )
+    m = load("dl_localizer")
+    if m:
+        ml = _get(m, "simulated_test", "gls_sim", "medium_large") or {}
+        ch = _get(m, "candidates", m.get("chosen")) or {}
+        r19 = _get(m, "recorded_2019_reported_only", "localizers") or {}
+        add(
+            f"System localizer, GLS inversion (D-044, chosen: {m.get('chosen')})",
+            f"held-out simulated medium + large leaks top-5 {num(ml.get('top5'), 3, pct=True)} "
+            f"(95% CI {num(_get(ml, 'top5_ci95', 0), 3, pct=True)}–"
+            f"{num(_get(ml, 'top5_ci95', 1), 3, pct=True)}; target 60%); 2018 leaks within 300 m "
+            f"{num(_get(ch, 'recorded_2018', 'within_m_top1'), 3, pct=True)}; 2019 leaks within "
+            f"300 m {num(_get(r19, m.get('chosen'), 'within_m_top1'), 3, pct=True)} (previous "
+            f"posterior {num(_get(r19, m.get('previous'), 'within_m_top1'), 3, pct=True)})",
+            "dl_localizer",
+            m,
+        )
+    m = load("bdt_slow_detectors")
+    if m:
+        best10 = max(
+            float(r.get("by_diameter_mm", {}).get("10") or 0)
+            for d in m["detectors"].values()
+            for r in d.values()
+            if isinstance(r, dict)
+        )
+        add(
+            "Slow detectors for 10 mm leaks (night inflow, pressure CUSUM; D-048)",
+            f"best {num(best10, 3, pct=True)} detected at 0 false alarms on 2018 normal data "
+            f"(night inflow spread {num(_get(m, 'night_inflow', 'spread_mad_m3h'))} m³/h)",
+            "bdt_slow_detectors",
+            m,
+        )
     m = load("battledim_score")
     y19 = _get(m, "years", "2019")
     if m and y19:
@@ -1482,6 +1652,16 @@ def readme_results() -> str:
             "battledim_score",
             m,
         )
+        for year in ("2018", "2019"):
+            o = _get(m, "timing_tests", year, "oracle_placement_eur")
+            if o:
+                add(
+                    f"Detector timing with every report at the true leak, {year} (D-047)",
+                    f"€{num(o['observed'], 0)} vs random times €{num(o['random_mean'], 0)} "
+                    f"(p = {num(o['p_value'], 4)})",
+                    "battledim_score",
+                    m,
+                )
     m = load("st_mutation")
     if m and m.get("mutation_score") is not None:
         add(
@@ -1506,6 +1686,15 @@ def readme_results() -> str:
             "pe_eval_v3",
             m,
         )
+    m = load("bdt_live_replay_2019")
+    st = _get(m, "stream", "steady_state_batch_duration_s")
+    if st:
+        add(
+            "Live scored stream at 360× (micro-batch time)",
+            f"p50 {num(st.get('p50'), 1)} s, p95 {num(st.get('p95'), 1)} s (aim ≤ 10 s)",
+            "bdt_live_replay_2019",
+            m,
+        )
     m = load("demo_runs")
     if m:
         ok = sum(1 for r in m["runs"] if r.get("ok"))
@@ -1522,7 +1711,12 @@ def readme_results() -> str:
     add(
         "Tests",
         f"{num(_get(m, 'passed'), 0)} passed, {num(_get(m, 'failed'), 0)} failed; line coverage "
-        f"{num(_get(m, 'coverage_percent'), 1)}%",
+        f"{num(_get(m, 'coverage_percent'), 1)}%"
+        + (
+            f", core modules {num(_get(m, 'core_coverage', 'percent'), 1)}%"
+            if _get(m, "core_coverage", "percent") is not None
+            else ""
+        ),
         "test_summary",
         m,
     )

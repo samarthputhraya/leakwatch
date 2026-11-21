@@ -158,8 +158,9 @@ live-replay: ## replay part of 2019 at 360x with live K-Means alerts (needs `mak
 index: ## copilot RAG index: docs/kb + CPHEEO PDFs in data/docs (downloaded if missing; scans OCR'd once) -> data/index/
 	$(RUN) python -m leakwatch.copilot.rag.build
 
-dispatch: ## work orders for alerts without one -> lake/work_orders (template when no LLM is set)
-	$(RUN) python -m leakwatch.copilot.dispatch
+DISPATCH_ARGS ?=
+dispatch: ## work orders for alerts without one -> lake/work_orders (DISPATCH_ARGS=--template: no LLM)
+	$(RUN) python -m leakwatch.copilot.dispatch $(DISPATCH_ARGS)
 
 llm-local: ## local CPU model for the copilot (llama.cpp + Qwen3-4B, ~2.1 GB download) on :8080
 	bash scripts/local_llm.sh
@@ -198,5 +199,6 @@ demo-runner: ## only the demo backend (replay + streams + leak injection + work 
 dashboard: ## only the Streamlit dashboard (http://localhost:8501)
 	$(RUN) python -m leakwatch.dashboard.serve --server.headless true
 
-demo-check: ## headless demo rehearsal: inject, alert, top 5, work order x3 -> demo_runs.json
-	$(RUN) python -m leakwatch.demo.check
+DEMO_ARGS ?=
+demo-check: ## headless demo rehearsal x3 -> demo_runs.json (DEMO_ARGS="--runs 5 --budget-s 30")
+	$(RUN) python -m leakwatch.demo.check $(DEMO_ARGS)
