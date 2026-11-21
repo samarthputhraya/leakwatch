@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "generated_at": "2026-11-21T00:58:39+00:00",
+    "git_commit": "842d180",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "model": "kmeans_rebaselined",
+  "threshold": 1.3664359811445281,
+  "persistence_windows": 32,
+  "placement": "localizer",
+  "revisit_days": 30.0,
+  "rule": "smallest k with the 2018 official score not lower and no more alerts in the 2018 normal windows than without a fast path (D-043)",
+  "grid": [
+    {
+      "factor": null,
+      "fast_threshold": null,
+      "alerts": 45,
+      "score_2018_eur": 75559.51,
+      "true_positives": 6,
+      "false_positives": 16,
+      "mean_delay_of_true_positives_h": 62.41,
+      "normal_window_alerts": 1,
+      "normal_weeks": 20.99
+    },
+    {
+      "factor": 20.0,
+      "fast_threshold": 27.3287,
+      "alerts": 45,
+      "score_2018_eur": 81437.13,
+      "true_positives": 7,
+      "false_positives": 15,
+      "mean_delay_of_true_positives_h": 255.79,
+      "normal_window_alerts": 1,
+      "normal_weeks": 20.99
+    },
+    {
+      "factor": 12.0,
+      "fast_threshold": 16.3972,
+      "alerts": 45,
+      "score_2018_eur": 71533.15,
+      "true_positives": 6,
+      "false_positives": 16,
+      "mean_delay_of_true_positives_h": 298.21,
+      "normal_window_alerts": 1,
+      "normal_weeks": 20.99
+    },
+    {
+      "factor": 8.0,
+      "fast_threshold": 10.9315,
+      "alerts": 45,
+      "score_2018_eur": 71538.4,
+      "true_positives": 6,
+      "false_positives": 16,
+      "mean_delay_of_true_positives_h": 298.17,
+      "normal_window_alerts": 1,
+      "normal_weeks": 20.99
+    },
+    {
+      "factor": 5.0,
+      "fast_threshold": 6.8322,
+      "alerts": 47,
+      "score_2018_eur": 64024.3,
+      "true_positives": 5,
+      "false_positives": 17,
+      "mean_delay_of_true_positives_h": 344.57,
+      "normal_window_alerts": 2,
+      "normal_weeks": 20.99
+    },
+    {
+      "factor": 3.0,
+      "fast_threshold": 4.0993,
+      "alerts": 59,
+      "score_2018_eur": 60000.07,
+      "true_positives": 5,
+      "false_positives": 19,
+      "mean_delay_of_true_positives_h": 499.47,
+      "normal_window_alerts": 2,
+      "normal_weeks": 20.99
+    },
+    {
+      "factor": 2.0,
+      "fast_threshold": 2.7329,
+      "alerts": 92,
+      "score_2018_eur": 51187.11,
+      "true_positives": 4,
+      "false_positives": 32,
+      "mean_delay_of_true_positives_h": 78.19,
+      "normal_window_alerts": 7,
+      "normal_weeks": 20.99
+    }
+  ],
+  "chosen_factor": 20.0,
+  "configured_factor": null,
+  "config_matches_choice": false
+}

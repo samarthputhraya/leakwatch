@@ -89,7 +89,7 @@ bdt:
   # D-043 fast path for the live model: one window above k x tau opens an alert at once (no 8 h
   # wait). `make bdt-fast-path` picks k on 2018; null = off.
   fast_path_grid: [20, 12, 8, 5, 3, 2]
-  fast_path_factor: null
+  fast_path_factor: 20             # chosen on 2018 (bdt_fast_path.json): EUR 81,437 vs 75,560 without
   train_year: 2018
   eval_year: 2019
   # Time-blocked split of normal 2018 windows (overlapping windows: never split at random):
