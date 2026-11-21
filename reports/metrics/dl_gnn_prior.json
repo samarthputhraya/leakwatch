@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-21T00:00:53+00:00",
-    "git_commit": "4121dc5",
+    "generated_at": "2026-11-21T00:02:55+00:00",
+    "git_commit": "86451a2",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -118,8 +118,8 @@
     }
   },
   "chosen_sensor_prior_m": 300.0,
-  "configured_sensor_prior_m": null,
-  "config_matches_choice": false,
+  "configured_sensor_prior_m": 300.0,
+  "config_matches_choice": true,
   "real_leaks": {
     "2018": {
       "year": 2018,
