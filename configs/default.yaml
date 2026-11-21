@@ -236,8 +236,17 @@ dashboard:
   snapshot_seconds: 1.0            # how often the server re-reads state.json and the demo lake
   poll_ms: 1000                    # how often the page asks the server for the snapshot
   stale_after_s: 15                # state.json older than this while "running" = runner not responding
+  starting_stale_after_s: 180      # the same while "starting": Spark start-up writes no state for a while
   chart_hours: 24                  # simulated hours shown in the score and pressure charts
   alerts_limit: 50                 # newest alerts read per snapshot
+  duckdb_memory: 256MB             # cap for the page's own lake reads (one thread)
+  leak_mm: {min: 10, max: 50}      # leak sizes the page offers; the default is demo.leak_diameter_m
+  speeds: [180, 360, 720, 1440, 2880]   # replay speeds the page offers
+  failed_leak_seconds: 60          # how long "the leak could not be simulated" stays on screen
+  tint:                            # pipe tint = pressure drop interpolated between sensors (D-053)
+    nearest: 4                     # sensors of the same area used per junction
+    length_m: 400                  # the tint fades by 1/e over this pipe distance from the nearest sensor
+    min_distance_m: 30             # keeps the weight finite at a sensor's own junction
 
 st:
   # D-049: the code behind a reported number or a safety check; `make test-report` reports

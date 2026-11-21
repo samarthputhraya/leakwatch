@@ -5,10 +5,13 @@ A FastAPI app that serves the page (``static/``, no build step) and its JSON:
 - ``GET /api/live``: everything the live page shows, shaped by ``view.live_view``. One background
   thread rebuilds it every ``dashboard.snapshot_seconds`` from ``state.json`` and the demo lake
   (DuckDB); requests return the last snapshot, so any number of browser tabs cost the same.
+- ``GET /api/network``: the map geometry (``geometry.py``), built once.
+- ``POST /api/demo/inject | speed | restart``: the three ``demo.commands`` of the runner.
 - ``GET /api/health``: for scripts that wait for the server.
 
 DuckDB is used from the snapshot thread only. A lake that cannot be read is reported in the
-snapshot (``error``), never as an empty result.
+snapshot (``error``), never as an empty result. Failures answer with a sentence for the screen,
+never with a stack trace.
 """
 
 from __future__ import annotations
@@ -17,9 +20,9 @@ import argparse
 import math
 import threading
 import time
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +30,7 @@ import orjson
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
@@ -40,6 +44,11 @@ ALERT_COLUMNS = (
     "est_loss_m3h, windows_above, last_window_end, top_sensors, gnn_top5, work_order_json, "
     "work_order_generator, created_at, updated_at"
 )
+KAFKA_DOWN = "The command could not be sent: Kafka did not accept it. Start Kafka with `make up`."
+
+
+class CommandNotSentError(RuntimeError):
+    """The ``demo.commands`` message did not reach Kafka."""
 
 
 def plain(value: Any) -> Any:
@@ -50,7 +59,7 @@ def plain(value: Any) -> Any:
         return {str(k): plain(v) for k, v in value.items()}
     if isinstance(value, list | tuple):
         return [plain(v) for v in value]
-    if getattr(value, "ndim", 0) and hasattr(value, "tolist"):  # numpy array (DuckDB list column)
+    if getattr(value, "ndim", 0) and hasattr(value, "tolist"):  # numpy array (DuckDB list)
         return [plain(v) for v in value.tolist()]
     if hasattr(value, "to_pydatetime"):
         return view.to_utc(value)
@@ -61,10 +70,82 @@ def plain(value: Any) -> Any:
     return value
 
 
+def files_signature(*folders: Path) -> tuple[int, int]:
+    """(number of Parquet files, newest modification time in ns) under the folders.
+
+    Cheap to compute; the lake is read again only when this changes.
+    """
+    count, newest = 0, 0
+    for folder in folders:
+        if not folder.is_dir():
+            continue
+        for path in folder.rglob("*.parquet"):
+            try:
+                newest = max(newest, path.stat().st_mtime_ns)
+            except OSError:  # removed while listing (the runner rewrites its lake)
+                continue
+            count += 1
+    return count, newest
+
+
 def json_response(payload: Any, status_code: int = 200) -> Response:
     """JSON with UTC datetimes and no NaN (orjson writes NaN as null)."""
     body = orjson.dumps(payload, option=orjson.OPT_UTC_Z | orjson.OPT_NON_STR_KEYS)
     return Response(content=body, status_code=status_code, media_type="application/json")
+
+
+def refused(status_code: int, message: str) -> Response:
+    """A request the server did not carry out, with the sentence the page shows."""
+    return json_response({"ok": False, "message": message}, status_code)
+
+
+def send_demo_command(command: str, **params: Any) -> None:
+    """Publish one ``demo.commands`` message; raise if Kafka did not take it."""
+    from leakwatch.demo.runner import send_command
+
+    if send_command(command, **params):
+        raise CommandNotSentError(command)
+
+
+class FailedLeaks:
+    """Leaks that were requested and vanished from the runner's state without starting.
+
+    The runner drops a leak whose EPANET signature failed; its state file then shows neither a
+    pending nor an active leak. Remembering the pending ones makes that visible for a while.
+    """
+
+    def __init__(self, keep_s: float) -> None:
+        self.keep = timedelta(seconds=keep_s)
+        self._pending: dict[str, dict[str, Any]] = {}
+        self._failed: list[tuple[datetime, dict[str, Any]]] = []
+        self._last_sim: datetime | None = None
+
+    def update(self, state: Mapping[str, Any], now: datetime) -> list[dict[str, Any]]:
+        """Feed the newest state; returns the leaks to show as failed."""
+        sim = view.to_utc(state.get("sim_ts"))
+        rewound = sim is not None and self._last_sim is not None and sim < self._last_sim
+        if not state or rewound or state.get("status") == "starting":
+            self._pending.clear()  # a restart clears pending leaks without a failure
+        self._last_sim = sim
+        pending = {str(p.get("leak_id")): dict(p) for p in state.get("pending_leaks") or []}
+        active = {str(lk.get("leak_id")) for lk in state.get("leaks") or []}
+        for leak_id, leak in list(self._pending.items()):
+            if leak_id not in pending:
+                del self._pending[leak_id]
+                if leak_id not in active:
+                    self._failed.append((now, leak))
+        for leak_id, leak in pending.items():
+            if "error" in leak and leak_id not in self._pending:
+                self._failed.append((now, leak))
+            self._pending[leak_id] = leak
+        self._failed = [(t, lk) for t, lk in self._failed if now - t <= self.keep]
+        seen: set[str] = set()
+        out = []
+        for _, leak in self._failed:
+            if str(leak.get("leak_id")) not in seen:
+                seen.add(str(leak.get("leak_id")))
+                out.append(leak)
+        return out
 
 
 class LiveSource:
@@ -74,6 +155,9 @@ class LiveSource:
         self.cfg = cfg or load_config()
         self._con: Any = None
         self._n_pressure: int | None = None
+        self._alert_files: tuple[int, int] | None = None
+        self._alert_rows: list[dict[str, Any]] = []
+        self._failed = FailedLeaks(float(self.cfg["dashboard"]["failed_leak_seconds"]))
 
     def _connection(self) -> Any:
         """One DuckDB connection over the demo lake, rebuilt until its views exist."""
@@ -82,6 +166,9 @@ class LiveSource:
 
         if self._con is None:
             con = lake.connect(lake_root=demo_lake(), only=LIVE_VIEWS)
+            # One thread and a small memory cap: Spark needs the laptop more than this does.
+            con.execute("SET threads = 1")
+            con.execute(f"SET memory_limit = '{self.cfg['dashboard']['duckdb_memory']}'")
             names = {r[0] for r in con.execute("SELECT view_name FROM duckdb_views()").fetchall()}
             if "alerts" not in names:  # a fresh demo lake has no alert yet: nothing to read
                 con.close()
@@ -90,8 +177,17 @@ class LiveSource:
         return self._con
 
     def _alerts(self) -> list[dict[str, Any]]:
+        """Newest alerts; the lake is queried only when its alert files changed."""
         from leakwatch.common import lake
+        from leakwatch.demo.runner import demo_lake
 
+        dirs = lake.layer_dirs(demo_lake())
+        files = files_signature(dirs["alert_events"], dirs["work_orders"])
+        if files == self._alert_files:
+            return self._alert_rows
+        if files[0] == 0:  # wiped by a restart: the old views point at nothing
+            self._con, self._alert_files, self._alert_rows = None, files, []
+            return []
         con = self._connection()
         if con is None:
             return []
@@ -103,7 +199,9 @@ class LiveSource:
         except Exception:
             self._con = None  # files moved under the view (demo reset): reconnect next time
             raise
-        return [plain(row) for row in df.to_dict("records")]
+        self._alert_rows = [plain(row) for row in df.to_dict("records")]
+        self._alert_files = files
+        return self._alert_rows
 
     def _pressure_sensors(self) -> int | None:
         if self._n_pressure is None:
@@ -120,6 +218,7 @@ class LiveSource:
         from leakwatch.demo.runner import read_state
 
         started = time.perf_counter()
+        now = datetime.now(UTC)
         state = read_state()
         alerts: list[dict[str, Any]] = []
         error: str | None = None
@@ -131,10 +230,11 @@ class LiveSource:
         out = view.live_view(
             state=state,
             alerts=alerts,
-            now=datetime.now(UTC),
+            now=now,
             cfg=self.cfg,
             n_pressure=self._pressure_sensors(),
             lake_error=error,
+            failed_leaks=self._failed.update(state, now),
         )
         out["generated_at"] = datetime.now(UTC)
         out["build_ms"] = round((time.perf_counter() - started) * 1000, 1)
@@ -154,27 +254,12 @@ class Snapshots:
     def refresh(self) -> dict[str, Any]:
         """Build one snapshot now (a failure becomes an ``error`` snapshot, not an exception)."""
         try:
-            self._latest = self.source()
+            latest = self.source()
         except Exception as exc:
             log.error("snapshot failed: %s", exc)
-            self._latest = {
-                "runner": {
-                    "code": "error",
-                    "label": "Screen data unavailable",
-                    "detail": "",
-                    "live": False,
-                },
-                "clock": None,
-                "banner": {
-                    "kind": "unknown",
-                    "title": "Screen data unavailable",
-                    "sub": "The server could not build the live view. See its log.",
-                },
-                "open_alerts": 0,
-                "error": "snapshot failed",
-                "generated_at": datetime.now(UTC),
-            }
-        return self._latest
+            latest = view.unavailable_view(datetime.now(UTC))
+        self._latest = latest
+        return latest
 
     def latest(self) -> dict[str, Any]:
         """The newest snapshot (built now if there is none yet)."""
@@ -195,11 +280,26 @@ class Snapshots:
         self._stop.set()
 
 
+class InjectBody(BaseModel):
+    """``POST /api/demo/inject``."""
+
+    node_id: str
+    diameter_mm: float
+
+
+class SpeedBody(BaseModel):
+    """``POST /api/demo/speed``."""
+
+    speed: int
+
+
 def create_app(
     source: Callable[[], dict[str, Any]] | None = None,
     *,
     background: bool = True,
     cfg: Mapping[str, Any] | None = None,
+    sender: Callable[..., None] | None = None,
+    geometry_loader: Callable[[], Any] | None = None,
 ) -> FastAPI:
     """The dashboard app.
 
@@ -207,13 +307,37 @@ def create_app(
         source: builds the live view model (default: ``LiveSource``, the demo lake + state file).
         background: refresh snapshots in a thread; ``False`` builds one per request (tests).
         cfg: configuration (default: ``load_config()``).
+        sender: publishes a demo command (default: ``send_demo_command``, Kafka).
+        geometry_loader: returns the map ``Geometry`` (default: ``geometry.load``).
 
     """
     cfg = cfg or load_config()
-    snapshots = Snapshots(source or LiveSource(cfg), float(cfg["dashboard"]["snapshot_seconds"]))
+    dash = cfg["dashboard"]
+    snapshots = Snapshots(source or LiveSource(cfg), float(dash["snapshot_seconds"]))
+    send = sender or send_demo_command
+    geometry_lock = threading.Lock()
+
+    def geometry() -> Any:
+        from leakwatch.dashboard import geometry as geo
+
+        with geometry_lock:  # the first build takes a few seconds; build it once
+            return (geometry_loader or geo.load)()
+
+    def current() -> dict[str, Any]:
+        return snapshots.latest() if background else snapshots.refresh()
+
+    def command(name: str, **params: Any) -> Response:
+        try:
+            send(name, **params)
+        except CommandNotSentError:
+            return refused(503, KAFKA_DOWN)
+        except Exception as exc:
+            log.error("demo command %s failed: %s", name, exc)
+            return refused(503, KAFKA_DOWN)
+        return json_response({"ok": True})
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
         if background:
             snapshots.start()
         yield
@@ -235,12 +359,59 @@ def create_app(
 
     @app.get("/api/live")
     def live() -> Response:
-        return json_response(snapshots.latest() if background else snapshots.refresh())
+        return json_response(current())
 
     @app.get("/api/settings")
     def settings() -> Response:
-        dash = cfg["dashboard"]
-        return json_response({"poll_ms": int(dash["poll_ms"])})
+        return json_response(
+            {
+                "poll_ms": int(dash["poll_ms"]),
+                "leak_mm": {
+                    "min": int(dash["leak_mm"]["min"]),
+                    "max": int(dash["leak_mm"]["max"]),
+                    "default": round(float(cfg["demo"]["leak_diameter_m"]) * 1000),
+                },
+                "speeds": [int(s) for s in dash["speeds"]],
+            }
+        )
+
+    @app.get("/api/network")
+    def network_json() -> Response:
+        try:
+            return json_response(geometry().payload)
+        except Exception as exc:
+            log.error("network geometry not available: %s", exc)
+            return refused(503, "The network model could not be read. Run `make data`.")
+
+    @app.post("/api/demo/inject")
+    def inject(body: InjectBody) -> Response:
+        low, high = float(dash["leak_mm"]["min"]), float(dash["leak_mm"]["max"])
+        if not low <= body.diameter_mm <= high:
+            return refused(422, f"Leak size must be between {low:.0f} and {high:.0f} mm.")
+        try:
+            junctions = set(geometry().payload["junctions"])
+        except Exception as exc:
+            log.error("network geometry not available: %s", exc)
+            return refused(503, "The network model could not be read. Run `make data`.")
+        if body.node_id not in junctions:
+            return refused(422, f"{body.node_id} is not a junction of L-Town.")
+        if current()["runner"]["code"] != "running":
+            return refused(
+                409, "The replay is not running yet. A leak can start once it says Running."
+            )
+        return command("inject_leak", node_id=body.node_id, diameter_m=body.diameter_mm / 1000)
+
+    @app.post("/api/demo/speed")
+    def speed(body: SpeedBody) -> Response:
+        if body.speed not in [int(s) for s in dash["speeds"]]:
+            return refused(422, "That replay speed is not offered.")
+        return command("set_speed", speed=body.speed)
+
+    @app.post("/api/demo/restart")
+    def restart() -> Response:
+        if current()["runner"]["code"] in ("offline", "stale", "error"):
+            return refused(409, "The demo runner is not running. Start it with `make demo`.")
+        return command("reset")
 
     @app.get("/")
     def index() -> FileResponse:
@@ -255,7 +426,7 @@ def main(argv: list[str] | None = None) -> int:
     import uvicorn
 
     cfg = load_config()
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="LeakWatch control-room screen (D-052)")
     parser.add_argument("--host", default=str(cfg["dashboard"]["host"]))
     parser.add_argument("--port", type=int, default=int(cfg["dashboard"]["port"]))
     args = parser.parse_args(argv)

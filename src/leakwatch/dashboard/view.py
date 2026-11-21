@@ -69,8 +69,19 @@ def fmt_duration(seconds: float) -> str:
     return f"{hours} h {minutes:02d} min"
 
 
-def runner_view(state: Mapping[str, Any], now: datetime, stale_after_s: float) -> dict[str, Any]:
-    """Status of the demo runner: ``code`` drives the page, ``label`` and ``detail`` are shown."""
+def runner_view(
+    state: Mapping[str, Any],
+    now: datetime,
+    stale_after_s: float,
+    starting_stale_after_s: float | None = None,
+    busy: bool = False,
+) -> dict[str, Any]:
+    """Status of the demo runner: ``code`` drives the page, ``label`` and ``detail`` are shown.
+
+    The runner rewrites its state file several times a second while it replays, but not while
+    it starts Spark, so "starting" is allowed a longer silence (``starting_stale_after_s``).
+    The same holds while it simulates a requested leak (``busy``): EPANET can hold it up.
+    """
     if not state:
         return {
             "code": "offline",
@@ -81,7 +92,10 @@ def runner_view(state: Mapping[str, Any], now: datetime, stale_after_s: float) -
     code = STATUS_CODES.get(str(state.get("status", "")), "unknown")
     updated = to_utc(state.get("updated_at"))
     age = None if updated is None else (now - updated).total_seconds()
-    if code != "finished" and age is not None and age > stale_after_s:
+    limit = stale_after_s
+    if (code == "starting" or busy) and starting_stale_after_s is not None:
+        limit = starting_stale_after_s
+    if code != "finished" and age is not None and age > limit:
         return {
             "code": "stale",
             "label": "Runner not responding",
@@ -168,6 +182,55 @@ def banner_view(
     return {"kind": "normal", "title": "No open alerts", "sub": watching}
 
 
+def leak_view(leak: Mapping[str, Any], tz: str) -> dict[str, Any]:
+    """One requested leak: where, how large, when it began (simulated) and when it was asked for."""
+    start = to_utc(leak.get("start_ts"))
+    asked = to_utc(leak.get("requested_at"))
+    diameter, flow = leak.get("diameter_m"), leak.get("est_flow_m3h")
+    return {
+        "leak_id": leak.get("leak_id"),
+        "node_id": str(leak.get("node_id")),
+        "diameter_mm": round(float(diameter) * 1000) if isinstance(diameter, int | float) else None,
+        "start_ts": None if start is None else start.isoformat(),
+        "started": None if start is None else fmt_time(start, tz, date=False),
+        "requested_at": None if asked is None else asked.isoformat(),
+        "flow_m3h": round(float(flow), 1) if isinstance(flow, int | float) else None,
+    }
+
+
+def leaks_view(
+    state: Mapping[str, Any], failed: Sequence[Mapping[str, Any]], tz: str
+) -> dict[str, list[dict[str, Any]]]:
+    """Requested leaks: being simulated, running, and those that could not be simulated."""
+    failed_ids = {str(f.get("leak_id")) for f in failed}
+    pending = [
+        p for p in state.get("pending_leaks") or [] if str(p.get("leak_id")) not in failed_ids
+    ]
+    return {
+        "pending": [leak_view(p, tz) for p in pending],
+        "active": [leak_view(lk, tz) for lk in state.get("leaks") or []],
+        "failed": [leak_view(f, tz) for f in failed],
+    }
+
+
+def unavailable_view(now: datetime) -> dict[str, Any]:
+    """What the page shows when the server could not build the live view at all."""
+    title = "Screen data unavailable"
+    return {
+        "runner": {"code": "error", "label": title, "detail": "", "live": False},
+        "clock": None,
+        "banner": {
+            "kind": "unknown",
+            "title": title,
+            "sub": "The server could not build the live view. See its log.",
+        },
+        "open_alerts": 0,
+        "leaks": {"pending": [], "active": [], "failed": []},
+        "error": "snapshot failed",
+        "generated_at": now,
+    }
+
+
 def live_view(
     *,
     state: Mapping[str, Any],
@@ -176,15 +239,26 @@ def live_view(
     cfg: Mapping[str, Any],
     n_pressure: int | None = None,
     lake_error: str | None = None,
+    failed_leaks: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Everything the live page shows, from the runner state and the newest alerts."""
     tz = str(cfg["project"]["display_timezone"])
-    runner = runner_view(state, now, float(cfg["dashboard"]["stale_after_s"]))
+    dash = cfg["dashboard"]
+    runner = runner_view(
+        state,
+        now,
+        float(dash["stale_after_s"]),
+        float(dash["starting_stale_after_s"]),
+        busy=bool(state.get("pending_leaks")),
+    )
+    if runner["code"] == "starting":
+        alerts = []  # the lake still holds the previous replay; the runner wipes it as it starts
     open_alerts = [a for a in alerts if a.get("status") == "open"]
     return {
         "runner": runner,
         "clock": clock_view(state, cfg["demo"], tz) if state else None,
         "banner": banner_view(runner, open_alerts, n_pressure, lake_error, tz),
         "open_alerts": len(open_alerts),
+        "leaks": leaks_view(state, failed_leaks, tz),
         "error": lake_error,
     }

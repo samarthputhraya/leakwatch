@@ -51,7 +51,7 @@ def test_the_page_and_its_files_are_served_and_revalidated():
         c.get("/static/vendor/deck.gl.min.js").headers["content-type"].startswith("text/javascript")
     )
     assert c.get("/api/health").json() == {"ok": True}
-    assert c.get("/api/settings").json() == {"poll_ms": CFG["dashboard"]["poll_ms"]}
+    assert c.get("/api/settings").json()["poll_ms"] == CFG["dashboard"]["poll_ms"]
 
 
 def test_a_failing_source_becomes_a_visible_state_not_an_error_page():
@@ -131,3 +131,46 @@ def test_live_source_reads_nothing_from_a_lake_without_alerts(monkeypatch, tmp_p
     source = api.LiveSource(CFG)
     assert source._alerts() == []
     assert source._con is None  # it reconnects once the first alert exists
+
+
+def test_files_signature_counts_parquet_files_and_notices_changes(tmp_path):
+    events, orders = tmp_path / "alerts", tmp_path / "work_orders"
+    assert api.files_signature(events, orders) == (0, 0)
+    (events / "date=2018-11-21").mkdir(parents=True)
+    first = events / "date=2018-11-21" / "part-0.parquet"
+    first.write_bytes(b"x")
+    (events / "_commit.json").write_text("{}")  # not a data file
+    one = api.files_signature(events, orders)
+    assert one[0] == 1 and one[1] > 0
+    orders.mkdir()
+    (orders / "part-0.parquet").write_bytes(b"y")
+    two = api.files_signature(events, orders)
+    assert two[0] == 2 and two != one
+
+
+def test_alerts_are_queried_again_only_when_the_alert_files_change(monkeypatch, tmp_path):
+    from leakwatch.common import lake
+    from leakwatch.demo import runner
+
+    root = tmp_path / "lake"
+    monkeypatch.setattr(runner, "demo_lake", lambda: root)
+    folder = lake.layer_dirs(root)["alert_events"]
+    folder.mkdir(parents=True)
+    (folder / "part-0.parquet").write_bytes(b"x")
+    queries = []
+
+    def fake_query(con, sql):
+        queries.append(sql)
+        return pd.DataFrame([{"alert_id": "a", "status": "open", "end_ts": pd.NaT}])
+
+    source = api.LiveSource(CFG)
+    monkeypatch.setattr(source, "_connection", lambda: object())
+    monkeypatch.setattr(lake, "query_df", fake_query)
+    assert source._alerts() == [{"alert_id": "a", "status": "open", "end_ts": None}]
+    assert source._alerts() == source._alerts() and len(queries) == 1  # unchanged files: no query
+    (folder / "part-1.parquet").write_bytes(b"x")
+    source._alerts()
+    assert len(queries) == 2
+    for path in folder.glob("*.parquet"):
+        path.unlink()
+    assert source._alerts() == [] and len(queries) == 2  # a wiped lake is not queried

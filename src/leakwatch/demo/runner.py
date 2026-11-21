@@ -370,15 +370,18 @@ class DemoRunner:
             log.info("reset")
 
 
-def send_command(command: str, **params: Any) -> None:
-    """Publish one ``demo.commands`` message (used by the dashboard and the demo check)."""
+def send_command(command: str, **params: Any) -> int:
+    """Publish one ``demo.commands`` message (used by the dashboard and the demo check).
+
+    Returns the number of messages Kafka had not accepted when the flush gave up (0 = sent).
+    """
     cfg = load_config()
     producer = kafka_io.make_producer(cfg["kafka"])
     cmd = DemoCommand(command=command, params=params)  # type: ignore[arg-type]
     producer.produce(
         cfg["kafka"]["topics"]["demo_commands"]["name"], value=orjson.dumps(cmd.model_dump())
     )
-    producer.flush(10)
+    return int(producer.flush(10))
 
 
 def main(argv: list[str] | None = None) -> int:

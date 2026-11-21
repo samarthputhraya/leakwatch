@@ -13,7 +13,7 @@ TZ = "Asia/Kolkata"
 NOW = datetime(2026, 11, 21, 14, 20, 30, tzinfo=UTC)
 CFG = {
     "project": {"display_timezone": TZ},
-    "dashboard": {"stale_after_s": 15},
+    "dashboard": {"stale_after_s": 15, "starting_stale_after_s": 180},
     "demo": {"background_start": "2018-11-19 00:00", "background_hours": 168},
 }
 # The alert of the demo run of 21 Nov 2026 (leak at n470), as the lake returned it.
@@ -87,6 +87,23 @@ def test_a_runner_that_stopped_writing_is_reported_and_a_finished_replay_is_not(
     assert "1 min 15 s ago" in stale["detail"]
     finished = view.runner_view(state("finished", age_s=600), NOW, 15)
     assert finished["code"] == "finished" and "Restart the replay" in finished["detail"]
+
+
+def test_starting_may_stay_silent_longer_than_running():
+    quiet = state("starting", age_s=60)
+    assert view.runner_view(quiet, NOW, 15, 180)["code"] == "starting"
+    assert view.runner_view(state("starting", age_s=200), NOW, 15, 180)["code"] == "stale"
+    assert view.runner_view(state("warming up", age_s=60), NOW, 15, 180)["code"] == "stale"
+    out = view.live_view(state=quiet, alerts=[], now=NOW, cfg=CFG)
+    assert out["runner"]["code"] == "starting" and out["banner"]["kind"] == "waiting"
+
+
+def test_a_runner_simulating_a_leak_is_given_time_before_it_counts_as_silent():
+    busy = state("running", age_s=40, pending_leaks=[{"leak_id": "a", "node_id": "n187"}])
+    out = view.live_view(state=busy, alerts=[], now=NOW, cfg=CFG)
+    assert out["runner"]["code"] == "running" and out["leaks"]["pending"][0]["node_id"] == "n187"
+    assert view.runner_view(state("running", age_s=40), NOW, 15, 180)["code"] == "stale"
+    assert view.runner_view(state("running", age_s=400), NOW, 15, 180, busy=True)["code"] == "stale"
 
 
 def test_clock_shows_simulated_time_speed_and_what_is_left_of_the_replay():
@@ -164,6 +181,13 @@ def test_live_view_counts_only_open_alerts():
     out = view.live_view(state=state(), alerts=[closed, ALERT], now=NOW, cfg=CFG, n_pressure=33)
     assert out["open_alerts"] == 1 and out["banner"]["title"] == "Alert in Area A"
     assert out["runner"]["code"] == "running" and out["clock"]["speed"] == "2,880×"
+
+
+def test_alerts_of_the_previous_replay_are_not_shown_while_the_runner_starts():
+    out = view.live_view(state=state("starting"), alerts=[ALERT], now=NOW, cfg=CFG)
+    assert out["open_alerts"] == 0 and out["banner"]["title"] == "Starting"
+    out = view.live_view(state=state("warming up"), alerts=[ALERT], now=NOW, cfg=CFG)
+    assert out["open_alerts"] == 1  # once the lake is this replay's, its alerts count
 
 
 def test_live_view_without_a_runner_has_no_clock_and_no_false_all_clear():
