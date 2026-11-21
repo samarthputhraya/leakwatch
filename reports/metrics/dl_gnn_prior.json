@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-21T00:02:55+00:00",
-    "git_commit": "86451a2",
+    "generated_at": "2026-11-21T01:59:28+00:00",
+    "git_commit": "63e95b6",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -20,7 +20,7 @@
   "official_score_by_length": {
     "none": {
       "2018": {
-        "total_score_eur": 13951.82,
+        "total_score_eur": 14054.44,
         "true_positives": 5,
         "false_positives": 37,
         "alerts": 45
@@ -34,7 +34,7 @@
     },
     "1200": {
       "2018": {
-        "total_score_eur": 30316.34,
+        "total_score_eur": 30418.96,
         "true_positives": 6,
         "false_positives": 34,
         "alerts": 45
@@ -48,7 +48,7 @@
     },
     "600": {
       "2018": {
-        "total_score_eur": 31316.34,
+        "total_score_eur": 31418.96,
         "true_positives": 6,
         "false_positives": 32,
         "alerts": 45
@@ -62,9 +62,9 @@
     },
     "300": {
       "2018": {
-        "total_score_eur": 68059.51,
-        "true_positives": 6,
-        "false_positives": 31,
+        "total_score_eur": 73937.13,
+        "true_positives": 7,
+        "false_positives": 30,
         "alerts": 45
       },
       "2019": {
@@ -76,8 +76,8 @@
     },
     "150": {
       "2018": {
-        "total_score_eur": 67983.53,
-        "true_positives": 6,
+        "total_score_eur": 73497.4,
+        "true_positives": 7,
         "false_positives": 31,
         "alerts": 45
       },
@@ -90,8 +90,8 @@
     },
     "75": {
       "2018": {
-        "total_score_eur": 59784.42,
-        "true_positives": 5,
+        "total_score_eur": 65298.29,
+        "true_positives": 6,
         "false_positives": 30,
         "alerts": 45
       },
@@ -104,9 +104,9 @@
     },
     "37.5": {
       "2018": {
-        "total_score_eur": 49746.91,
-        "true_positives": 4,
-        "false_positives": 31,
+        "total_score_eur": 65203.65,
+        "true_positives": 6,
+        "false_positives": 30,
         "alerts": 45
       },
       "2019": {
