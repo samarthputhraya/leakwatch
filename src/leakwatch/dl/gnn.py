@@ -696,7 +696,10 @@ def main(argv: list[str] | None = None) -> int:
     }
     # Results first, so a failure while updating the lake cannot lose the trained comparison.
     path = write_metrics("dl_gnn", payload)
-    payload["alerts_with_gnn_top5"] = write_gnn_top5(cfg, g, models[best], best, scale, sensors)
+    try:
+        payload["alerts_with_gnn_top5"] = write_gnn_top5(cfg, g, models[best], best, scale, sensors)
+    except FileNotFoundError as exc:  # the GLS inversion is built after the network (D-044)
+        log.warning("alerts not localized yet (%s); run `make localizer gnn-apply`", exc)
     path = write_metrics("dl_gnn", payload)
     log.info(
         "chosen %s; test top5 %s; 2018 median %s m; 2019 median %s m -> %s",

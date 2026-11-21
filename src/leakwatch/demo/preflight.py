@@ -33,6 +33,8 @@ def _has_files(folder: Path, pattern: str = "*.parquet") -> bool:
 
 def checks() -> list[tuple[str, Callable[[], bool], str, bool]]:
     """(item, check, how to fix, required) for every demo prerequisite."""
+    from leakwatch.dl.inversion import inversion_path
+
     cfg = load_config()
     year = int(str(cfg["demo"]["background_start"])[:4])
     model = paths.models_dir() / str(cfg["bdt"]["live_model"])
@@ -64,6 +66,16 @@ def checks() -> list[tuple[str, Callable[[], bool], str, bool]]:
             ),
             "make gnn-data gnn (without it alerts have no top-5 candidates)",
             False,
+        ),
+        (
+            "GLS inversion of the system localizer (D-044)",
+            lambda: (
+                not (paths.models_dir() / "gnn" / "meta.json").exists()
+                or not cfg["dl"].get("localizer", {}).get("gls")
+                or inversion_path(str(cfg["dl"]["localizer"]["gls"])).exists()
+            ),
+            "make localizer (with a trained network the live localizer needs it)",
+            True,
         ),
     ]
 

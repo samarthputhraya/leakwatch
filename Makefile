@@ -187,6 +187,8 @@ prepare: ## fresh data dir -> lake, features, models, alerts, localizer, RAG ind
 	$(MAKE) bdt-synthetic
 	$(MAKE) gnn-data
 	$(MAKE) gnn
+	$(MAKE) localizer
+	$(MAKE) gnn-apply
 	$(MAKE) index
 	$(MAKE) dispatch
 
