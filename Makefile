@@ -15,7 +15,7 @@ PY_DIRS := src tests scripts notebooks
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
 	demo-check bdt-scaling reports test-report prepare llm-local llm-check bdt-synthetic gnn-apply \
 	gnn-prior bdt-fast-path battledim-score mutation localizer bdt-slow localizer-multileak \
-	demo-stop dashboard-legacy
+	demo-stop dashboard-legacy ui-check
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -208,6 +208,9 @@ demo-stop: ## stop a demo left running (runner, its Spark session, dashboard); K
 
 dashboard: ## only the control-room screen (http://localhost:8501); the demo runner is separate
 	$(RUN) python -m leakwatch.dashboard.serve
+
+ui-check: ## the screen's idle / alert / work order / error states in headless Chrome (Windows Chrome via WSL interop)
+	$(RUN) pytest -m slow tests/unit/test_dashboard_page.py -q
 
 dashboard-legacy: ## the earlier Streamlit page (http://localhost:8501)
 	$(RUN) python -m leakwatch.dashboard.serve --legacy --server.headless true

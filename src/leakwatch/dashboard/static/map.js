@@ -44,11 +44,13 @@ export function createMap(el, net, { onPick, onError }) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const move = (ms) => (reduced ? {} : ms);
 
-  // View that fits a box [minx, miny, maxx, maxy] into the canvas, leaving room for overlays.
-  function fit(box, padX, padY) {
-    const w = Math.max(200, el.clientWidth - padX), h = Math.max(160, el.clientHeight - padY);
+  // View that fits a box [minx, miny, maxx, maxy] into the free part of the canvas: the banner
+  // covers the top (padTop px) and the legend the bottom (padBottom px).
+  function fit(box, padX, padTop, padBottom = padTop) {
+    const w = Math.max(200, el.clientWidth - padX), h = Math.max(160, el.clientHeight - padTop - padBottom);
     const zoom = Math.log2(Math.min(w / (box[2] - box[0]), h / (box[3] - box[1])));
-    return { target: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2, 0], zoom };
+    const lift = (padBottom - padTop) / 2 / 2 ** zoom; // world y grows upwards (flipY false)
+    return { target: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2 - lift, 0], zoom };
   }
   const home = () => { const v = fit(net.bounds, 64, 120); v.target[1] -= 10 / 2 ** v.zoom; return v; };
 
@@ -122,12 +124,23 @@ export function createMap(el, net, { onPick, onError }) {
     return out;
   }
 
-  // The pulse runs while the true leak is on screen (not under reduced motion).
+  // Three pulses (about 4 s) when the true leak is revealed, then a still ring: moving content
+  // stops within 5 s (WCAG 2.2.2). None under reduced motion.
   let pulse = 0;
+  let pulsed = null;
   function animate() {
-    const on = !!st.truth && !reduced;
-    if (on && !pulse) pulse = setInterval(() => { st.ripple += 0.035; draw(); }, 50);
-    if (!on && pulse) { clearInterval(pulse); pulse = 0; }
+    const key = st.truth ? `${st.incident ? st.incident.alert_id : ''}:${st.truth.node_id}` : null;
+    if (key && key !== pulsed && !reduced && !pulse) {
+      pulsed = key;
+      const t0 = performance.now();
+      pulse = setInterval(() => {
+        const done = performance.now() - t0 > 4200;
+        st.ripple = done ? 0.999 : st.ripple + 0.035;
+        draw();
+        if (done) { clearInterval(pulse); pulse = 0; }
+      }, 50);
+    }
+    if (!key && pulse) { clearInterval(pulse); pulse = 0; }
   }
 
   function layers() {
@@ -298,7 +311,7 @@ export function createMap(el, net, { onPick, onError }) {
       if (!box) return false;
       st.zoomed = true;
       inset.classList.add('on');
-      fly(fit(box, 80, 150));
+      fly(fit(box, 80, 100, 170));
       draw();
       return true;
     },

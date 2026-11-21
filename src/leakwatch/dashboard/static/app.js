@@ -114,16 +114,18 @@ function Controls({ settings, clock, runner, size, setSize, notify }) {
 function Header({ runner, clock, analysed, tabs, children }) {
   const width = clock && clock.replay_fraction != null ? `${(clock.replay_fraction * 100).toFixed(1)}%` : '0';
   return html`<header class="header">
-    <div class="brand"><b>LeakWatch</b><span>L-Town, the BattLeDIM benchmark network</span></div>
+    <div class="brand"><h1>LeakWatch</h1><span>L-Town, the BattLeDIM benchmark network</span></div>
     ${tabs}
+    <div class="meta">
     <dl class="facts">
       ${clock && html`<div class="fact"><dt>Simulated time</dt><dd>${clock.sim_time}</dd></div>`}
       ${clock && analysed && html`<div class="fact" title="Newest window the stream has scored; the replay runs ahead of it"><dt>Analysed up to</dt><dd>${analysed}</dd></div>`}
       ${clock && clock.speed && html`<div class="fact"><dt>Replay speed</dt><dd>${clock.speed}</dd></div>`}
       ${clock && clock.replay_left && runner.code !== 'finished' && html`<div class="fact"><dt>Replay ends in</dt><dd>${clock.replay_left}</dd></div>`}
-      <div class="status" data-code=${runner.code} title=${runner.detail}><span class="dot"></span>${runner.label}</div>
-      ${children}
     </dl>
+    <div class="status" data-code=${runner.code} title=${runner.detail}><span class="dot" aria-hidden="true"></span>${runner.label}</div>
+    ${children}
+    </div>
     <div class="replay" role="presentation"><i style=${{ width }}></i></div>
   </header>`;
 }
@@ -138,7 +140,7 @@ function Banner({ banner, runner, onRestart }) {
   </div>`;
 }
 
-function MapView({ net, selected, drops, incident, truth, onReady, onPick, onError }) {
+function MapView({ net, selected, drops, incident, truth, label, onReady, onPick, onError }) {
   const el = useRef(null);
   const map = useRef(null);
   const handlers = useRef({});
@@ -152,7 +154,20 @@ function MapView({ net, selected, drops, incident, truth, onReady, onPick, onErr
     return () => { if (map.current) map.current.destroy(); map.current = null; handlers.current.onReady(null); };
   }, [net]);
   useEffect(() => { if (map.current) map.current.set({ selected, drops, incident, truth }); }, [selected, drops, incident, truth]);
-  return html`<div class="deck" ref=${el}></div>`;
+  return html`<div class="deck" ref=${el} role="img" aria-label=${label}></div>`;
+}
+
+// What the map shows, in words (the canvas itself says nothing to a screen reader).
+function mapLabel(net, incident, drops, truth) {
+  const parts = [`Map of L-Town: ${net.counts.junctions} junctions, ${net.counts.pressure_sensors} pressure sensors.`];
+  if (!incident) parts.push('No open alert.');
+  else {
+    parts.push(`Alert in Area ${incident.area}.`);
+    if (incident.candidates.length) parts.push(`Candidates, best first: ${incident.candidates.join(', ')}.`);
+  }
+  if (drops && drops.shown) parts.push(`${drops.shown} sensor${drops.shown === 1 ? ' shows' : 's show'} a pressure drop of ${drops.floor_m} m or more.`);
+  if (truth) parts.push(`True leak at ${truth.node_id}.`);
+  return parts.join(' ');
 }
 
 const metres = (m) => `${Number(m.toFixed(1))} m`;
@@ -384,7 +399,8 @@ function RevealStep({ inc, revealed, onReveal }) {
   else where = 'No pipe path joins it to candidate 1.';
   const nearest = t.rank == null && t.nearest_rank != null && t.nearest_rank !== 1
     ? html` The nearest, candidate ${t.nearest_rank}, is <b>${thousands(t.nearest_m)} m</b> away.` : '';
-  return { on: true, title, body: html`
+  const short = `${t.node_id}, ${t.rank != null ? `candidate ${t.rank}` : 'not a candidate'}`;
+  return { on: true, title, short, body: html`
     <p>The leak is at <b>${t.node_id}</b>, ${t.rank != null ? html`candidate <b>${t.rank}</b> of ${t.of}.` : html`not one of the ${t.of} candidates.`}${' '}${where}${nearest}</p>
     ${(t.flow_m3h != null || t.loss_now_m3h != null) && html`<p>${t.flow_m3h != null && html`Simulated leak <b>${t.flow_m3h.toFixed(1)} m³/h</b>`}${t.flow_m3h != null && t.loss_now_m3h != null ? ', ' : ''}${t.loss_now_m3h != null && html`current estimate <b>${t.loss_now_m3h.toFixed(1)} m³/h</b>`}.</p>`}` };
 }
@@ -448,7 +464,7 @@ function CopilotStep({ inc, qa, ask, settings }) {
       <button class="btn" type="submit" disabled=${asking || !text.trim()}>Ask</button>
     </form>
     ${inc && loss && html`<button class="chipq" disabled=${asking} onClick=${() => ask({ direct: true, question: loss })}>${loss}</button>`}
-    ${qa && html`<${Answer} qa=${qa} tz=${settings ? settings.tz : 'UTC'} tzName=${settings ? settings.tz_name : 'UTC'} />`}` };
+    <div aria-live="polite">${qa && html`<${Answer} qa=${qa} tz=${settings ? settings.tz : 'UTC'} tzName=${settings ? settings.tz_name : 'UTC'} />`}</div>` };
 }
 
 // One question at a time; the answer belongs to the alert it was asked about.
@@ -485,7 +501,7 @@ function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, o
         const fold = folded(i);
         const head = html`${s.title}${fold && s.short && html`<span class="short">${s.short}</span>`}${s.when && html`<span class="when">${s.when}</span>`}`;
         return html`<li class=${`${s.on ? 'on' : ''} ${i === now && s.on ? 'now' : ''} ${fold ? 'fold' : ''}`}>
-          <span class="n">${i + 1}</span>
+          <span class="n" aria-hidden="true">${i + 1}</span>
           <div><h3>${foldable(i) ? html`<button class="fold-toggle" aria-expanded=${fold ? 'false' : 'true'}
             onClick=${() => toggle(i)}>${head}</button>` : head}</h3>
             ${s.body && !fold && html`<div class="body">${s.body}</div>`}</div>
@@ -612,6 +628,12 @@ function App() {
   const [view, setView] = useState('live');
   const mapBox = useRef(null);
   const camera = useCamera(map, lost ? null : vm && vm.incident);
+  useEffect(() => {
+    if (!pick) return undefined;
+    const close = (e) => { if (e.key === 'Escape') setPick(null); };
+    addEventListener('keydown', close);
+    return () => removeEventListener('keydown', close);
+  }, [pick]);
   if (!vm && !lost) return html`<div class="app" aria-busy="true"></div>`;
   const shown = lost ? { ...(vm || {}), ...SERVER_LOST } : vm;
   const leakSize = size ?? (settings ? settings.leak_mm.default : 30);
@@ -634,7 +656,7 @@ function App() {
   const reveal = () => {
     if (!inc || !inc.truth) return;
     setRevealed({ ...revealed, [inc.alert_id]: true });
-    camera.frame([inc.truth.node_id, ...inc.candidates]);
+    camera.frame([inc.truth.node_id, inc.candidates[0]]);  // the leak, candidate 1 and the line between them
   };
   const restart = async () => { const res = await call('POST', '/api/demo/restart'); setNotice(res.ok ? null : res.message); };
   return html`<div class="app">
@@ -644,7 +666,8 @@ function App() {
     <div class=${view === 'live' ? 'live' : 'live off'}>
     <main class="map" ref=${mapBox}>
       ${net && !mapError && html`<${MapView} net=${net} selected=${pick ? pick.node : null} drops=${shown.drops}
-        incident=${shown.incident} truth=${truth} onReady=${setMap} onPick=${onPick}
+        incident=${shown.incident} truth=${truth} label=${mapLabel(net, shown.incident, shown.drops, truth)}
+        onReady=${setMap} onPick=${onPick}
         onError=${() => setMapError('The map needs WebGL 2, which this browser did not provide. The panels on the right still work.')} />`}
       ${(netError || mapError) && html`<p class="map-note" role="alert">${mapError || netError}</p>`}
       <${Banner} banner=${shown.banner} runner=${shown.runner} onRestart=${restart} />
