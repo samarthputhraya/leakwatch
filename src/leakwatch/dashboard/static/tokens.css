@@ -14,6 +14,10 @@
   /* what the system detected / what is true */
   --amber: #FFB224;
   --coral: #FF6B5E;
+  /* three pressure lines, one chart (validated as adjacent pairs on --sheet; D-055) */
+  --series-1: #9085E9;
+  --series-2: #199E70;
+  --series-3: #3987E5;
 
   --font: Bahnschrift, "DIN Alternate", "Barlow", "Roboto Condensed", system-ui, sans-serif;
   --text-xs: 12.5px;

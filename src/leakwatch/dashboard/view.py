@@ -227,6 +227,16 @@ def sensor_id(name: Any) -> str:
     return parts[1] if len(parts) > 1 else parts[0]
 
 
+#: How a sensor kind is named next to its id (pressure sensors are named by id alone).
+SENSOR_KINDS = {"pressure": "", "flow": "flow", "level": "tank level", "amr": "household meters"}
+
+
+def sensor_kind(name: Any) -> str:
+    """``flow__p227`` -> ``flow``; a bare id is a pressure sensor."""
+    parts = str(name).split("__")
+    return parts[0] if len(parts) > 1 else "pressure"
+
+
 def seconds_between(later: Any, earlier: Any) -> int | None:
     """Whole seconds from ``earlier`` to ``later``; None if one is missing or the order is wrong."""
     a, b = to_utc(later), to_utc(earlier)
@@ -306,9 +316,14 @@ def incident_view(
     for item in alert.get("top_sensors") or []:
         if isinstance(item, Mapping) and item.get("sensor_id"):
             share = number(item.get("contribution"))
+            kind = sensor_kind(item["sensor_id"])
+            ident = sensor_id(item["sensor_id"])
+            word = SENSOR_KINDS.get(kind, kind)
             sensors.append(
                 {
-                    "id": sensor_id(item["sensor_id"]),
+                    "id": ident,
+                    "kind": kind,
+                    "label": f"{ident} ({word})" if word else ident,
                     "share_pct": None if share is None else round(share * 100),
                 }
             )
@@ -347,6 +362,119 @@ def newest(rows: Sequence[Mapping[str, Any]], key: str) -> Mapping[str, Any] | N
     return max(dated, key=lambda pair: pair[0])[1] if dated else None
 
 
+def epoch_ms(ts: datetime) -> int:
+    """Milliseconds since 1970 (what the charts' time axis takes)."""
+    return round(ts.timestamp() * 1000)
+
+
+def signed_m(value: float) -> str:
+    """``−1.99`` with a real minus sign (pressure against its usual level, metres)."""
+    return f"{value:.2f}".replace("-", "−")
+
+
+def charts_view(
+    scores: Sequence[Mapping[str, Any]],
+    residuals: Sequence[Mapping[str, Any]],
+    incident: Mapping[str, Any] | None,
+    leaks: Sequence[Mapping[str, Any]],
+    tz: str,
+    axis_min: float,
+) -> dict[str, Any] | None:
+    """Score and pressure charts over the recent windows, with a table view of each.
+
+    Score: one line on a log axis (values below ``axis_min`` are drawn at it; the tooltip and
+    the table keep the real value), the alert threshold, the leak start and the alert time.
+    Pressure: the alert's top sensors (or, without an alert, the three largest drops of the
+    shown hours) against their usual level, in metres.
+    """
+    score_pts = [
+        (t, v, number(r.get("threshold")))
+        for r in scores
+        if (t := to_utc(r.get("window_end"))) is not None
+        and (v := number(r.get("score"))) is not None
+    ]
+    rows = [(t, r) for r in residuals if (t := to_utc(r.get("window_end"))) is not None]
+    times = [p[0] for p in score_pts] + [t for t, _ in rows]
+    if not times:
+        return None
+    start, end = min(times), max(times)
+    threshold = next((thr for _, _, thr in reversed(score_pts) if thr is not None), None)
+
+    marks = []
+    leak = None
+    if incident and incident.get("leak_id"):
+        leak = next((lk for lk in leaks if lk.get("leak_id") == incident["leak_id"]), None)
+    leak = leak or newest(leaks, "start_ts")
+    began = None if leak is None else to_utc(leak.get("start_ts"))
+    if began is not None and start <= began <= end:
+        marks.append({"at": epoch_ms(began), "text": "Leak starts", "kind": "leak"})
+    alerted = None if incident is None else to_utc(incident.get("start_ts"))
+    if alerted is not None and start <= alerted <= end:
+        marks.append({"at": epoch_ms(alerted), "text": "Alert", "kind": "alert"})
+
+    columns = [k for k in rows[-1][1] if k != "window_end"] if rows else []
+    mine = [
+        s["id"]
+        for s in (incident or {}).get("sensors", [])
+        if s.get("kind", "pressure") == "pressure" and s["id"] in columns
+    ][:3]
+    deepest = {
+        c: max((max(0.0, -(number(r.get(c)) or 0.0)) for _, r in rows), default=0.0)
+        for c in columns
+    }
+    rest = [c for c in sorted(columns, key=lambda c: (-deepest[c], c)) if c not in mine]
+    chosen = mine + rest[: 3 - len(mine)]
+    if len(mine) == len(chosen) and mine:
+        why = "the alert's sensors"
+    elif mine:
+        why = "the alert's, then the deepest"
+    else:
+        why = "the deepest drops"
+    series = [
+        {
+            "sensor": c,
+            "points": [
+                [epoch_ms(t), None if (v := number(r.get(c))) is None else round(v, 2)]
+                for t, r in rows
+            ],
+        }
+        for c in chosen
+    ]
+    score_rows = [
+        [
+            fmt_time(t, tz),
+            f"{v:.2f}",
+            "" if threshold is None else ("above" if v > threshold else "below"),
+        ]
+        for t, v, _ in reversed(score_pts)
+    ]
+    pressure_rows = [
+        [fmt_time(t, tz)] + ["" if (v := number(r.get(c))) is None else signed_m(v) for c in chosen]
+        for t, r in reversed(rows)
+    ]
+    key = f"{epoch_ms(end)}|{','.join(m['kind'] for m in marks)}|{','.join(chosen)}"
+    return {
+        "key": key,
+        "start": epoch_ms(start),
+        "end": epoch_ms(end),
+        "tz": tz,
+        "tz_name": end.astimezone(ZoneInfo(tz)).tzname(),
+        "marks": marks,
+        "score": {
+            "points": [[epoch_ms(t), max(v, axis_min), round(v, 3)] for t, v, _ in score_pts],
+            "threshold": None if threshold is None else round(threshold, 3),
+            "threshold_text": None if threshold is None else f"Alert threshold {threshold:.2f}",
+            "axis_min": axis_min,
+            "table": {"columns": ["Time", "Score", "Against the threshold"], "rows": score_rows},
+        },
+        "pressure": {
+            "why": why,
+            "series": series,
+            "table": {"columns": ["Time", *(f"{c} (m)" for c in chosen)], "rows": pressure_rows},
+        },
+    }
+
+
 def unavailable_view(now: datetime) -> dict[str, Any]:
     """What the page shows when the server could not build the live view at all."""
     title = "Screen data unavailable"
@@ -362,6 +490,8 @@ def unavailable_view(now: datetime) -> dict[str, Any]:
         "leaks": {"pending": [], "active": [], "failed": []},
         "incident": None,
         "drops": None,
+        "analysed": None,
+        "charts": None,
         "error": "snapshot failed",
         "generated_at": now,
     }
@@ -378,6 +508,7 @@ def live_view(
     failed_leaks: Sequence[Mapping[str, Any]] = (),
     versions: Sequence[Mapping[str, Any]] = (),
     residuals: Sequence[Mapping[str, Any]] = (),
+    scores: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Everything the live page shows, from the runner state and the newest lake rows.
 
@@ -392,6 +523,7 @@ def live_view(
         versions: ``alert_events`` rows (``alert_id``, ``updated_at``, ``located``).
         residuals: ``features_stream`` windows, oldest first: ``window_end`` + one residual per
             sensor id.
+        scores: ``scores`` windows, oldest first (``window_end``, ``score``, ``threshold``).
 
     """
     tz = str(cfg["project"]["display_timezone"])
@@ -405,7 +537,7 @@ def live_view(
     )
     if runner["code"] == "starting":
         # the lake still holds the previous replay; the runner wipes it as it starts
-        alerts, versions, residuals = [], [], []
+        alerts, versions, residuals, scores = [], [], [], []
     open_alerts = [a for a in alerts if a.get("status") == "open"]
     current = newest(open_alerts, "start_ts")
     incident = None
@@ -420,7 +552,7 @@ def live_view(
             {k: v for k, v in last.items() if k != "window_end"},
             float(dash["ring_floor_m"]),
             tz,
-            [s["id"] for s in incident["sensors"]] if incident else (),
+            [s["id"] for s in incident["sensors"] if s["kind"] == "pressure"] if incident else (),
         )
     return {
         "runner": runner,
@@ -430,5 +562,16 @@ def live_view(
         "leaks": leaks_view(state, failed_leaks, tz),
         "incident": incident,
         "drops": drops,
+        "analysed": None
+        if last is None or (end := to_utc(last.get("window_end"))) is None
+        else fmt_time(end, tz),
+        "charts": charts_view(
+            scores,
+            residuals,
+            incident,
+            state.get("leaks") or [],
+            tz,
+            float(dash["score_axis_min"]),
+        ),
         "error": lake_error,
     }

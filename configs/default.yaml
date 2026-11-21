@@ -245,6 +245,7 @@ dashboard:
   speeds: [180, 360, 720, 1440, 2880]   # replay speeds the page offers
   failed_leak_seconds: 60          # how long "the leak could not be simulated" stays on screen
   ring_floor_m: 0.7                # rings and tint only for drops at least this large (D-054)
+  score_axis_min: 0.01             # bottom of the score chart's log axis; lower scores are drawn on it
   tint:                            # pipe tint = pressure drop interpolated between sensors (D-053)
     nearest: 4                     # sensors of the same area used per junction
     length_m: 400                  # the tint fades by 1/e over this pipe distance from the nearest sensor

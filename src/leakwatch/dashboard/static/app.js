@@ -2,6 +2,7 @@
 // only lays it out. No build step: Preact + htm are one vendored module.
 import { html, render, useEffect, useRef, useState } from './vendor/htm-preact.module.js';
 import { createMap } from './map.js';
+import { createCharts } from './charts.js';
 
 const ICONS = {
   normal: 'M5 12l4.5 4.5L19 7',
@@ -110,12 +111,13 @@ function Controls({ settings, clock, runner, size, setSize, notify }) {
   </details>`;
 }
 
-function Header({ runner, clock, children }) {
+function Header({ runner, clock, analysed, children }) {
   const width = clock && clock.replay_fraction != null ? `${(clock.replay_fraction * 100).toFixed(1)}%` : '0';
   return html`<header class="header">
     <div class="brand"><b>LeakWatch</b><span>L-Town, the BattLeDIM benchmark network</span></div>
     <dl class="facts">
       ${clock && html`<div class="fact"><dt>Simulated time</dt><dd>${clock.sim_time}</dd></div>`}
+      ${clock && analysed && html`<div class="fact" title="Newest window the stream has scored; the replay runs ahead of it"><dt>Analysed up to</dt><dd>${analysed}</dd></div>`}
       ${clock && clock.speed && html`<div class="fact"><dt>Replay speed</dt><dd>${clock.speed}</dd></div>`}
       ${clock && clock.replay_left && runner.code !== 'finished' && html`<div class="fact"><dt>Replay ends in</dt><dd>${clock.replay_left}</dd></div>`}
       <div class="status" data-code=${runner.code} title=${runner.detail}><span class="dot"></span>${runner.label}</div>
@@ -181,6 +183,54 @@ function PickCard({ pick, net, size, canStart, why, busy, onStart, onClose }) {
   </div>`;
 }
 
+/* -------------------------------------------------------------------------- instruments */
+
+function ChartPanel({ id, title, note, table, empty, chartRef }) {
+  const [asTable, setAsTable] = useState(false);
+  const showTable = asTable && table;
+  return html`<section class="panel" aria-labelledby=${id}>
+    <header>
+      <h3 id=${id}>${title}${note && html` <span>${note}</span>`}</h3>
+      ${table && html`<button class="link" aria-pressed=${asTable ? 'true' : 'false'} onClick=${() => setAsTable(!asTable)}>
+        Table</button>`}
+    </header>
+    <div class="chart" ref=${chartRef} aria-hidden="true"></div>
+    ${empty && html`<p class="chart-empty">${empty}</p>`}
+    ${showTable && html`<div class="table-view" tabindex="0" role="region" aria-label=${`${title}, as a table`}><table>
+      <thead><tr>${table.columns.map((c) => html`<th scope="col">${c}</th>`)}</tr></thead>
+      <tbody>${table.rows.map((r) => html`<tr>${r.map((v, i) => (i === 0 ? html`<th scope="row">${v}</th>` : html`<td>${v}</td>`))}</tr>`)}</tbody>
+    </table></div>`}
+  </section>`;
+}
+
+function Instruments({ charts }) {
+  const scoreEl = useRef(null);
+  const pressureEl = useRef(null);
+  const drawn = useRef(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    try {
+      drawn.current = createCharts(scoreEl.current, pressureEl.current);
+    } catch {
+      setFailed(true);
+    }
+    return () => { if (drawn.current) drawn.current.destroy(); drawn.current = null; };
+  }, []);
+  const key = charts ? charts.key : null;
+  useEffect(() => { if (drawn.current) drawn.current.update(charts); }, [key]);
+  const broken = failed && 'The charts could not be drawn in this browser.';
+  const scores = charts && charts.score.points.length > 0;
+  const pressure = charts && charts.pressure.series.length > 0;
+  return html`<section class="strip" aria-label="Instruments">
+    <${ChartPanel} id="score-title" title="Anomaly score against the alert threshold" note="log scale"
+      table=${scores ? charts.score.table : null} chartRef=${scoreEl}
+      empty=${broken || (!scores && 'The score appears with the first scored windows of the replay.')} />
+    <${ChartPanel} id="pressure-title" title="Pressure against usual, m" note=${pressure ? charts.pressure.why : ''}
+      table=${pressure ? charts.pressure.table : null} chartRef=${pressureEl}
+      empty=${broken || (!pressure && 'Pressure appears with the first windows of the replay.')} />
+  </section>`;
+}
+
 /* -------------------------------------------------------------------------------- rail */
 
 const STEPS = ['Start a leak', 'Alert', 'Located', 'Work order', 'Check against the true leak', 'Ask the copilot'];
@@ -226,7 +276,7 @@ function AlertStep({ inc }) {
   return { on: true, title: STEPS[1], when: inc.started, body: html`
     <p>Area ${inc.area}. ${timing}${inc.ratio != null ? html` Score <b>${inc.ratio} times</b> the threshold.` : ''}</p>
     ${inc.sensors.length > 0 && html`<p>Moved most, share of the score:
-      ${inc.sensors.map((s, i) => html`${i ? ', ' : ' '}<b>${s.id}</b>${s.share_pct != null ? ` ${s.share_pct}%` : ''}`)}</p>`}` };
+      ${inc.sensors.map((s, i) => html`${i ? ', ' : ' '}<b>${s.label}</b>${s.share_pct != null ? ` ${s.share_pct}%` : ''}`)}</p>`}` };
 }
 
 function LocatedStep({ inc }) {
@@ -268,6 +318,7 @@ const SERVER_LOST = {
   leaks: { pending: [], active: [], failed: [] },
   incident: null,
   drops: null,
+  charts: null,
 };
 
 // The camera flies to the candidates once per alert, and back home when the alert is gone.
@@ -323,7 +374,7 @@ function App() {
   };
   const restart = async () => { const res = await call('POST', '/api/demo/restart'); setNotice(res.ok ? null : res.message); };
   return html`<div class="app">
-    <${Header} runner=${shown.runner} clock=${shown.clock}>
+    <${Header} runner=${shown.runner} clock=${shown.clock} analysed=${shown.analysed}>
       <${Controls} settings=${settings} clock=${shown.clock} runner=${shown.runner} size=${leakSize} setSize=${setSize} notify=${setNotice} />
     <//>
     <main class="map" ref=${mapBox}>
@@ -340,7 +391,7 @@ function App() {
       ${pick && net && html`<${PickCard} pick=${pick} net=${net} size=${leakSize} canStart=${canStart} why=${why}
         busy=${busy} onStart=${() => start(pick.node)} onClose=${() => setPick(null)} />`}
     </main>
-    <section class="strip" aria-label="Instruments"></section>
+    <${Instruments} charts=${shown.charts} />
     <${Rail} vm=${shown} net=${net} size=${leakSize} canStart=${canStart} why=${why} busy=${busy} onStart=${start} notice=${notice} />
   </div>`;
 }

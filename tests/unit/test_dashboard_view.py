@@ -13,7 +13,12 @@ TZ = "Asia/Kolkata"
 NOW = datetime(2026, 11, 21, 14, 20, 30, tzinfo=UTC)
 CFG = {
     "project": {"display_timezone": TZ},
-    "dashboard": {"stale_after_s": 15, "starting_stale_after_s": 180, "ring_floor_m": 0.7},
+    "dashboard": {
+        "stale_after_s": 15,
+        "starting_stale_after_s": 180,
+        "ring_floor_m": 0.7,
+        "score_axis_min": 0.01,
+    },
     "demo": {"background_start": "2018-11-19 00:00", "background_hours": 168},
 }
 # The alert of the demo run of 21 Nov 2026 (leak at n470), as the lake returned it.
@@ -279,9 +284,9 @@ def test_incident_of_the_demo_run():
     assert out["after_leak_min"] == 40  # 19:35 -> 20:15 simulated
     assert out["ratio"] == 79
     assert out["sensors"] == [
-        {"id": "n469", "share_pct": 79},
-        {"id": "n114", "share_pct": 8},
-        {"id": "n516", "share_pct": 4},
+        {"id": "n469", "kind": "pressure", "label": "n469", "share_pct": 79},
+        {"id": "n114", "kind": "pressure", "label": "n114", "share_pct": 8},
+        {"id": "n516", "kind": "pressure", "label": "n516", "share_pct": 4},
     ]
     assert out["candidates"] == ["n469", "n470", "n471", "n94", "n468"]  # rank only
     assert out["located_after_s"] == 15  # the first version already had candidates
@@ -323,3 +328,92 @@ def test_live_view_shows_the_newest_open_alert_and_the_newest_window():
         state=state("starting"), alerts=[RUN_ALERT], now=NOW, cfg=CFG, residuals=residuals
     )
     assert starting["incident"] is None and starting["drops"] is None  # the previous replay's
+
+
+def windows(hours: float, start: str = "2018-11-19T18:00:00Z") -> list[datetime]:
+    first = view.to_utc(start)
+    return [first + timedelta(minutes=15 * k) for k in range(int(hours * 4))]
+
+
+def test_charts_mark_the_leak_and_the_alert_and_keep_real_scores_for_the_table():
+    ends = windows(6)  # 18:00 .. 23:45 UTC; leak 19:35, alert 20:15
+    scores = [
+        {
+            "window_end": t,
+            "score": 0.004 if k == 0 else (0.5 if t < ends[9] else 104.2),
+            "threshold": 1.3664,
+        }
+        for k, t in enumerate(ends)
+    ]
+    residuals = [
+        {"window_end": t, "n469": -2.0, "n114": -0.5, "n516": None, "n1": -3.0} for t in ends
+    ]
+    incident = view.incident_view(RUN_ALERT, [LEAK], VERSIONS, TZ)
+    out = view.charts_view(scores, residuals, incident, [LEAK], TZ, 0.01)
+    assert out["tz_name"] == "IST" and out["start"] == view.epoch_ms(ends[0])
+    assert [(m["kind"], m["text"]) for m in out["marks"]] == [
+        ("leak", "Leak starts"),
+        ("alert", "Alert"),
+    ]
+    assert out["marks"][0]["at"] == view.epoch_ms(view.to_utc(LEAK["start_ts"]))
+    first = out["score"]["points"][0]
+    assert first[1] == 0.01 and first[2] == 0.004  # drawn at the axis floor, real value kept
+    assert out["score"]["threshold_text"] == "Alert threshold 1.37"
+    assert out["score"]["table"]["rows"][0] == ["Tue 20 Nov, 05:15 IST", "104.20", "above"]
+    assert out["score"]["table"]["rows"][-1][2] == "below"  # newest first, oldest last
+    pressure = out["pressure"]
+    assert [s["sensor"] for s in pressure["series"]] == ["n469", "n114", "n516"]  # the alert's
+    assert pressure["why"] == "the alert's sensors"
+    assert pressure["series"][2]["points"][0][1] is None  # a missing reading stays a gap
+    assert pressure["table"]["columns"] == ["Time", "n469 (m)", "n114 (m)", "n516 (m)"]
+    assert pressure["table"]["rows"][0][1:] == ["−2.00", "−0.50", ""]
+
+
+def test_charts_without_an_alert_show_the_largest_drops_and_no_marks():
+    ends = windows(2)
+    residuals = [
+        {"window_end": t, "n1": -0.1, "n4": -0.9, "n31": 0.2, "n54": -0.4, "n105": -0.6}
+        for t in ends
+    ]
+    out = view.charts_view([], residuals, None, [], TZ, 0.01)
+    assert [s["sensor"] for s in out["pressure"]["series"]] == ["n4", "n105", "n54"]
+    assert out["pressure"]["why"] == "the deepest drops"
+    assert out["marks"] == [] and out["score"]["points"] == [] and out["score"]["threshold"] is None
+    assert view.charts_view([], [], None, [], TZ, 0.01) is None
+    later = {**LEAK, "start_ts": "2018-11-25T00:00:00Z"}  # outside the shown hours: no mark
+    assert view.charts_view([], residuals, None, [later], TZ, 0.01)["marks"] == []
+
+
+# The alert of the live run at n300 (21 Nov 2026, 17:0x UTC): mostly flow sensors moved.
+N300_SENSORS = [
+    {"sensor_id": "flow__p227", "contribution": 0.78},
+    {"sensor_id": "flow__PUMP_1", "contribution": 0.08},
+    {"sensor_id": "pressure__n296", "contribution": 0.03},
+]
+
+
+def test_flow_sensors_are_named_as_flows_and_get_no_ring_label():
+    alert = {**RUN_ALERT, "top_sensors": N300_SENSORS}
+    out = view.incident_view(alert, [LEAK], VERSIONS, TZ)
+    assert [s["label"] for s in out["sensors"]] == ["p227 (flow)", "PUMP_1 (flow)", "n296"]
+    assert view.sensor_kind("level__T1") == "level" and view.sensor_kind("n1") == "pressure"
+    live = view.live_view(
+        state=state(leaks=[LEAK]),
+        alerts=[alert],
+        now=NOW,
+        cfg=CFG,
+        residuals=[{"window_end": "2018-11-21T07:45:00Z", "n296": -0.9, "p227": -5.0}],
+    )
+    assert [label["sensor"] for label in live["drops"]["labels"]] == ["n296"]
+    assert live["analysed"] == "Wed 21 Nov, 13:15 IST"
+
+
+def test_pressure_chart_takes_the_alerts_pressure_sensors_first_then_the_largest_drops():
+    alert = {**RUN_ALERT, "top_sensors": N300_SENSORS}
+    incident = view.incident_view(alert, [LEAK], VERSIONS, TZ)
+    rows = [
+        {"window_end": t, "n296": -0.1, "n31": -0.6, "n54": -0.2, "n4": -0.4} for t in windows(2)
+    ]
+    out = view.charts_view([], rows, incident, [LEAK], TZ, 0.01)["pressure"]
+    assert [s["sensor"] for s in out["series"]] == ["n296", "n31", "n4"]
+    assert out["why"] == "the alert's, then the deepest"

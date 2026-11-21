@@ -335,6 +335,7 @@ class LiveSource:
             failed_leaks=self._failed.update(state, now),
             versions=rows.get("versions", []),
             residuals=rows.get("residuals", []),
+            scores=rows.get("scores", []),
         )
         out["generated_at"] = datetime.now(UTC)
         out["build_ms"] = round((time.perf_counter() - started) * 1000, 1)
@@ -481,6 +482,7 @@ def create_app(
                 },
                 "speeds": [int(s) for s in dash["speeds"]],
                 "ring_floor_m": float(dash["ring_floor_m"]),
+                "tz": str(cfg["project"]["display_timezone"]),
             }
         )
 
