@@ -1,22 +1,22 @@
 {
   "meta": {
-    "generated_at": "2026-11-19T07:41:01+00:00",
-    "git_commit": "232292e",
+    "generated_at": "2026-11-21T02:32:17+00:00",
+    "git_commit": "4bfbde7",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "passed": 470,
+  "passed": 610,
   "failed": 0,
   "skipped": 0,
-  "duration_s": 489.4,
+  "duration_s": 627.9,
   "by_folder": {
     "contract": 39,
     "integration": 2,
     "metamorphic": 5,
-    "unit": 424
+    "unit": 564
   },
-  "coverage_percent": 70.9,
+  "coverage_percent": 71.4,
   "coverage_by_module": {
     "__init__.py": {
       "statements": 1,
@@ -27,40 +27,48 @@
       "percent": 100.0
     },
     "bdt/alerts.py": {
-      "statements": 122,
+      "statements": 131,
       "percent": 100.0
     },
     "bdt/data.py": {
       "statements": 92,
-      "percent": 66.3
+      "percent": 70.7
     },
     "bdt/evaluate.py": {
-      "statements": 129,
+      "statements": 141,
+      "percent": 23.4
+    },
+    "bdt/fast_path.py": {
+      "statements": 75,
       "percent": 24.0
     },
     "bdt/live.py": {
-      "statements": 122,
-      "percent": 100.0
+      "statements": 168,
+      "percent": 90.5
     },
     "bdt/model.py": {
       "statements": 62,
       "percent": 100.0
     },
+    "bdt/report.py": {
+      "statements": 55,
+      "percent": 98.2
+    },
     "bdt/scaling.py": {
-      "statements": 122,
-      "percent": 29.5
+      "statements": 146,
+      "percent": 32.9
     },
     "bdt/scorer.py": {
       "statements": 97,
       "percent": 94.8
     },
     "bdt/synthetic.py": {
-      "statements": 121,
-      "percent": 38.0
+      "statements": 134,
+      "percent": 35.1
     },
     "bdt/train.py": {
-      "statements": 144,
-      "percent": 25.0
+      "statements": 166,
+      "percent": 28.9
     },
     "common/__init__.py": {
       "statements": 0,
@@ -79,12 +87,12 @@
       "percent": 95.5
     },
     "common/metrics.py": {
-      "statements": 40,
-      "percent": 95.0
+      "statements": 49,
+      "percent": 95.9
     },
     "common/paths.py": {
-      "statements": 81,
-      "percent": 97.5
+      "statements": 83,
+      "percent": 96.4
     },
     "common/schemas.py": {
       "statements": 153,
@@ -95,12 +103,16 @@
       "percent": 100.0
     },
     "copilot/agent.py": {
-      "statements": 190,
+      "statements": 191,
       "percent": 94.2
     },
     "copilot/chat.py": {
       "statements": 40,
       "percent": 92.5
+    },
+    "copilot/check.py": {
+      "statements": 55,
+      "percent": 0.0
     },
     "copilot/complaints.py": {
       "statements": 181,
@@ -111,16 +123,16 @@
       "percent": 93.4
     },
     "copilot/evaluate.py": {
-      "statements": 344,
-      "percent": 86.3
+      "statements": 406,
+      "percent": 84.2
     },
     "copilot/guardrails.py": {
       "statements": 240,
-      "percent": 97.9
+      "percent": 98.8
     },
     "copilot/llm.py": {
-      "statements": 137,
-      "percent": 94.2
+      "statements": 175,
+      "percent": 92.6
     },
     "copilot/network_index.py": {
       "statements": 78,
@@ -135,28 +147,36 @@
       "percent": 100.0
     },
     "copilot/rag/build.py": {
-      "statements": 133,
-      "percent": 51.1
+      "statements": 138,
+      "percent": 50.0
     },
     "copilot/rag/chunking.py": {
-      "statements": 223,
-      "percent": 94.2
+      "statements": 362,
+      "percent": 96.1
     },
     "copilot/rag/embed.py": {
       "statements": 53,
       "percent": 100.0
     },
     "copilot/rag/index.py": {
-      "statements": 74,
-      "percent": 91.9
+      "statements": 100,
+      "percent": 93.0
+    },
+    "copilot/rag/lexical.py": {
+      "statements": 53,
+      "percent": 98.1
+    },
+    "copilot/rag/ocr.py": {
+      "statements": 152,
+      "percent": 67.1
     },
     "copilot/settings.py": {
-      "statements": 31,
-      "percent": 87.1
+      "statements": 37,
+      "percent": 89.2
     },
     "copilot/sql_guard.py": {
-      "statements": 83,
-      "percent": 97.6
+      "statements": 81,
+      "percent": 98.8
     },
     "copilot/testing.py": {
       "statements": 85,
@@ -171,8 +191,8 @@
       "percent": 100.0
     },
     "data/battledim.py": {
-      "statements": 130,
-      "percent": 73.1
+      "statements": 141,
+      "percent": 75.2
     },
     "data/build.py": {
       "statements": 81,
@@ -203,8 +223,8 @@
       "percent": 81.1
     },
     "demo/runner.py": {
-      "statements": 217,
-      "percent": 18.0
+      "statements": 226,
+      "percent": 27.0
     },
     "demo/signature.py": {
       "statements": 80,
@@ -215,16 +235,20 @@
       "percent": 100.0
     },
     "dl/gnn.py": {
-      "statements": 329,
-      "percent": 50.5
+      "statements": 405,
+      "percent": 51.9
     },
     "dl/gnn_data.py": {
-      "statements": 127,
-      "percent": 0.0
+      "statements": 170,
+      "percent": 26.5
+    },
+    "dl/gnn_prior.py": {
+      "statements": 73,
+      "percent": 45.2
     },
     "dl/lstm_ae.py": {
-      "statements": 202,
-      "percent": 55.0
+      "statements": 219,
+      "percent": 50.7
     },
     "dl/sequences.py": {
       "statements": 50,
@@ -235,16 +259,24 @@
       "percent": 100.0
     },
     "eval/alerting.py": {
-      "statements": 59,
-      "percent": 42.4
+      "statements": 64,
+      "percent": 84.4
+    },
+    "eval/battledim_score.py": {
+      "statements": 246,
+      "percent": 61.8
     },
     "eval/detection.py": {
       "statements": 75,
-      "percent": 81.3
+      "percent": 98.7
+    },
+    "eval/mutation.py": {
+      "statements": 43,
+      "percent": 69.8
     },
     "eval/reports.py": {
-      "statements": 293,
-      "percent": 95.2
+      "statements": 441,
+      "percent": 96.4
     },
     "eval/test_summary.py": {
       "statements": 58,
@@ -273,6 +305,10 @@
     "features/parity.py": {
       "statements": 58,
       "percent": 79.3
+    },
+    "features/rebaseline.py": {
+      "statements": 39,
+      "percent": 100.0
     },
     "features/spec.py": {
       "statements": 82,
