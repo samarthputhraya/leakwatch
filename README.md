@@ -47,7 +47,7 @@ file records the git commit of the code that produced it. Subject report drafts:
 | Mutation score, 6 core modules (D-040) | 88.0% of mutants killed (2,735 mutants of the scorer, detection metrics, re-baselining, alert rule, SQL guard and guardrails) | `st_mutation.json` |
 | Copilot v3 (nvidia/nemotron-3-ultra-550b-a55b) | SQL execution 90.6%, answers 97.2%, hallucinated numbers after guardrail 0.0%, refusals 100.0%; data answers median 13.2 s (aim ≤ 10 s, free endpoint) | `pe_eval_v3.json` |
 | Demo rehearsal (inject → alert → top 5 → work order) | 3 of 3 runs within 60 s; slowest 55.4 s; nearest of the localizer's top 5 to the leak: n100 172 m / n300 2,886 m / n470 0 m (at the alert, before refinement: 172 m / 2,886 m / 0 m) | `demo_runs.json` |
-| Tests | 470 passed, 0 failed; line coverage 70.9% | `test_summary.json` |
+| Tests | 610 passed, 0 failed; line coverage 71.4% | `test_summary.json` |
 <!-- results:end -->
 
 What the numbers say, briefly (details and figures in the report drafts):

@@ -83,17 +83,17 @@ Chosen (median top-1 distance on the 2018 BattLeDIM leaks (ties: validation top-
 | gat_sens | 760 | 21.4% | 21.4% | 1,025 | 26.3% | 26.3% |
 | gcn_sens_no_context | 458 | 28.6% | 42.9% | 1,025 | 15.8% | 26.3% |
 
-**Posterior localizer (D-042).** The network's node probabilities times a prior exp(−d / L) around the pressure sensor that fell most (d: pipe distance). L is chosen on the official 2018 score of the live model's alerts, each reported at the posterior's top node; 2019 is shown for every L but never used (`reports/metrics/dl_gnn_prior.json` (code 86451a2)):
+**Posterior localizer (D-042).** The network's node probabilities times a prior exp(−d / L) around the pressure sensor that fell most (d: pipe distance). L is chosen on the official 2018 score of the live model's alerts, each reported at the posterior's top node; 2019 is shown for every L but never used (`reports/metrics/dl_gnn_prior.json` (code 63e95b6)):
 
 | prior length L | 2018 (development) | 2019 (reported only) |
 |---|---|---|
-| network alone | €13,952 (5 TP) | €-3,394 (8 TP) |
-| 1200 m | €30,316 (6 TP) | €66,859 (9 TP) |
-| 600 m | €31,316 (6 TP) | €72,084 (10 TP) |
-| 300 m | €68,060 (6 TP) | €160,577 (13 TP) |
-| 150 m | €67,984 (6 TP) | €172,172 (13 TP) |
-| 75 m | €59,784 (5 TP) | €183,236 (14 TP) |
-| 37.5 m | €49,747 (4 TP) | €107,675 (12 TP) |
+| network alone | €14,054 (5 TP) | €-3,394 (8 TP) |
+| 1200 m | €30,419 (6 TP) | €66,859 (9 TP) |
+| 600 m | €31,419 (6 TP) | €72,084 (10 TP) |
+| 300 m | €73,937 (7 TP) | €160,577 (13 TP) |
+| 150 m | €73,497 (7 TP) | €172,172 (13 TP) |
+| 75 m | €65,298 (6 TP) | €183,236 (14 TP) |
+| 37.5 m | €65,204 (6 TP) | €107,675 (12 TP) |
 
 Chosen L = 300 m.
 

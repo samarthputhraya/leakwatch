@@ -2,29 +2,29 @@
 
 Draft generated from the metrics files.
 
-- `make test-report`: 470 passed, 0 failed, 0 skipped in 489 s; line coverage of `src/leakwatch` 70.9% (`reports/metrics/test_summary.json` (code 232292e)).
+- `make test-report`: 610 passed, 0 failed, 0 skipped in 628 s; line coverage of `src/leakwatch` 71.4% (`reports/metrics/test_summary.json` (code 4bfbde7)).
 
 | test folder | tests |
 |---|---|
 | contract | 39 |
 | integration | 2 |
 | metamorphic | 5 |
-| unit | 424 |
+| unit | 564 |
 
 Tests run: `slow or not slow`. Modules with the most uncovered lines (most are job entry points exercised by `make` targets rather than by unit tests):
 
 | module | statements | covered |
 |---|---|---|
-| `demo/runner.py` | 217 | 18.0% |
-| `dl/gnn.py` | 329 | 50.5% |
-| `dl/gnn_data.py` | 127 | 0.0% |
+| `dl/gnn.py` | 405 | 51.9% |
+| `demo/runner.py` | 226 | 27.0% |
+| `dl/gnn_data.py` | 170 | 26.5% |
 | `features/build.py` | 122 | 0.0% |
-| `bdt/train.py` | 144 | 25.0% |
+| `bdt/train.py` | 166 | 28.9% |
+| `bdt/evaluate.py` | 141 | 23.4% |
+| `dl/lstm_ae.py` | 219 | 50.7% |
 | `stream/live_replay.py` | 103 | 0.0% |
-| `bdt/evaluate.py` | 129 | 24.0% |
-| `dl/lstm_ae.py` | 202 | 55.0% |
-| `sim/bench.py` | 89 | 0.0% |
-| `stream/features_stream.py` | 212 | 59.0% |
+| `bdt/scaling.py` | 146 | 32.9% |
+| `eval/battledim_score.py` | 246 | 61.8% |
 
 ## Test kinds (PRD §11)
 
