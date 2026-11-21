@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-21T00:49:48+00:00",
-    "git_commit": "fe256fb",
+    "generated_at": "2026-11-21T01:28:24+00:00",
+    "git_commit": "d939965",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -12,31 +12,31 @@
       "node": "n100",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 56.7,
-      "seconds_to_localizer": 56.8,
-      "seconds_to_work_order": 85.1,
-      "wall_s": 85.1,
-      "speed": 1440.0,
+      "seconds_to_alert": 52.5,
+      "seconds_to_localizer": 52.7,
+      "seconds_to_work_order": 80.2,
+      "wall_s": 80.2,
+      "speed": 2880.0,
       "localizer_top5_at_alert": [
         "n101",
         "n100",
         "n105",
-        "n103",
-        "n107"
+        "n107",
+        "n103"
       ],
       "distance_at_alert": {
         "top1_m": 129.7939,
         "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-19T16:30:00+00:00",
-      "sim_hours_inject_to_alert": 10.5,
-      "seconds_to_refined_localizer": 88.8,
+      "alert_start_sim": "2018-11-19T23:15:00+00:00",
+      "sim_hours_inject_to_alert": 12.75,
+      "seconds_to_refined_localizer": 82.7,
       "localizer_top5": [
         "n101",
         "n100",
         "n105",
-        "n103",
-        "n107"
+        "n107",
+        "n103"
       ],
       "distance": {
         "top1_m": 129.7939,
@@ -49,35 +49,35 @@
       "node": "n300",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 38.3,
-      "seconds_to_localizer": 38.4,
-      "seconds_to_work_order": 55.8,
-      "wall_s": 55.8,
-      "speed": 1440.0,
+      "seconds_to_alert": 23.3,
+      "seconds_to_localizer": 23.4,
+      "seconds_to_work_order": 39.8,
+      "wall_s": 39.8,
+      "speed": 2880.0,
       "localizer_top5_at_alert": [
-        "n527",
-        "n135",
-        "n152",
-        "n530",
-        "n158"
+        "n408",
+        "n54",
+        "n429",
+        "n449",
+        "n420"
       ],
       "distance_at_alert": {
-        "top1_m": 2687.0894,
-        "best_of_top5_m": 2582.8977999999997
+        "top1_m": 2155.849,
+        "best_of_top5_m": 1703.1121
       },
-      "alert_start_sim": "2018-11-19T16:15:00+00:00",
-      "sim_hours_inject_to_alert": 10.25,
-      "seconds_to_refined_localizer": 56.1,
+      "alert_start_sim": "2018-11-19T15:30:00+00:00",
+      "sim_hours_inject_to_alert": 5.5,
+      "seconds_to_refined_localizer": 40.1,
       "localizer_top5": [
-        "n527",
-        "n135",
-        "n152",
-        "n530",
-        "n158"
+        "n408",
+        "n54",
+        "n429",
+        "n449",
+        "n420"
       ],
       "distance": {
-        "top1_m": 2687.0894,
-        "best_of_top5_m": 2582.8977999999997
+        "top1_m": 2155.849,
+        "best_of_top5_m": 1703.1121
       },
       "ok": true
     },
@@ -86,34 +86,34 @@
       "node": "n470",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 36.0,
-      "seconds_to_localizer": 36.1,
-      "seconds_to_work_order": 58.3,
-      "wall_s": 58.3,
-      "speed": 1440.0,
+      "seconds_to_alert": 18.2,
+      "seconds_to_localizer": 18.4,
+      "seconds_to_work_order": 35.9,
+      "wall_s": 35.9,
+      "speed": 2880.0,
       "localizer_top5_at_alert": [
+        "n469",
         "n470",
-        "n471",
-        "n468",
         "n94",
-        "n469"
+        "n105",
+        "n471"
       ],
       "distance_at_alert": {
-        "top1_m": 0.0,
+        "top1_m": 48.9692,
         "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-19T16:15:00+00:00",
-      "sim_hours_inject_to_alert": 10.5,
-      "seconds_to_refined_localizer": 58.9,
+      "alert_start_sim": "2018-11-19T16:00:00+00:00",
+      "sim_hours_inject_to_alert": 6.25,
+      "seconds_to_refined_localizer": 36.2,
       "localizer_top5": [
+        "n469",
         "n470",
-        "n471",
-        "n468",
         "n94",
-        "n469"
+        "n105",
+        "n471"
       ],
       "distance": {
-        "top1_m": 0.0,
+        "top1_m": 48.9692,
         "best_of_top5_m": 0.0
       },
       "ok": true
