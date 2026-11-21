@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -265,3 +266,93 @@ def test_snapshot_builds_never_overlap():
     for t in threads:
         t.join()
     assert most[0] == 1 and snaps.latest() == VM
+
+
+INCIDENT_VM = {
+    **VM,
+    "incident": {"alert_id": "5bab5c3a", "area": "A", "start_ts": "2018-11-19T20:15:00+00:00"},
+}
+
+
+class FakeCopilot:
+    def __init__(self, configured=True, fail=False):
+        self.is_configured, self.fail, self.sent = configured, fail, []
+
+    def configured(self):
+        return self.is_configured
+
+    def loss(self, alert_id):
+        self.sent.append(("loss", alert_id))
+        return {"available": True, "est_volume_m3": 120.0, "est_loss_m3h": 40.0, "duration_h": 3.0}
+
+    def ask(self, question):
+        if self.fail:
+            raise RuntimeError("connection refused by api.example")
+        self.sent.append(("ask", question))
+        return SimpleNamespace(
+            answer="Fine.",
+            tool_calls=[],
+            charts=[],
+            refused=False,
+            latency_s=1.0,
+            guardrail=None,
+            error=None,
+            model="m",
+        )
+
+
+def copilot_client(copilot, vm=INCIDENT_VM) -> TestClient:
+    return TestClient(
+        api.create_app(lambda: vm, background=False, cfg=CFG, copilot=copilot),
+        base_url="http://localhost",
+        headers={"X-Requested-With": "leakwatch"},
+    )
+
+
+def test_the_loss_chip_needs_no_model_and_names_the_alert_on_screen():
+    fake = FakeCopilot(configured=False)
+    res = copilot_client(fake).post(
+        "/api/copilot/ask", json={"alert_id": "5bab5c3a", "direct": True}
+    )
+    assert res.status_code == 200 and res.json()["text"].startswith("About 120 m³")
+    assert fake.sent == [("loss", "5bab5c3a")]
+    gone = copilot_client(fake).post("/api/copilot/ask", json={"alert_id": "older", "direct": True})
+    assert gone.status_code == 409 and "no longer on screen" in gone.json()["message"]
+    none = copilot_client(fake, VM).post("/api/copilot/ask", json={"direct": True})
+    assert none.status_code == 409
+
+
+def test_questions_go_to_the_model_with_the_visible_context_line():
+    fake = FakeCopilot()
+    res = copilot_client(fake).post(
+        "/api/copilot/ask", json={"alert_id": "5bab5c3a", "question": " Which pipe first? "}
+    )
+    assert res.json()["state"] == "answer" and res.json()["question"] == "Which pipe first?"
+    assert fake.sent == [
+        (
+            "ask",
+            "Context: the alert on screen is 5bab5c3a in Area A, "
+            "which fired at 2018-11-19 20:15 UTC.\n\nWhich pipe first?",
+        )
+    ]
+    plain = FakeCopilot()
+    copilot_client(plain).post("/api/copilot/ask", json={"question": "What is L-Town?"})
+    assert plain.sent == [("ask", "What is L-Town?")]  # no alert named: no context line
+
+
+def test_copilot_states_without_a_model_with_a_failure_and_without_a_question():
+    res = copilot_client(FakeCopilot(configured=False)).post(
+        "/api/copilot/ask", json={"question": "Hi"}
+    )
+    assert res.json()["state"] == "no_model" and "LLM_MODEL" in res.json()["text"]
+    res = copilot_client(FakeCopilot(fail=True)).post("/api/copilot/ask", json={"question": "Hi"})
+    assert res.json()["state"] == "error" and "api.example" not in res.text
+    empty = copilot_client(FakeCopilot()).post("/api/copilot/ask", json={"question": "  "})
+    assert empty.status_code == 422
+    long = copilot_client(FakeCopilot()).post("/api/copilot/ask", json={"question": "x" * 501})
+    assert long.status_code == 422
+    other_site = TestClient(
+        api.create_app(lambda: VM, background=False, cfg=CFG, copilot=FakeCopilot()),
+        base_url="http://localhost",
+    )  # no page header
+    assert other_site.post("/api/copilot/ask", json={"question": "Hi"}).status_code == 403

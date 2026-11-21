@@ -34,7 +34,7 @@ def to_utc(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, str):
-        text = value.strip().replace(" ", "T", 1)
+        text = value.strip().removesuffix(" UTC").replace(" ", "T", 1)  # also "... 08:15 UTC"
         if not text:
             return None
         try:
@@ -603,6 +603,121 @@ def charts_view(
     }
 
 
+#: The question of PRD §16 step 6, offered as a chip; answered by ``estimate_loss`` directly.
+LOSS_QUESTION = "How much water have we lost since this alert started?"
+
+
+def copilot_context(incident: Mapping[str, Any] | None) -> str | None:
+    """The one line sent before the operator's question, shown on the page as it is sent."""
+    if not incident:
+        return None
+    start = to_utc(incident.get("start_ts"))
+    when = "" if start is None else f", which fired at {start:%Y-%m-%d %H:%M} UTC"
+    return (
+        f"Context: the alert on screen is {incident['alert_id']} in Area {incident['area']}{when}."
+    )
+
+
+def _ms(value: Any) -> int | None:
+    t = to_utc(value)
+    return None if t is None else epoch_ms(t)
+
+
+def answer_chart_view(chart: Mapping[str, Any]) -> dict[str, Any] | None:
+    """A tool chart (``kind`` line, ``series`` of ``x`` ISO times and ``y``) for the page."""
+    series = []
+    for item in chart.get("series") or []:
+        xs, ys = item.get("x") or [], item.get("y") or []
+        points = [[t, number(y)] for x, y in zip(xs, ys, strict=False) if (t := _ms(x)) is not None]
+        if points:
+            series.append({"name": str(item.get("name") or ""), "points": points})
+    if not series:
+        return None
+    markers = [
+        {"at": t, "text": str(m.get("label") or "")}
+        for m in chart.get("markers") or []
+        if isinstance(m, Mapping) and (t := _ms(m.get("x"))) is not None
+    ]
+    return {
+        "title": str(chart.get("title") or ""),
+        "unit": str(chart.get("unit") or ""),
+        "series": series,
+        "markers": markers,
+    }
+
+
+def loss_answer_view(result: Mapping[str, Any], seconds: float, tz: str) -> dict[str, Any]:
+    """The chip's answer from ``estimate_loss`` (no model involved), with how it was found."""
+    how = {
+        "tools": ["estimate_loss"],
+        "sql": [],
+        "checked": [],
+        "model": None,
+        "seconds": round(seconds, 1),
+    }
+    if result.get("error"):
+        return {
+            "state": "answer",
+            "text": f"The loss could not be estimated: {str(result['error']).rstrip('.')}.",
+            "charts": [],
+            "how": how,
+        }
+    if not result.get("available"):
+        note = str(result.get("note") or "the alert has no loss estimate")
+        return {
+            "state": "answer",
+            "text": f"There is no loss estimate for this alert yet: {note}.",
+            "charts": [],
+            "how": how,
+        }
+    rate, hours = number(result.get("est_loss_m3h")), number(result.get("duration_h"))
+    volume = number(result.get("est_volume_m3"))
+    start = to_utc(result.get("start_ts"))
+    since = "" if start is None else f" since the alert fired at {fmt_time(start, tz)}"
+    parts = []
+    if hours is not None:
+        parts.append(f"{hours:.1f} h")
+    if rate is not None:
+        parts.append(f"at {rate:.1f} m³/h")
+    detail = f" ({' '.join(parts)})" if parts else ""
+    text = (
+        f"About {volume:,.0f} m³{since}{detail}. This is an estimate."
+        if volume is not None
+        else f"No volume could be computed{since}."
+    )
+    how["checked"] = [str(result.get("method") or "")] if result.get("method") else []
+    return {"state": "answer", "text": text, "charts": [], "how": how, "volume_m3": volume}
+
+
+def copilot_view(answer: Any) -> dict[str, Any]:
+    """The agent's ``CopilotAnswer`` for the page: text, charts, and how it was answered.
+
+    An answer that failed inside the agent becomes a sentence, never the error text itself.
+    """
+    if getattr(answer, "error", None):
+        return {
+            "state": "error",
+            "text": "The model did not answer this time. The loss question works without it.",
+        }
+    report = getattr(answer, "guardrail", None)
+    calls = list(getattr(answer, "tool_calls", None) or [])
+    charts = [
+        c for c in (answer_chart_view(ch) for ch in getattr(answer, "charts", None) or []) if c
+    ]
+    return {
+        "state": "refused" if getattr(answer, "refused", False) else "answer",
+        "text": str(getattr(answer, "answer", "") or ""),
+        "charts": charts,
+        "how": {
+            "tools": [c.name + ("" if c.ok else " (failed)") for c in calls],
+            "sql": [c.sql for c in calls if getattr(c, "sql", None)],
+            "checked": list(getattr(report, "numbers_checked", None) or []),
+            "model": getattr(answer, "model", None),
+            "seconds": round(float(getattr(answer, "latency_s", 0.0) or 0.0), 1),
+        },
+    }
+
+
 def unavailable_view(now: datetime) -> dict[str, Any]:
     """What the page shows when the server could not build the live view at all."""
     title = "Screen data unavailable"
@@ -682,6 +797,7 @@ def live_view(
         )
         theirs = [o for o in orders if o.get("alert_id") == current.get("alert_id")]
         incident["order"] = order_view(theirs, mine, leak, tz)
+        incident["context"] = copilot_context(incident)
         incident["truth"] = (
             None
             if leak is None or distance is None or not incident["candidates"]

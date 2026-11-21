@@ -2,7 +2,7 @@
 // only lays it out. No build step: Preact + htm are one vendored module.
 import { html, render, useEffect, useRef, useState } from './vendor/htm-preact.module.js';
 import { createMap } from './map.js';
-import { createCharts } from './charts.js';
+import { createCharts, drawAnswerChart } from './charts.js';
 
 const ICONS = {
   normal: 'M5 12l4.5 4.5L19 7',
@@ -388,15 +388,91 @@ function RevealStep({ inc, revealed, onReveal }) {
     ${(t.flow_m3h != null || t.loss_now_m3h != null) && html`<p>${t.flow_m3h != null && html`Simulated leak <b>${t.flow_m3h.toFixed(1)} m³/h</b>`}${t.flow_m3h != null && t.loss_now_m3h != null ? ', ' : ''}${t.loss_now_m3h != null && html`current estimate <b>${t.loss_now_m3h.toFixed(1)} m³/h</b>`}.</p>`}` };
 }
 
-function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, onReveal }) {
+// The model writes light markdown: **bold**, `code` and "- " bullets. Rendered as elements, never as HTML.
+function rich(text) {
+  return text.split('\n').map((line, n) => {
+    const bullet = /^\s*[-*]\s+/.test(line);
+    const body = bullet ? line.replace(/^\s*[-*]\s+/, '') : line;
+    const parts = body.split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`)/g).filter(Boolean).map((p) => {
+      if (p.startsWith('**') && p.endsWith('**')) return html`<b>${p.slice(2, -2)}</b>`;
+      if (p.length > 2 && p.startsWith('*') && p.endsWith('*')) return html`<i>${p.slice(1, -1)}</i>`;
+      if (p.startsWith('`') && p.endsWith('`')) return html`<code>${p.slice(1, -1)}</code>`;
+      return p;
+    });
+    return html`${n ? '\n' : ''}${bullet ? '• ' : ''}${parts}`;
+  });
+}
+
+function AnswerChart({ chart, tz, tzName }) {
+  const el = useRef(null);
+  useEffect(() => (window.echarts ? drawAnswerChart(el.current, chart, tz, tzName) : undefined), [chart, tz]);
+  return html`<figure class="answer-chart"><figcaption>${chart.title}</figcaption><div class="answer-plot" ref=${el} aria-hidden="true"></div></figure>`;
+}
+
+function Answer({ qa, tz, tzName }) {
+  if (qa.state === 'asking') {
+    return html`<div class="answer"><p class="q">${qa.question}</p><p>Waiting for the copilot.</p>
+      <div class="working" role="progressbar" aria-label="Waiting for the copilot"></div></div>`;
+  }
+  const how = qa.how;
+  const summary = how && [
+    how.tools.length ? `tools: ${how.tools.join(', ')}` : 'no tools',
+    how.model ? `model ${how.model}` : 'no model',
+    `${how.seconds} s`,
+  ].join(' · ');
+  return html`<div class="answer" data-state=${qa.state}>
+    <p class="q">${qa.question}</p>
+    <p class="a">${rich(qa.text || '')}</p>
+    ${(qa.charts || []).map((c) => html`<${AnswerChart} chart=${c} tz=${tz} tzName=${tzName} />`)}
+    ${how && html`<details class="how"><summary>How this was answered: ${summary}</summary>
+      ${how.sql.length > 0 && html`<p>SQL that ran:</p>${how.sql.map((q) => html`<pre class="sql">${q}</pre>`)}`}
+      ${how.checked.length > 0 && html`<p>Checked against the tool results: ${how.checked.join('; ')}</p>`}
+      ${!how.model && html`<p>Answered by the estimate_loss tool directly; no language model was involved.</p>`}
+    </details>`}
+  </div>`;
+}
+
+function CopilotStep({ inc, qa, ask, settings }) {
+  const title = STEPS[5];
+  const [text, setText] = useState('');
+  const asking = !!qa && qa.state === 'asking';
+  const loss = settings ? settings.loss_question : null;
+  const submit = (e) => { e.preventDefault(); if (text.trim() && !asking) ask({ question: text.trim() }); };
+  return { on: !!qa && qa.state !== 'asking', title, body: html`
+    ${inc && inc.context && html`<p class="context"><span>Sent with your question</span>${inc.context}</p>`}
+    <form class="row ask" onSubmit=${submit}>
+      <input aria-label="Question for the copilot" maxlength="500" value=${text}
+        placeholder=${inc ? 'Ask about this alert, a sensor or a procedure' : 'Ask about a sensor, an alert or a procedure'}
+        onInput=${(e) => setText(e.target.value)} />
+      <button class="btn" type="submit" disabled=${asking || !text.trim()}>Ask</button>
+    </form>
+    ${inc && loss && html`<button class="chipq" disabled=${asking} onClick=${() => ask({ direct: true, question: loss })}>${loss}</button>`}
+    ${qa && html`<${Answer} qa=${qa} tz=${settings ? settings.tz : 'UTC'} tzName=${settings ? settings.tz_name : 'UTC'} />`}` };
+}
+
+// One question at a time; the answer belongs to the alert it was asked about.
+function useCopilot(inc) {
+  const [qa, setQa] = useState(null);
+  const id = inc ? inc.alert_id : null;
+  useEffect(() => { setQa(null); }, [id]);
+  const ask = async ({ question, direct = false }) => {
+    setQa({ state: 'asking', question, alert_id: id });
+    const res = await call('POST', '/api/copilot/ask', { question, direct, alert_id: id });
+    setQa(res.ok ? { ...res, question, alert_id: id } : { state: 'error', question, text: res.message, alert_id: id });
+  };
+  return { qa: qa && qa.alert_id === id ? qa : null, ask };
+}
+
+function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, onReveal, settings }) {
   const [unfolded, setUnfolded] = useState({});
+  const copilot = useCopilot(vm.incident);
   const first = LeakStep({ leaks: vm.leaks, net, size, canStart, why, busy, onStart });
   const inc = vm.incident;
   const steps = [first, AlertStep({ inc }), LocatedStep({ inc }), OrderStep({ inc }),
-    RevealStep({ inc, revealed, onReveal }), ...STEPS.slice(5).map((title) => ({ on: false, title }))];
+    RevealStep({ inc, revealed, onReveal }), CopilotStep({ inc, qa: copilot.qa, ask: copilot.ask, settings })];
   const now = steps.reduce((last, s, i) => (s.on ? i : last), 0);
   // Finished steps fold to one line once the work order is on screen, so the open step fits.
-  const foldable = (i) => (steps[3].on && i < 3) || (steps[4].on && i === 3);
+  const foldable = (i) => (steps[3].on && i < 3) || ((steps[4].on || steps[5].on) && i === 3) || (steps[5].on && i === 4);
   const id = (i) => `${inc ? inc.alert_id : ''}:${i}`;
   const folded = (i) => foldable(i) && !unfolded[id(i)];
   const toggle = (i) => setUnfolded({ ...unfolded, [id(i)]: !unfolded[id(i)] });
@@ -511,7 +587,7 @@ function App() {
     </main>
     <${Instruments} charts=${shown.charts} />
     <${Rail} vm=${shown} net=${net} size=${leakSize} canStart=${canStart} why=${why} busy=${busy} onStart=${start} notice=${notice}
-      revealed=${!!(inc && revealed[inc.alert_id])} onReveal=${reveal} />
+      revealed=${!!(inc && revealed[inc.alert_id])} onReveal=${reveal} settings=${settings} />
   </div>`;
 }
 

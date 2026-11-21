@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from typing import ClassVar
 
 import pandas as pd
 import pytest
@@ -70,6 +71,7 @@ def test_to_utc_accepts_what_the_state_file_and_the_lake_return():
     expected = datetime(2018, 11, 21, 20, 45, tzinfo=UTC)
     assert view.to_utc("2018-11-21T20:45:00Z") == expected
     assert view.to_utc("2018-11-21 20:45") == expected  # naive strings are UTC
+    assert view.to_utc("2018-11-21 20:45 UTC") == expected  # as the copilot tools write it
     assert view.to_utc("2018-11-22T02:15:00+05:30") == expected
     assert view.to_utc(pd.Timestamp("2018-11-21 20:45", tz="UTC")) == expected
     assert view.to_utc(expected.replace(tzinfo=None)) == expected
@@ -563,3 +565,103 @@ def test_live_view_adds_the_truth_only_with_a_leak_candidates_and_distances():
     assert out["incident"]["truth"]["rank"] == 2
     alone = view.live_view(**{**common, "state": state()}, distance=lambda a, b: 1.0)
     assert alone["incident"]["truth"] is None  # no leak from this screen to check against
+
+
+# estimate_loss's answer for the n470 run's alert (the shape copilot.tools returns).
+LOSS = {
+    "alert_id": "5bab5c3a",
+    "available": True,
+    "is_estimate": True,
+    "est_loss_m3h": 53.966,
+    "start_ts": "2018-11-19 20:15 UTC",
+    "duration_h": 82.25,
+    "est_volume_m3": 4438.7,
+    "method": "estimate: mean excess inflow against the hour-of-week baseline",
+}
+
+
+def test_the_context_line_names_the_alert_as_it_is_sent():
+    incident = view.incident_view(RUN_ALERT, [LEAK], VERSIONS, TZ)
+    assert view.copilot_context(incident) == (
+        "Context: the alert on screen is 5bab5c3a in Area A, which fired at 2018-11-19 20:15 UTC."
+    )
+    assert view.copilot_context(None) is None
+
+
+def test_the_loss_chip_answers_with_a_number_and_says_it_is_an_estimate():
+    out = view.loss_answer_view(LOSS, 0.42, TZ)
+    assert out["text"] == (
+        "About 4,439 m³ since the alert fired at Tue 20 Nov, 01:45 IST (82.2 h at 54.0 m³/h). "
+        "This is an estimate."
+    )
+    assert out["how"]["tools"] == ["estimate_loss"] and out["how"]["model"] is None
+    assert out["how"]["seconds"] == 0.4 and out["volume_m3"] == 4438.7
+    none = view.loss_answer_view({"available": False, "note": "no inflow residual"}, 0.1, TZ)
+    assert none["text"] == "There is no loss estimate for this alert yet: no inflow residual."
+    bad = view.loss_answer_view({"error": "alert x not found."}, 0.1, TZ)
+    assert bad["text"] == "The loss could not be estimated: alert x not found."
+
+
+class Call:
+    def __init__(self, name, ok=True, sql=None):
+        self.name, self.ok, self.sql = name, ok, sql
+
+
+class Report:
+    numbers_checked: ClassVar[list[str]] = ["4438.7"]
+
+
+class Answer:
+    answer = "About 4,439 m³ have been lost."
+    tool_calls: ClassVar[list[Call]] = [
+        Call("get_alert"),
+        Call("run_sql", sql="SELECT 1"),
+        Call("estimate_loss", ok=False),
+    ]
+    charts: ClassVar[list[dict]] = [
+        {
+            "kind": "line",
+            "title": "Pressure at n469 (m)",
+            "unit": "m",
+            "series": [
+                {
+                    "name": "pressure n469",
+                    "x": ["2018-11-19T20:00:00+00:00", "bad"],
+                    "y": [50.1, 50.0],
+                }
+            ],
+            "markers": [{"x": "2018-11-19T20:15:00+00:00", "label": "alert fired"}],
+        },
+        {"kind": "line", "series": []},
+    ]
+    refused = False
+    latency_s = 7.84
+    guardrail = Report()
+    error = None
+    model = "some-model"
+
+
+def test_copilot_answers_show_text_chart_and_how_they_were_found():
+    out = view.copilot_view(Answer())
+    assert out["state"] == "answer" and out["text"] == Answer.answer
+    assert out["how"] == {
+        "tools": ["get_alert", "run_sql", "estimate_loss (failed)"],
+        "sql": ["SELECT 1"],
+        "checked": ["4438.7"],
+        "model": "some-model",
+        "seconds": 7.8,
+    }
+    assert len(out["charts"]) == 1  # the empty one is dropped
+    chart = out["charts"][0]
+    assert chart["series"][0]["points"] == [[view.epoch_ms(view.to_utc("2018-11-19T20:00Z")), 50.1]]
+    assert chart["markers"][0]["text"] == "alert fired"
+
+
+def test_a_failed_model_call_becomes_a_sentence():
+    failed = Answer()
+    failed.error = "HTTP 429 Too Many Requests: rate limit"
+    out = view.copilot_view(failed)
+    assert out == {
+        "state": "error",
+        "text": "The model did not answer this time. The loss question works without it.",
+    }

@@ -30,13 +30,14 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import orjson
 from fastapi import FastAPI
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from leakwatch.common.config import load_config
 from leakwatch.common.logging import get_logger
@@ -409,6 +410,45 @@ class Snapshots:
         self._stop.set()
 
 
+class Copilot:
+    """The copilot on the demo lake: the loss chip without a model, other questions with one.
+
+    A new tool context per question, as the old page did: a restart rebuilds the demo lake.
+    """
+
+    def configured(self) -> bool:
+        """Whether a language model is set in ``.env``."""
+        from leakwatch.copilot.settings import llm_settings
+
+        return bool(llm_settings().configured)
+
+    def loss(self, alert_id: str) -> dict[str, Any]:
+        """``estimate_loss`` for one alert of the demo lake."""
+        from leakwatch.copilot.tools import ToolContext, estimate_loss
+        from leakwatch.demo.runner import demo_lake
+
+        return estimate_loss(ToolContext(lake_root=demo_lake()), {"alert_id": alert_id})
+
+    def ask(self, question: str) -> Any:
+        """The agent's ``CopilotAnswer`` (agent, prompts and guardrails as they are)."""
+        from leakwatch.copilot.agent import CopilotAgent
+        from leakwatch.copilot.llm import build_llm
+        from leakwatch.copilot.settings import llm_settings
+        from leakwatch.copilot.tools import ToolContext
+        from leakwatch.demo.runner import demo_lake
+
+        ctx = ToolContext(lake_root=demo_lake())
+        return CopilotAgent(build_llm(llm_settings(), ctx.cfg["llm"]), ctx).ask(question)
+
+
+class AskBody(BaseModel):
+    """``POST /api/copilot/ask``: a question, or the loss chip (``direct``)."""
+
+    question: str = Field(default="", max_length=500)
+    alert_id: str | None = None
+    direct: bool = False
+
+
 class InjectBody(BaseModel):
     """``POST /api/demo/inject``."""
 
@@ -429,6 +469,7 @@ def create_app(
     cfg: Mapping[str, Any] | None = None,
     sender: Callable[..., None] | None = None,
     geometry_loader: Callable[[], Any] | None = None,
+    copilot: Any = None,
 ) -> FastAPI:
     """The dashboard app.
 
@@ -438,12 +479,15 @@ def create_app(
         cfg: configuration (default: ``load_config()``).
         sender: publishes a demo command (default: ``send_demo_command``, Kafka).
         geometry_loader: returns the map ``Geometry`` (default: ``geometry.load``).
+        copilot: answers questions (default: ``Copilot``, the demo lake and the configured model).
 
     """
     cfg = cfg or load_config()
     dash = cfg["dashboard"]
     snapshots = Snapshots(source or LiveSource(cfg), float(dash["snapshot_seconds"]))
     send = sender or send_demo_command
+    helper = copilot or Copilot()
+    asking = threading.Lock()  # one question at a time: the model and the laptop are shared
     geometry_lock = threading.Lock()
 
     def geometry() -> Any:
@@ -505,6 +549,8 @@ def create_app(
                 "speeds": [int(s) for s in dash["speeds"]],
                 "ring_floor_m": float(dash["ring_floor_m"]),
                 "tz": str(cfg["project"]["display_timezone"]),
+                "tz_name": datetime.now(ZoneInfo(str(cfg["project"]["display_timezone"]))).tzname(),
+                "loss_question": view.LOSS_QUESTION,
             }
         )
 
@@ -545,6 +591,43 @@ def create_app(
         if current()["runner"]["code"] in ("offline", "stale", "error"):
             return refused(409, "The demo runner is not running. Start it with `make demo`.")
         return command("reset")
+
+    @app.post("/api/copilot/ask")
+    def copilot_ask(body: AskBody) -> Response:
+        from leakwatch.copilot.settings import NOT_CONFIGURED_MESSAGE
+
+        incident = current().get("incident")
+        if body.alert_id and (not incident or incident["alert_id"] != body.alert_id):
+            return refused(409, "That alert is no longer on screen. Ask again about the one shown.")
+        question = body.question.strip()
+        if not body.direct and not question:
+            return refused(422, "Type a question first.")
+        if not asking.acquire(blocking=False):
+            return refused(409, "The copilot is still answering the previous question.")
+        started = time.perf_counter()
+        try:
+            if body.direct:
+                if not incident:
+                    return refused(409, "There is no alert on screen to ask about.")
+                result = helper.loss(incident["alert_id"])
+                tz = str(cfg["project"]["display_timezone"])
+                out = view.loss_answer_view(result, time.perf_counter() - started, tz)
+                return json_response({**out, "question": view.LOSS_QUESTION})
+            if not helper.configured():
+                return json_response({"state": "no_model", "text": NOT_CONFIGURED_MESSAGE})
+            context = view.copilot_context(incident) if body.alert_id else None
+            sent = f"{context}\n\n{question}" if context else question
+            return json_response({**view.copilot_view(helper.ask(sent)), "question": question})
+        except Exception as exc:
+            log.error("copilot question failed: %s", exc)
+            return json_response(
+                {
+                    "state": "error",
+                    "text": "The copilot could not answer. The server log has the reason.",
+                }
+            )
+        finally:
+            asking.release()
 
     @app.get("/")
     def index() -> FileResponse:

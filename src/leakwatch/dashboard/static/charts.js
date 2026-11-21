@@ -103,7 +103,10 @@ export function createCharts(scoreEl, pressureEl) {
       legend: {
         top: 0, right: 6, itemWidth: 24, itemHeight: 9, textStyle: text, data: series.map((s) => s.sensor),
       },
-      tooltip: { ...tip, valueFormatter: (v) => (v == null ? 'no reading' : `${MINUS(v)} m`) },
+      tooltip: {
+        ...tip,
+        formatter: (ps) => `${time(ps[0].value[0])} ${c.tz_name}<br>${ps.map((p) => `${p.marker}${p.seriesName} <b>${p.value[1] == null ? 'no reading' : `${MINUS(p.value[1])} m`}</b>`).join('<br>')}`,
+      },
       xAxis,
       yAxis: {
         type: 'value', ...axis,
@@ -131,4 +134,42 @@ export function createCharts(scoreEl, pressureEl) {
     update,
     destroy() { resize.disconnect(); score.dispose(); pressure.dispose(); },
   };
+}
+
+// A chart returned by a copilot tool (one or more lines over time), drawn small in the rail.
+export function drawAnswerChart(el, chart, tz, tzName) {
+  const { echarts } = window;
+  const T = {
+    ink2: token('--ink-2'), ink3: token('--ink-3'), rule: token('--rule'), ink: token('--ink'), sheet: token('--sheet'),
+    font: token('--font'), series: [token('--series-1'), token('--series-2'), token('--series-3')],
+  };
+  const STYLES = ['solid', 'dashed', 'dotted'];
+  const clock = new Intl.DateTimeFormat('en-GB', { timeZone: tz, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const text = { fontFamily: T.font, fontSize: 11.5, color: T.ink3 };
+  const c = echarts.init(el);
+  c.setOption({
+    animation: false,
+    grid: { left: 44, right: 12, top: chart.series.length > 1 || chart.markers.length ? 24 : 10, bottom: 22 },
+    legend: chart.series.length > 1 ? { top: 0, right: 0, textStyle: { ...text, color: T.ink2 }, itemWidth: 20, itemHeight: 8 } : undefined,
+    tooltip: {
+      trigger: 'axis', backgroundColor: T.ink, borderWidth: 0, confine: true,
+      textStyle: { color: T.sheet, fontFamily: T.font, fontSize: 12.5 },
+      formatter: (ps) => `${clock.format(ps[0].value[0])} ${tzName}<br>${ps.map((p) => `${p.marker}${echarts.format.encodeHTML(p.seriesName)} <b>${p.value[1] == null ? 'no value' : `${Number(p.value[1]).toFixed(2)} ${chart.unit}`}</b>`).join('<br>')}`,
+    },
+    xAxis: { type: 'time', axisLine: { lineStyle: { color: T.rule } }, axisTick: { show: false }, splitLine: { show: false },
+      axisLabel: { ...text, hideOverlap: true, formatter: (v) => clock.format(v) } },
+    yAxis: { type: 'value', scale: true, axisLabel: text, splitLine: { lineStyle: { color: T.rule, opacity: 0.45 } } },
+    series: chart.series.map((s, i) => ({
+      name: s.name, type: 'line', showSymbol: false, data: s.points, connectNulls: false,
+      lineStyle: { color: T.series[i % 3], type: STYLES[i % 3], width: 2 }, itemStyle: { color: T.series[i % 3] },
+      markLine: i > 0 || !chart.markers.length ? undefined : {
+        symbol: 'none', silent: true, animation: false,
+        data: chart.markers.map((m) => ({ xAxis: m.at, lineStyle: { color: T.ink2, type: 'solid', width: 1 },
+          label: { ...text, color: T.ink2, formatter: m.text, position: 'end' } })),
+      },
+    })),
+  });
+  const resize = new ResizeObserver(() => c.resize());
+  resize.observe(el);
+  return () => { resize.disconnect(); c.dispose(); };
 }
