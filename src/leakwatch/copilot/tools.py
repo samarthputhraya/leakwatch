@@ -168,7 +168,9 @@ class ToolContext:
     _con: duckdb.DuckDBPyConnection | None = field(default=None, repr=False)
     _con_at: float = field(default=0.0, repr=False)
     _views: set[str] = field(default_factory=set, repr=False)
+    _file_layers: set[str] = field(default_factory=set, repr=False)
     _clock_cache: pd.Timestamp | None = field(default=None, repr=False)
+    _clock_at: float = field(default=0.0, repr=False)
     _schema_cache: dict[str, Any] | None = field(default=None, repr=False)
     _network_tried: bool = field(default=False, repr=False)
     _retriever_error: str | None = field(default=None, repr=False)
@@ -198,29 +200,64 @@ class ToolContext:
         return con
 
     def con(self) -> duckdb.DuckDBPyConnection:
-        """The sandboxed connection, rebuilt after ``agent.connection_ttl_s``."""
+        """The sandboxed connection (opened once; rebuilt only when a new lake layer appears).
+
+        Opening costs tens of seconds on the full lake: each view reads the metadata of every
+        Parquet file once (``union_by_name``; 13,688 raw files). A view re-expands its glob at
+        query time, so files added later are seen without reconnecting (D-045). Every
+        ``agent.connection_ttl_s`` a cheap check looks for a layer that had no files at connect
+        time and now has some (the first alerts, the live features); only then is the connection
+        rebuilt.
+        """
         with self._lock:
-            ttl = float(self.cfg["agent"].get("connection_ttl_s", 60))
-            if self._con is None or time.monotonic() - self._con_at > ttl:
-                self.refresh()
-                self._con = self._connect()
+            if self._con is None:
+                self._open()
+            elif time.monotonic() - self._con_at > float(
+                self.cfg["agent"].get("connection_ttl_s", 60)
+            ):
                 self._con_at = time.monotonic()
-                self._views = {
-                    r[0]
-                    for r in self._con.execute(
-                        "SELECT view_name FROM duckdb_views() WHERE NOT internal"
-                    ).fetchall()
-                }
+                if self._new_layers():
+                    self.refresh()
+                    self._open()
+            assert self._con is not None
             return self._con
 
+    def _open(self) -> None:
+        con = self._connect()
+        self._con = con
+        self._con_at = time.monotonic()
+        self._views = {
+            r[0]
+            for r in con.execute(
+                "SELECT view_name FROM duckdb_views() WHERE NOT internal"
+            ).fetchall()
+        }
+        self._schema_cache = None
+        self._file_layers = self._layers_with_files()
+
+    def _layers_with_files(self) -> set[str]:
+        return {
+            view
+            for view, layer_dir in lake.layer_dirs(self.lake_dir()).items()
+            if lake.has_parquet(layer_dir)
+        }
+
+    def _new_layers(self) -> bool:
+        """True if a lake layer had no Parquet files at connect time and has some now.
+
+        (Such a layer has no view yet, or only the empty ``work_orders`` stand-in.)
+        """
+        return bool(self._layers_with_files() - self._file_layers)
+
     def refresh(self) -> None:
-        """Drop the connection and cached lookups (new lake files become visible)."""
+        """Drop the connection and cached lookups (the next query reconnects)."""
         with self._lock:
             if self._con is not None:
                 self._con.close()
             self._con = None
             self._views = set()
             self._clock_cache = None
+            self._clock_at = 0.0
             self._schema_cache = None
 
     def views(self) -> set[str]:
@@ -259,7 +296,8 @@ class ToolContext:
             return parse_ts(self.clock)
         if self.cfg.get("clock"):
             return parse_ts(self.cfg["clock"])
-        if self._clock_cache is not None:
+        ttl = float(self.cfg["agent"].get("clock_ttl_s", 60))
+        if self._clock_cache is not None and time.monotonic() - self._clock_at <= ttl:
             return self._clock_cache
         views = self.views()
 
@@ -280,6 +318,7 @@ class ToolContext:
             ]
         ) or latest([("clean_readings", "ts"), ("raw_readings", "ts")])
         self._clock_cache = max(found) if found else None
+        self._clock_at = time.monotonic()
         return self._clock_cache
 
     def get_network(self) -> NetworkIndex | None:
@@ -307,10 +346,29 @@ class ToolContext:
     # -- schema ------------------------------------------------------------------------------
 
     def schema(self) -> dict[str, Any]:
-        """Tables and columns (cached until :meth:`refresh`)."""
-        if self._schema_cache is not None:
-            return self._schema_cache
+        """Tables and columns (cached until the views change) plus notes with the data clock."""
+        clock = self.data_clock()
+        return {
+            "tables": self._tables(),
+            "notes": [
+                "All timestamps are TIMESTAMP WITH TIME ZONE in UTC; compare with literals like "
+                "TIMESTAMPTZ '2019-03-01 00:00:00+00'.",
+                f"Data ends at {fmt_ts(clock) or 'unknown'}: never use now() or current_date; "
+                "'last week' means the 7 days before that time.",
+                'Quote the column "window" (reserved word).',
+                "Readings tables are partitioned by date ('YYYY-MM-DD' text) and sensor_type: "
+                "filter on them to keep queries fast.",
+                "top_sensors[1].sensor_id is the top sensor of an alert (lists are 1-based); use "
+                "unnest(top_sensors) to expand.",
+            ],
+            "data_clock": fmt_ts(clock),
+        }
+
+    def _tables(self) -> list[dict[str, Any]]:
+        """``DESCRIBE`` of every view, cached until the connection is rebuilt."""
         views = self.views()
+        if self._schema_cache is not None:
+            return self._schema_cache["tables"]
         tables = []
         for view in [v for v in VIEW_ORDER if v in views]:
             desc = self.query(f"DESCRIBE {view}")
@@ -336,23 +394,8 @@ class ToolContext:
                     "series": sorted(series),
                 }
             tables.append(entry)
-        clock = self.data_clock()
-        self._schema_cache = {
-            "tables": tables,
-            "notes": [
-                "All timestamps are TIMESTAMP WITH TIME ZONE in UTC; compare with literals like "
-                "TIMESTAMPTZ '2019-03-01 00:00:00+00'.",
-                f"Data ends at {fmt_ts(clock) or 'unknown'}: never use now() or current_date; "
-                "'last week' means the 7 days before that time.",
-                'Quote the column "window" (reserved word).',
-                "Readings tables are partitioned by date ('YYYY-MM-DD' text) and sensor_type: "
-                "filter on them to keep queries fast.",
-                "top_sensors[1].sensor_id is the top sensor of an alert (lists are 1-based); use "
-                "unnest(top_sensors) to expand.",
-            ],
-            "data_clock": fmt_ts(clock),
-        }
-        return self._schema_cache
+        self._schema_cache = {"tables": tables}
+        return tables
 
     def schema_text(self) -> str:
         """Compact schema for the system prompt."""

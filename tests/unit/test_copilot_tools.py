@@ -221,3 +221,46 @@ def test_formatting_helpers():
         "c": [None],
     }
     assert parse_ts("2019-03-10 06:00 UTC") == testing.ts("2019-03-10 06:00")
+
+
+def test_connection_is_kept_until_a_new_layer_appears(ctx, monkeypatch):
+    """D-045: no periodic rebuild (it costs tens of seconds on the full lake)."""
+    from leakwatch.copilot import tools as tools_mod
+
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(tools_mod.time, "monotonic", lambda: clock["t"])
+    first = ctx.con()
+    tables = ctx.schema()["tables"]
+    clock["t"] += 10 * float(ctx.cfg["agent"]["connection_ttl_s"])
+    assert ctx.con() is first  # TTL passed, but no layer changed
+    assert ctx.schema()["tables"] is tables  # schema cache kept
+    assert "scores" not in ctx.views()
+    scores_dir = ctx.lake_dir() / "scores" / "model=x" / "origin=batch" / "date=2019-03-10"
+    scores_dir.mkdir(parents=True)
+    pd.DataFrame({"window_start": [testing.ts("2019-03-10 00:00")], "score": [1.0]}).to_parquet(
+        scores_dir / "part-0.parquet"
+    )
+    assert ctx.con() is first  # checked only once per TTL
+    clock["t"] += 10 * float(ctx.cfg["agent"]["connection_ttl_s"])
+    assert ctx.con() is not first and "scores" in ctx.views()
+
+
+def test_data_clock_is_cached_for_its_ttl_only(ctx, monkeypatch):
+    from leakwatch.copilot import tools as tools_mod
+
+    clock = {"t": 50.0}
+    monkeypatch.setattr(tools_mod.time, "monotonic", lambda: clock["t"])
+    calls = []
+    real_query = ctx.query
+
+    def counting(sql, *a, **k):
+        calls.append(sql)
+        return real_query(sql, *a, **k)
+
+    monkeypatch.setattr(ctx, "query", counting)
+    first = ctx.data_clock()
+    n = len(calls)
+    assert ctx.data_clock() == first and len(calls) == n  # cached
+    clock["t"] += float(ctx.cfg["agent"]["clock_ttl_s"]) + 1
+    assert ctx.data_clock() == first and len(calls) > n  # recomputed after the TTL
+    assert f"Data ends at {fmt_ts(first)}" in ctx.schema_text()

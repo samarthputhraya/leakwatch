@@ -181,3 +181,61 @@ def test_rpm_setting_is_parsed():
     assert llm_settings({**base, "LLM_RPM": "0"}).rpm is None
     with pytest.raises(ValueError, match="LLM_RPM"):
         llm_settings({**base, "LLM_RPM": "fast"})
+
+
+def test_fast_calls_send_the_reasoning_switch_and_drop_it_if_rejected():
+    """D-045: the configured body goes with fast calls only; a 400 turns it off for good."""
+    openai = pytest.importorskip("openai")
+    from leakwatch.copilot.llm import OpenAICompatibleLLM
+
+    switch = {"chat_template_kwargs": {"thinking": False}}
+    llm = OpenAICompatibleLLM(
+        LLMSettings("http://127.0.0.1:9/v1", "k", "m"),
+        {"timeout_s": 1, "max_retries": 0, "fast_extra_body": switch},
+    )
+    seen = []
+
+    def create(**kwargs):
+        seen.append(kwargs.get("extra_body"))
+        return _reply_ok()
+
+    llm._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    llm.chat([{"role": "user", "content": "q"}])
+    llm.chat([{"role": "user", "content": "q"}], fast=True)
+    assert seen == [None, switch]
+
+    def reject_switch(**kwargs):
+        seen.append(kwargs.get("extra_body"))
+        if "extra_body" in kwargs:
+            raise openai.BadRequestError("unknown field", response=_httpx_response(400), body=None)
+        return _reply_ok()
+
+    seen.clear()
+    llm._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=reject_switch))
+    )
+    assert llm.chat([{"role": "user", "content": "q"}], fast=True).content == "done"
+    assert llm.fast_extra_body is None and seen == [switch, None]
+    llm.chat([{"role": "user", "content": "q"}], fast=True)
+    assert seen[-1] is None  # never sent again
+
+
+def _httpx_response(status: int):
+    import httpx
+
+    return httpx.Response(status, request=httpx.Request("POST", "http://x"))
+
+
+def test_tool_loop_marks_calls_fast_from_the_given_round():
+    llm = ScriptedLLM(
+        [calls(tool_call("run_sql", query="SELECT 1")), calls(tool_call("run_sql")), reply("ok")]
+    )
+    out = run_tool_loop(llm, [{"role": "user", "content": "q"}], [], lambda c: "{}", 5, 2)
+    assert out.content == "ok"
+    assert [r["fast"] for r in llm.requests] == [False, True, True]
+    llm = ScriptedLLM([calls(tool_call("run_sql")), reply("late")])
+    out = run_tool_loop(llm, [{"role": "user", "content": "q"}], [], lambda c: "{}", 1, 1)
+    assert out.forced_final and [r["fast"] for r in llm.requests] == [True, True]
+    llm = ScriptedLLM([reply("plain")])
+    run_tool_loop(llm, [{"role": "user", "content": "q"}], [], lambda c: "{}", 3)
+    assert llm.requests[0]["fast"] is False

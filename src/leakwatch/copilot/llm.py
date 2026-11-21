@@ -104,8 +104,13 @@ class LLMClient(Protocol):
         tools: Sequence[Mapping[str, Any]] | None = None,
         *,
         json_mode: bool = False,
+        fast: bool = False,
     ) -> LLMResponse:
-        """Send the conversation (and tool schemas) and return the reply."""
+        """Send the conversation (and tool schemas) and return the reply.
+
+        ``fast``: the call needs no reasoning (phrasing an answer from tool results, a
+        correction); a client that can switch the model's reasoning off does so (D-045).
+        """
         ...
 
 
@@ -170,6 +175,11 @@ class OpenAICompatibleLLM:
         self.min_interval_s = 60.0 / float(rpm) if rpm else 0.0
         self.wait_s = 0.0  # time spent pacing and waiting out rate limits (not model latency)
         self._last_start = -1e9
+        # D-045: request body that turns the model's reasoning off for ``fast`` calls (NVIDIA NIM
+        # / vLLM chat templates: {"chat_template_kwargs": {"thinking": false}}); None = no switch.
+        # Dropped for good if the endpoint rejects it.
+        extra = cfg.get("fast_extra_body")
+        self.fast_extra_body: dict[str, Any] | None = dict(extra) if extra else None
 
     def _sleep(self, seconds: float) -> None:
         if seconds > 0:
@@ -208,8 +218,14 @@ class OpenAICompatibleLLM:
         tools: Sequence[Mapping[str, Any]] | None = None,
         *,
         json_mode: bool = False,
+        fast: bool = False,
     ) -> LLMResponse:
-        """One chat-completions call; raises :class:`LLMError` on any API failure."""
+        """One chat-completions call; raises :class:`LLMError` on any API failure.
+
+        With ``fast`` and a configured ``fast_extra_body`` the request asks the model not to
+        reason first. If the endpoint rejects that body, the call is repeated without it and the
+        switch stays off for this client.
+        """
         kwargs: dict[str, Any] = {
             "model": self.model,
             "messages": [dict(m) for m in messages],
@@ -223,7 +239,17 @@ class OpenAICompatibleLLM:
             kwargs["tool_choice"] = "auto"
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
-        resp = self._create(kwargs)
+        if fast and self.fast_extra_body:
+            try:
+                resp = self._create({**kwargs, "extra_body": self.fast_extra_body})
+            except LLMError as exc:
+                if exc.transient:
+                    raise
+                log.warning("endpoint rejected the reasoning switch; not sending it again: %s", exc)
+                self.fast_extra_body = None
+                resp = self._create(kwargs)
+        else:
+            resp = self._create(kwargs)
         if not resp.choices:
             raise LLMError("the model returned no choices")
         msg = resp.choices[0].message
@@ -290,11 +316,14 @@ class ScriptedLLM:
         tools: Sequence[Mapping[str, Any]] | None = None,
         *,
         json_mode: bool = False,
+        fast: bool = False,
     ) -> LLMResponse:
         """Return the next scripted step (raises :class:`LLMError` when the script is used up)."""
         msgs = [copy.deepcopy(dict(m)) for m in messages]
         tool_list = [dict(t) for t in tools] if tools else None
-        self.requests.append({"messages": msgs, "tools": tool_list, "json_mode": json_mode})
+        self.requests.append(
+            {"messages": msgs, "tools": tool_list, "json_mode": json_mode, "fast": fast}
+        )
         if not self.script:
             raise LLMError("ScriptedLLM: script exhausted")
         step = self.script.pop(0)
@@ -338,6 +367,7 @@ def run_tool_loop(
     tools: Sequence[Mapping[str, Any]],
     execute: Callable[[ToolCall], str],
     max_rounds: int,
+    fast_from_round: int | None = None,
 ) -> LoopOutcome:
     """Model → tools → model until the model answers without tool calls.
 
@@ -347,10 +377,16 @@ def run_tool_loop(
         tools: tool schemas (OpenAI format).
         execute: runs one tool call and returns the text sent back to the model.
         max_rounds: tool rounds allowed before a final answer is requested without tools.
+        fast_from_round: calls from this round on (and the forced final answer) are ``fast``
+            (no reasoning, D-045); None = never.
 
     """
+
+    def fast(round_no: int) -> bool:
+        return fast_from_round is not None and round_no >= fast_from_round
+
     for round_no in range(1, max_rounds + 1):
-        resp = llm.chat(messages, tools)
+        resp = llm.chat(messages, tools, fast=fast(round_no))
         messages.append(resp.as_message())
         if not resp.tool_calls:
             return LoopOutcome(content=resp.content or "", rounds=round_no, forced_final=False)
@@ -364,6 +400,6 @@ def run_tool_loop(
             "content": "Answer now with the tool results you already have; do not call tools.",
         }
     )
-    resp = llm.chat(messages, None)
+    resp = llm.chat(messages, None, fast=fast(max_rounds + 1))
     messages.append(resp.as_message())
     return LoopOutcome(content=resp.content or "", rounds=max_rounds + 1, forced_final=True)

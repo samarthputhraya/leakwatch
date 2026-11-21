@@ -32,7 +32,8 @@ RAW_HIVE_TYPES = {
 }
 
 
-def _has_parquet(directory: Path) -> bool:
+def has_parquet(directory: Path) -> bool:
+    """True if ``directory`` exists and holds at least one Parquet file (stops at the first)."""
     return directory.exists() and next(directory.rglob("*.parquet"), None) is not None
 
 
@@ -186,7 +187,7 @@ def connect(
         "alert_events": ALERT_HIVE_TYPES,
     }
     for view, layer_dir in dirs.items():
-        if not _has_parquet(layer_dir):
+        if not has_parquet(layer_dir):
             continue
         if view in hive:
             sql = hive_parquet_sql(layer_dir, hive[view])

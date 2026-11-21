@@ -168,6 +168,11 @@ class CopilotAgent:
         """``copilot.agent`` config."""
         return self.ctx.cfg["agent"]
 
+    @property
+    def _fast_followups(self) -> bool:
+        """D-045: only an answer's first model call reasons (``copilot.llm.fast_followups``)."""
+        return bool(self.ctx.cfg["llm"].get("fast_followups", False))
+
     def system_prompt(self) -> str:
         """The rendered system prompt for this version."""
         values = {
@@ -232,7 +237,12 @@ class CopilotAgent:
         tools = self.registry.schemas()
         try:
             outcome = run_tool_loop(
-                self.llm, messages, tools, execute, int(self.acfg["max_tool_rounds"])
+                self.llm,
+                messages,
+                tools,
+                execute,
+                int(self.acfg["max_tool_rounds"]),
+                fast_from_round=2 if self._fast_followups else None,
             )
             draft = outcome.content.strip()
             report.draft_answer = draft
@@ -305,6 +315,7 @@ class CopilotAgent:
                 tools,
                 execute,
                 int(self.acfg.get("max_correction_rounds", 3)),
+                fast_from_round=1 if self._fast_followups else None,
             )
             answer = outcome.content.strip()
             numbers, citations, passages = self._checks(question, answer, results)
