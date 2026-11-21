@@ -1,0 +1,180 @@
+{
+  "meta": {
+    "generated_at": "2026-11-21T08:22:13+00:00",
+    "git_commit": "344020f",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "runs": [
+    {
+      "run": 1,
+      "node": "n100",
+      "diameter_m": 0.03,
+      "quiet_before_inject": true,
+      "seconds_to_alert": 46.4,
+      "seconds_to_localizer": 46.6,
+      "seconds_to_work_order": 82.6,
+      "seconds_to_model_work_order": 82.8,
+      "wall_s": 82.8,
+      "speed": 2880.0,
+      "localizer_top5_at_alert": [
+        "n100",
+        "n474",
+        "n482",
+        "n483",
+        "n101"
+      ],
+      "distance_at_alert": {
+        "top1_m": 0.0,
+        "best_of_top5_m": 0.0
+      },
+      "alert_start_sim": "2018-11-22T04:15:00+00:00",
+      "sim_hours_inject_to_alert": 19.75,
+      "seconds_to_refined_localizer": 103.3,
+      "localizer_top5": [
+        "n100",
+        "n474",
+        "n482",
+        "n483",
+        "n101"
+      ],
+      "distance": {
+        "top1_m": 0.0,
+        "best_of_top5_m": 0.0
+      },
+      "ok": false
+    },
+    {
+      "run": 2,
+      "node": "n300",
+      "diameter_m": 0.03,
+      "quiet_before_inject": true,
+      "seconds_to_alert": null,
+      "seconds_to_localizer": null,
+      "seconds_to_work_order": null,
+      "seconds_to_model_work_order": null,
+      "wall_s": 362.1,
+      "speed": 2880.0,
+      "seconds_to_refined_localizer": null,
+      "ok": false
+    },
+    {
+      "run": 3,
+      "node": "n470",
+      "diameter_m": 0.03,
+      "quiet_before_inject": true,
+      "seconds_to_alert": 26.4,
+      "seconds_to_localizer": 26.6,
+      "seconds_to_work_order": 31.6,
+      "seconds_to_model_work_order": 42.9,
+      "wall_s": 42.9,
+      "speed": 2880.0,
+      "localizer_top5_at_alert": [
+        "n469",
+        "n470",
+        "n471",
+        "n94",
+        "n1"
+      ],
+      "distance_at_alert": {
+        "top1_m": 48.9692,
+        "best_of_top5_m": 0.0
+      },
+      "alert_start_sim": "2018-11-21T04:45:00+00:00",
+      "sim_hours_inject_to_alert": 10.5,
+      "seconds_to_refined_localizer": 43.9,
+      "localizer_top5": [
+        "n469",
+        "n470",
+        "n471",
+        "n94",
+        "n1"
+      ],
+      "distance": {
+        "top1_m": 48.9692,
+        "best_of_top5_m": 0.0
+      },
+      "ok": false
+    },
+    {
+      "run": 4,
+      "node": "n100",
+      "diameter_m": 0.03,
+      "quiet_before_inject": true,
+      "seconds_to_alert": 24.0,
+      "seconds_to_localizer": 24.2,
+      "seconds_to_work_order": 25.5,
+      "seconds_to_model_work_order": 35.6,
+      "wall_s": 35.6,
+      "speed": 2880.0,
+      "localizer_top5_at_alert": [
+        "n474",
+        "n97",
+        "n101",
+        "n477",
+        "n100"
+      ],
+      "distance_at_alert": {
+        "top1_m": 58.8652,
+        "best_of_top5_m": 0.0
+      },
+      "alert_start_sim": "2018-11-20T10:15:00+00:00",
+      "sim_hours_inject_to_alert": 13.0,
+      "seconds_to_refined_localizer": 36.3,
+      "localizer_top5": [
+        "n474",
+        "n97",
+        "n101",
+        "n477",
+        "n100"
+      ],
+      "distance": {
+        "top1_m": 58.8652,
+        "best_of_top5_m": 0.0
+      },
+      "ok": true
+    },
+    {
+      "run": 5,
+      "node": "n300",
+      "diameter_m": 0.03,
+      "quiet_before_inject": true,
+      "seconds_to_alert": 24.5,
+      "seconds_to_localizer": 24.7,
+      "seconds_to_work_order": 26.2,
+      "seconds_to_model_work_order": 35.4,
+      "wall_s": 35.4,
+      "speed": 2880.0,
+      "localizer_top5_at_alert": [
+        "n121",
+        "n118",
+        "n503",
+        "n479",
+        "n478"
+      ],
+      "distance_at_alert": {
+        "top1_m": 3029.8585999999996,
+        "best_of_top5_m": 2976.5296
+      },
+      "alert_start_sim": "2018-11-20T16:45:00+00:00",
+      "sim_hours_inject_to_alert": 11.75,
+      "seconds_to_refined_localizer": 36.0,
+      "localizer_top5": [
+        "n121",
+        "n118",
+        "n503",
+        "n479",
+        "n478"
+      ],
+      "distance": {
+        "top1_m": 3029.8585999999996,
+        "best_of_top5_m": 2976.5296
+      },
+      "ok": true
+    }
+  ],
+  "all_ok": false,
+  "budget_s": 30.0,
+  "note": "wall seconds from the inject command to each artefact in the demo lake; the leak signature is simulated with EPANET and added to replayed BattLeDIM 2018 data"
+}
