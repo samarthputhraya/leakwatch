@@ -187,7 +187,7 @@ dl:
   # D-044: the system localizer behind every gnn_top5 (batch alerts, live stream, demo, scoring).
   # Cues: gls (inversion with the sim | real noise covariance), network (trained GNN),
   # sensor_prior_m (D-042 prior), interpolation; fusion: product (log-scores add) | rank (RRF).
-  localizer: {gls: null, network: true, sensor_prior_m: 300, interpolation: false, fusion: product}
+  localizer: {gls: sim, network: false, sensor_prior_m: null, interpolation: false, fusion: product}   # chosen by `make localizer` (dl_localizer.json)
   localizer_selection:             # `make localizer`: candidates compared on 2018 only
     ridge_grid: [0.0001, 0.001, 0.01, 0.03, 0.1, 0.3]   # chosen on validation sims (medium + large)
     interpolation_m: 300           # interpolation cue: weights exp(-pipe distance / this)
