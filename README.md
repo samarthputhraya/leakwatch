@@ -44,6 +44,7 @@ file records the git commit of the code that produced it. Subject report drafts:
 | Localizer on held-out simulated leaks (gcn_sens_no_context) | top-5 21.1% (MLP 14.5%); medium + large leaks 30.4% (target 60%, MLP 20.2%); best of top 5 within 300 m 77.1% | `dl_gnn.json` |
 | Localizer on the 2019 BattLeDIM leaks (19, network × sensor prior, D-042) | 36.8% within 300 m (best of 5: 42.1%); network alone 15.8%, most-dropped sensor 31.6%; gain over the network 21.1% (95% CI 5.3% to 42.1%) | `dl_gnn_prior.json` |
 | System localizer, GLS inversion (D-044, chosen: gls_sim) | held-out simulated medium + large leaks top-5 69.4% (95% CI 64.6%–73.8%; target 60%); 2018 leaks within 300 m 35.7%; 2019 leaks within 300 m 26.3% (previous posterior 36.8%) | `dl_localizer.json` |
+| Localizer on overlapping simulated leaks (2–8 new leaks at once, D-051) | top-1 within 300 m of a new leak: gls_sim 92.3%, previous posterior 75.0% (480 scenarios) | `dl_localizer_multileak.json` |
 | Slow detectors for 10 mm leaks (night inflow, pressure CUSUM; D-048) | best 0.0% detected at 0 false alarms on 2018 normal data (night inflow spread 7.92 m³/h) | `bdt_slow_detectors.json` |
 | BattLeDIM 2020 official score, 2019 (D-037) | €115,210: 10 of 23 leaks, 70 false positives; below the 6 tabulated teams (6th €127,626); random alert timing scores at least as well with p = 0.9602 | `battledim_score.json` |
 | Detector timing with every report at the true leak, 2018 (D-047) | €169,673 vs random times €153,917 (p = 0.0100) | `battledim_score.json` |
