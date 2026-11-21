@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-21T00:43:44+00:00",
-    "git_commit": "97d7705",
+    "generated_at": "2026-11-21T01:41:13+00:00",
+    "git_commit": "fa0f692",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -23,17 +23,17 @@
     "windows_emitted": 64,
     "late_readings_ignored": 0,
     "batch_duration_s": {
-      "p50": 9.347,
-      "p95": 13.292,
-      "max": 40.144,
-      "mean": 11.1855625
+      "p50": 9.765,
+      "p95": 14.537,
+      "max": 38.135,
+      "mean": 11.501375
     },
     "steady_state_batch_duration_s": {
-      "p50": 9.087,
-      "p95": 13.292,
-      "max": 40.144
+      "p50": 9.618,
+      "p95": 14.537,
+      "max": 38.135
     },
-    "first_batch_duration_s": 9.375
+    "first_batch_duration_s": 9.765
   },
   "alerts_opened_live": [
     {
@@ -43,21 +43,21 @@
       "top_sensors": [
         {
           "sensor_id": "pressure__n506",
-          "contribution": 0.2855
+          "contribution": 0.2895
         },
         {
           "sensor_id": "flow__p235",
-          "contribution": 0.1781
+          "contribution": 0.1735
         },
         {
           "sensor_id": "pressure__n114",
-          "contribution": 0.1725
+          "contribution": 0.1722
         }
       ],
       "kmeans_score_max_at_open": 3.3865532539716505,
-      "detection_latency_s": 14.52,
+      "detection_latency_s": 18.02,
       "event_time_after_leak_start_h": 8.5,
-      "leak_to_alert_wall_s": 101.18
+      "leak_to_alert_wall_s": 104.69
     }
   ],
   "alert_versions_published": 3,

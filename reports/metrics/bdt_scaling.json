@@ -1,13 +1,14 @@
 {
   "meta": {
-    "generated_at": "2026-11-19T06:03:54+00:00",
-    "git_commit": "e75880a",
+    "generated_at": "2026-11-21T01:50:46+00:00",
+    "git_commit": "fa0f692",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "pipeline": "raw lake -> clean -> 1 h windows (228 features) -> K-Means score (mapInPandas)",
-  "model": "kmeans_residual_ci",
+  "pipeline": "raw lake -> clean -> 1 h windows (228 features) -> re-baselined per series (applyInPandas) -> K-Means score",
+  "model": "kmeans_rebaselined",
+  "feature_view": "rebaselined",
   "spark": {
     "master": "local[4]",
     "driver_memory": "2g",
@@ -21,29 +22,29 @@
     {
       "scale": "BattLeDIM 2019",
       "readings": 12509280,
-      "windows_scored": 35043,
-      "windows_above_threshold": 30028,
-      "wall_s": 46.8,
-      "readings_per_s": 267197.2,
+      "windows_scored": 34611,
+      "windows_above_threshold": 23063,
+      "wall_s": 43.0,
+      "readings_per_s": 290866.2,
       "peak_rss_gb": 2.89
     },
     {
       "scale": "BattLeDIM 2018-2019 + simulated 2020-2022",
       "readings": 62409312,
-      "windows_scored": 175287,
-      "windows_above_threshold": 116509,
-      "wall_s": 140.8,
-      "readings_per_s": 443370.5,
-      "peak_rss_gb": 4.36
+      "windows_scored": 107463,
+      "windows_above_threshold": 44188,
+      "wall_s": 165.1,
+      "readings_per_s": 377994.2,
+      "peak_rss_gb": 4.56
     },
     {
       "scale": "all (BattLeDIM + all simulated)",
       "readings": 100108512,
-      "windows_scored": 281358,
-      "windows_above_threshold": 193171,
-      "wall_s": 242.9,
-      "readings_per_s": 412062.4,
-      "peak_rss_gb": 3.86
+      "windows_scored": 145710,
+      "windows_above_threshold": 60145,
+      "wall_s": 247.4,
+      "readings_per_s": 404675.8,
+      "peak_rss_gb": 4.35
     }
   ],
   "figure": "bdt_scaling.png"
