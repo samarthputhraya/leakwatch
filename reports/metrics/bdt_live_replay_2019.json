@@ -1,69 +1,69 @@
 {
   "meta": {
-    "generated_at": "2026-11-19T07:26:34+00:00",
-    "git_commit": "200b8ae",
+    "generated_at": "2026-11-21T00:43:44+00:00",
+    "git_commit": "97d7705",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
   "slice": {
     "start": "2019-01-15T17:00:00+00:00",
-    "end": "2019-01-16T06:55:00+00:00",
-    "simulated_hours": 14.0,
+    "end": "2019-01-16T09:55:00+00:00",
+    "simulated_hours": 17.0,
     "speed": 360.0,
-    "readings": 19992,
-    "replay_wall_s": 139.2
+    "readings": 24276,
+    "replay_wall_s": 169.2
   },
   "leak": {
     "leak_id": "L2019_p523",
     "start": "2019-01-15T23:00:00+00:00"
   },
   "stream": {
-    "batches_with_data": 19,
-    "windows_emitted": 52,
+    "batches_with_data": 16,
+    "windows_emitted": 64,
     "late_readings_ignored": 0,
     "batch_duration_s": {
-      "p50": 7.567,
-      "p95": 11.657,
-      "max": 19.187,
-      "mean": 8.092684210526315
+      "p50": 9.347,
+      "p95": 13.292,
+      "max": 40.144,
+      "mean": 11.1855625
     },
     "steady_state_batch_duration_s": {
-      "p50": 7.415,
-      "p95": 11.657,
-      "max": 19.187
+      "p50": 9.087,
+      "p95": 13.292,
+      "max": 40.144
     },
-    "first_batch_duration_s": 7.634
+    "first_batch_duration_s": 9.375
   },
   "alerts_opened_live": [
     {
-      "alert_id": "eefa7fe0-c108-594b-afff-6f8beaea38e8",
-      "start_ts": "2019-01-15T23:45:00+00:00",
+      "alert_id": "821ad5fe-6903-5d5c-b020-a935c07404b2",
+      "start_ts": "2019-01-16T07:30:00+00:00",
       "area": "A",
       "top_sensors": [
         {
           "sensor_id": "pressure__n506",
-          "contribution": 0.2863
+          "contribution": 0.2855
         },
         {
-          "sensor_id": "flow__PUMP_1",
-          "contribution": 0.0902
+          "sensor_id": "flow__p235",
+          "contribution": 0.1781
         },
         {
-          "sensor_id": "pressure__n229",
-          "contribution": 0.0641
+          "sensor_id": "pressure__n114",
+          "contribution": 0.1725
         }
       ],
-      "kmeans_score_max_at_open": 3.981106195251817,
-      "detection_latency_s": 11.59,
-      "event_time_after_leak_start_h": 0.75,
-      "leak_to_alert_wall_s": 20.76
+      "kmeans_score_max_at_open": 3.3865532539716505,
+      "detection_latency_s": 14.52,
+      "event_time_after_leak_start_h": 8.5,
+      "leak_to_alert_wall_s": 101.18
     }
   ],
-  "alert_versions_published": 11,
+  "alert_versions_published": 3,
   "alert_rows_in_scratch_lake": 1,
   "batch_alerts_in_slice": [
-    "2019-01-15T23:45:00+00:00"
+    "2019-01-16T07:30:00+00:00"
   ],
   "live_alert_starts_match_batch": true,
   "note": "latencies are wall-clock; publish times derived from the replayer's pacing"
