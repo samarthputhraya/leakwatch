@@ -184,6 +184,22 @@ dl:
       gcn_sens: {kind: gcn, closeness: true, context: true, sensitivity: true}
       gat_sens: {kind: gat, closeness: true, context: true, sensitivity: true}
       gcn_sens_no_context: {kind: gcn, closeness: true, context: false, sensitivity: true}
+  # D-044: the system localizer behind every gnn_top5 (batch alerts, live stream, demo, scoring).
+  # Cues: gls (inversion with the sim | real noise covariance), network (trained GNN),
+  # sensor_prior_m (D-042 prior), interpolation; fusion: product (log-scores add) | rank (RRF).
+  localizer: {gls: null, network: true, sensor_prior_m: 300, interpolation: false, fusion: product}
+  localizer_selection:             # `make localizer`: candidates compared on 2018 only
+    ridge_grid: [0.0001, 0.001, 0.01, 0.03, 0.1, 0.3]   # chosen on validation sims (medium + large)
+    interpolation_m: 300           # interpolation cue: weights exp(-pipe distance / this)
+    previous: posterior            # the system before D-044, reported next to the choice
+    candidates:
+      posterior: {gls: null, network: true, sensor_prior_m: 300, interpolation: false, fusion: product}
+      gls_sim: {gls: sim, network: false, sensor_prior_m: null, interpolation: false, fusion: product}
+      gls_real: {gls: real, network: false, sensor_prior_m: null, interpolation: false, fusion: product}
+      gls_sim_prior: {gls: sim, network: false, sensor_prior_m: 300, interpolation: false, fusion: product}
+      gls_real_prior: {gls: real, network: false, sensor_prior_m: 300, interpolation: false, fusion: product}
+      rank_all_sim: {gls: sim, network: true, sensor_prior_m: 300, interpolation: true, fusion: rank}
+      rank_all_real: {gls: real, network: true, sensor_prior_m: 300, interpolation: true, fusion: rank}
 
 demo:
   # PRD §16 live demo (Phase 7): BattLeDIM background + simulated leak signatures (D-025).

@@ -90,12 +90,11 @@ def main(argv: list[str] | None = None) -> int:
     else:
         from leakwatch.dl import gnn
 
-        loaded = gnn.load_localizer()
-        prior = gnn.prior_length(cfg)
+        localizer = gnn.SystemLocalizer(gnn.localizer_config(cfg))
 
         def place(alerts: pd.DataFrame) -> pd.DataFrame:
             times = list(alerts["start_ts"])
-            nodes = gnn.localize_times(times, prior, loaded)
+            nodes = gnn.localize_times(times, localizer)
             rows = [
                 {"ts": t, "link_id": link}
                 for t, n in zip(times, nodes, strict=True)

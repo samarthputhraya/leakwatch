@@ -536,12 +536,11 @@ def main(argv: list[str] | None = None) -> int:
 def _localize_random(
     sets: Sequence[pd.DataFrame], dist: LinkDistances, cfg: Mapping[str, Any]
 ) -> list[pd.DataFrame]:
-    """Detections at the posterior localizer's top node for each set of random alert times."""
+    """Detections at the system localizer's top node for each set of random alert times."""
     from leakwatch.dl import gnn
 
-    loaded = gnn.load_localizer()
     times = [t for s in sets for t in s["start_ts"]]
-    nodes = gnn.localize_times(times, gnn.prior_length(cfg), loaded)
+    nodes = gnn.localize_times(times, gnn.SystemLocalizer(gnn.localizer_config(cfg)))
     out, i = [], 0
     for s in sets:
         rows = []

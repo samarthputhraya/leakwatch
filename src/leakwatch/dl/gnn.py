@@ -555,6 +555,21 @@ def real_leak_benchmark(
 # ------------------------------------------------------------------------------------- main
 
 
+def split_indices(
+    diam: np.ndarray, gcfg: Mapping[str, Any], seed: int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Train / validation / test / unseen-size scenario indices (fixed seed, 70/15/15).
+
+    Scenarios whose diameter lies in ``unseen_diameter_m`` are held out of all three.
+    """
+    lo, hi = (float(v) for v in gcfg["unseen_diameter_m"])
+    unseen = (diam >= lo) & (diam <= hi)
+    rng = np.random.default_rng(seed)
+    idx = rng.permutation(np.flatnonzero(~unseen))
+    n_tr, n_va = int(0.7 * len(idx)), int(0.15 * len(idx))
+    return idx[:n_tr], idx[n_tr : n_tr + n_va], idx[n_tr + n_va :], np.flatnonzero(unseen)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Train/evaluate all localizers, test on BattLeDIM 2019, write gnn_top5 to alerts."""
     parser = argparse.ArgumentParser(description="GNN leak localizer.")
@@ -578,12 +593,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     x, y, diam = ds["x"].astype("float32"), ds["label"].astype("int64"), ds["diameter_m"]
     lo, hi = (float(v) for v in gcfg["unseen_diameter_m"])
-    unseen = (diam >= lo) & (diam <= hi)
-    rng = np.random.default_rng(seed)
-    idx = rng.permutation(np.flatnonzero(~unseen))
-    n_tr, n_va = int(0.7 * len(idx)), int(0.15 * len(idx))
-    tr, va, te = idx[:n_tr], idx[n_tr : n_tr + n_va], idx[n_tr + n_va :]
-    un = np.flatnonzero(unseen)
+    tr, va, te, un = split_indices(diam, gcfg, seed)
     scale = float(np.std(x[tr])) or 1.0
     within = float(gcfg["within_m"])
     edges = [float(v) for v in gcfg["size_buckets_m"]]
@@ -748,21 +758,98 @@ def load_localizer(model_dir: Any = None) -> tuple[GraphData, nn.Module, float, 
     return g, model, float(meta["scale"]), meta
 
 
+def localizer_config(cfg: Mapping[str, Any]) -> dict[str, Any]:
+    """``dl.localizer`` (D-044); without it, the D-042 posterior (network × sensor prior)."""
+    lcfg = cfg["dl"].get("localizer")
+    if lcfg:
+        return dict(lcfg)
+    return {"gls": None, "network": True, "sensor_prior_m": prior_length(cfg), "fusion": "product"}
+
+
+class SystemLocalizer:
+    """The localizer behind every ``gnn_top5``: batch alerts, live stream, demo, scoring (D-044).
+
+    Cues, switched by ``dl.localizer``: the GLS inversion (``dl.inversion``) with the ``sim`` or
+    ``real`` noise covariance, the trained network's log-probability, the most-dropped-sensor prior
+    ``−d / sensor_prior_m`` (D-042) and the model-free interpolation cue. ``fusion: product`` adds
+    the log-scores (a posterior); ``fusion: rank`` uses reciprocal rank fusion instead.
+    """
+
+    def __init__(
+        self,
+        lcfg: Mapping[str, Any],
+        loaded: tuple[GraphData, nn.Module, float, dict] | None = None,
+        inversion: Any = None,
+    ) -> None:
+        """Load the network (always: it carries the graph) and, if used, the inversion model."""
+        from leakwatch.dl.inversion import Inversion, inversion_path
+
+        self.cfg = dict(lcfg)
+        loaded = loaded or load_localizer()
+        if loaded is None:
+            raise FileNotFoundError("no saved localizer: run `make gnn` first")
+        self.g, self.model, self.scale, self.meta = loaded
+        self.inversion = inversion
+        kind = self.cfg.get("gls")
+        if kind and self.inversion is None:
+            path = inversion_path(str(kind))
+            if not path.exists():
+                raise FileNotFoundError(f"{path} missing: run `make localizer` first")
+            self.inversion = Inversion.load(path)
+
+    def cues(self, x: np.ndarray) -> dict[str, np.ndarray]:
+        """Each switched-on cue's (B, N) score for residual inputs ``x`` (B, sensors, 2)."""
+        from leakwatch.dl.inversion import interpolation_scores
+
+        c = self.cfg
+        out: dict[str, np.ndarray] = {}
+        if self.inversion is not None and c.get("gls"):
+            out["gls"] = self.inversion.loglik(x)
+        if c.get("network"):
+            out["network"] = np.log(predict(self.model, self.g, x, self.scale) + 1e-9)
+        if c.get("sensor_prior_m"):
+            out["prior"] = sensor_prior(self.g, x, float(c["sensor_prior_m"]))
+        if c.get("interpolation"):
+            length = float(c.get("interpolation_m", 300.0))
+            out["interpolation"] = interpolation_scores(self.g.dist, self.g.sensor_idx, x, length)
+        if not out:
+            raise ValueError("dl.localizer switches every cue off")
+        return out
+
+    def scores(self, x: np.ndarray) -> np.ndarray:
+        """Fused (B, N) scores; higher is more likely; non-junctions −inf."""
+        from leakwatch.dl.inversion import rank_fusion
+
+        x = np.asarray(x, dtype="float32")
+        cues = self.cues(x)
+        if self.cfg.get("fusion") == "rank":
+            return rank_fusion(cues, self.g.is_junction)
+        total = np.sum(list(cues.values()), axis=0).astype("float64")
+        total[:, ~self.g.is_junction] = -np.inf
+        return total
+
+    def probs(self, x: np.ndarray) -> np.ndarray:
+        """Scores as weights summing to 1 per row (a posterior for ``fusion: product``)."""
+        from leakwatch.dl.inversion import softmax_rows
+
+        s = self.scores(x)
+        if self.cfg.get("fusion") == "rank":
+            s = np.where(np.isfinite(s), s, 0.0)
+            return s / s.sum(axis=1, keepdims=True)
+        return softmax_rows(s)
+
+
 def localize_times(
-    times: list[pd.Timestamp], length_m: float | None, loaded: Any = None
+    times: list[pd.Timestamp], localizer: SystemLocalizer | None = None
 ) -> list[str]:
-    """Top-1 node of the posterior localizer at each time (BattLeDIM re-baselined inputs)."""
+    """Top-1 node of the system localizer at each time (BattLeDIM re-baselined inputs)."""
     from leakwatch.data import network
 
-    loaded = loaded or load_localizer()
-    if loaded is None:
-        raise FileNotFoundError("no saved localizer: run `make gnn` first")
-    g, model, scale, _ = loaded
+    loc = localizer or SystemLocalizer(localizer_config(load_config()))
     if not times:
         return []
-    x = benchmark_inputs(g, times, network.parse_sensor_config()["pressure"])
-    p = posterior(predict(model, g, x, scale), g, x, length_m)
-    return [g.nodes[j] for j in np.argmax(p, axis=1)]
+    x = benchmark_inputs(loc.g, times, network.parse_sensor_config()["pressure"])
+    return [loc.g.nodes[j] for j in np.argmax(loc.scores(x), axis=1)]
 
 
 def write_gnn_top5(
@@ -775,8 +862,8 @@ def write_gnn_top5(
 ) -> int:
     """Append alert versions with ``gnn_top5`` for every current batch alert.
 
-    The candidates are the posterior localizer's (network × sensor prior, ``dl.gnn.sensor_prior_m``,
-    D-042); ``prob`` is the posterior probability.
+    The candidates are the system localizer's (``dl.localizer``, D-044; before it the D-042
+    posterior); ``prob`` is its weight (:meth:`SystemLocalizer.probs`).
     """
     from leakwatch.bdt.data import write_alerts
     from leakwatch.stream.spark import get_spark
@@ -789,8 +876,9 @@ def write_gnn_top5(
     )
     if alerts.empty:
         return 0
+    loc = SystemLocalizer(localizer_config(cfg), loaded=(g, model, scale, {"model": name}))
     xb = benchmark_inputs(g, list(alerts["start_ts"]), sensors)
-    probs = posterior(predict(model, g, xb, scale), g, xb, prior_length(cfg))
+    probs = loc.probs(xb)
     top = np.argsort(-probs, axis=1)[:, :5]
     now = pd.Timestamp(datetime.now(UTC))
     alerts["gnn_top5"] = [
@@ -821,8 +909,8 @@ def make_localizer(model_dir: Any = None) -> Any:
     loaded = load_localizer(model_dir)
     if loaded is None:
         return None
-    g, model, scale, _ = loaded
-    length_m = prior_length(load_config())
+    loc = SystemLocalizer(localizer_config(load_config()), loaded=loaded)
+    g = loc.g
     sensors = network.parse_sensor_config()["pressure"]
     cols = [f"pressure__{s}__residual" for s in sensors]
 
@@ -842,7 +930,7 @@ def make_localizer(model_dir: Any = None) -> Any:
         if x.shape[1] == 1:
             x = np.repeat(x, 2, axis=1)
         xb = np.nan_to_num(x)[None]
-        probs = posterior(predict(model, g, xb, scale), g, xb, length_m)[0]
+        probs = loc.probs(xb)[0]
         top = np.argsort(-probs)[:5]
         return [{"node_id": g.nodes[j], "prob": round(float(probs[j]), 4)} for j in top]
 
