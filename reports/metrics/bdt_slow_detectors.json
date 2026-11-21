@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "generated_at": "2026-11-21T05:44:08+00:00",
+    "git_commit": "b09e50f",
+    "leakwatch_version": "0.1.0",
+    "python": "3.11.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "question": "can a slow detector find the small simulated leaks the live model misses, with no false alarm on 2018 normal data?",
+  "leaks": 180,
+  "night_inflow": {
+    "night_hours_utc": [
+      1,
+      4
+    ],
+    "reference_nights": 7,
+    "normal_nights_2018": 144,
+    "spread_mad_m3h": 7.92,
+    "median_leak_flow_m3h": {
+      "10 mm": 6.41,
+      "20 mm": 26.18,
+      "30 mm": 56.69
+    },
+    "thresholds": {
+      "shewhart_z": 4.467,
+      "cusum": 14.248
+    },
+    "cusum_k": 0.5
+  },
+  "pressure_cusum": {
+    "sensors": 33,
+    "cusum_k": 1.0,
+    "threshold": 1071.578
+  },
+  "threshold_rule": "largest statistic on 2018 normal periods (D-015) x 1.05",
+  "detectors": {
+    "night_shewhart": {
+      "24h": {
+        "detection_rate": 0.3667,
+        "by_diameter_mm": {
+          "10": 0.0,
+          "20": 0.1333,
+          "30": 0.9667
+        }
+      },
+      "72h": {
+        "detection_rate": 0.3778,
+        "by_diameter_mm": {
+          "10": 0.0,
+          "20": 0.15,
+          "30": 0.9833
+        }
+      },
+      "background_alarms": 0
+    },
+    "night_cusum": {
+      "24h": {
+        "detection_rate": 0.0,
+        "by_diameter_mm": {
+          "10": 0.0,
+          "20": 0.0,
+          "30": 0.0
+        }
+      },
+      "72h": {
+        "detection_rate": 0.3056,
+        "by_diameter_mm": {
+          "10": 0.0,
+          "20": 0.05,
+          "30": 0.8667
+        }
+      },
+      "background_alarms": 0
+    },
+    "pressure_cusum": {
+      "24h": {
+        "detection_rate": 0.0778,
+        "by_diameter_mm": {
+          "10": 0.0,
+          "20": 0.0667,
+          "30": 0.1667
+        }
+      },
+      "72h": {
+        "detection_rate": 0.2278,
+        "by_diameter_mm": {
+          "10": 0.0,
+          "20": 0.15,
+          "30": 0.5333
+        }
+      },
+      "background_alarms": 0
+    }
+  },
+  "wall_s": 327.2
+}
