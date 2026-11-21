@@ -14,7 +14,7 @@ PY_DIRS := src tests scripts notebooks
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
 	demo-check bdt-scaling reports test-report prepare llm-local llm-check bdt-synthetic gnn-apply \
-	gnn-prior bdt-fast-path battledim-score mutation localizer bdt-slow
+	gnn-prior bdt-fast-path battledim-score mutation localizer bdt-slow localizer-multileak
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -126,6 +126,9 @@ gnn-apply: ## re-localize the current batch alerts with the saved localizer (aft
 
 localizer: ## GLS inversion + cue fusion; system localizer chosen on 2018 (D-044) -> dl_localizer.json
 	$(RUN) python -m leakwatch.dl.localizer
+
+localizer-multileak: ## localizer candidates on overlapping simulated leaks (D-051) -> dl_localizer_multileak.json
+	$(RUN) python -m leakwatch.dl.multileak
 
 bdt-fast-path: ## fast-path factor of the live model, chosen on 2018 (D-043) -> bdt_fast_path.json
 	$(RUN) python -m leakwatch.bdt.fast_path

@@ -105,13 +105,14 @@ def make_worlds(
 def run_pressures(
     seed: int,
     start_s: int,
-    leak: tuple[str, float] | None = None,
+    leak: tuple[str, float] | Sequence[tuple[str, float]] | None = None,
     world: int | None = None,
     noisy: bool = True,
 ) -> np.ndarray:
     """Sensor pressures (steps × sensors) for one 2 h run with its own demand draw.
 
-    ``world`` applies that perturbed network (roughness, background leaks); ``noisy=False`` keeps
+    ``leak`` is one (junction, diameter) or several (D-051: overlapping leaks); ``world`` applies
+    that perturbed network (roughness, background leaks); ``noisy=False`` keeps
     the nominal demands (sensitivity runs).
     """
     import wntr
@@ -135,9 +136,9 @@ def run_pressures(
             pipe.roughness = pipe.roughness * float(factor)
         for node, diameter in w["background"]:
             coeff[node] = coeff.get(node, 0.0) + emitter(diameter, cd)
-    if leak is not None:
-        node, diameter = leak
-        coeff[node] = coeff.get(node, 0.0) + emitter(diameter, cd)
+    leaks = [] if leak is None else [leak] if isinstance(leak[0], str) else list(leak)
+    for node, diameter in leaks:  # type: ignore[misc]
+        coeff[str(node)] = coeff.get(str(node), 0.0) + emitter(float(diameter), cd)
     for node, c in coeff.items():
         wn.get_node(node).emitter_coefficient = c
     # A unique scratch prefix per run: parallel workers must not share temp.inp/.bin/.rpt.
