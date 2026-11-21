@@ -68,7 +68,8 @@ def setup(spark):
     if not (model_dir / "params.json").exists():
         pytest.skip("needs the trained live model (`make bdt-train`)")
     spec = load_feature_spec(cfg)
-    wide = battledim.load_scada(2018).loc[QUIET_START : QUIET_START + pd.Timedelta(hours=14)]
+    # 20 h: the leak at 06:00 plus the live model's 8 h persistence (D-038) and a margin
+    wide = battledim.load_scada(2018).loc[QUIET_START : QUIET_START + pd.Timedelta(hours=20)]
     baselines = read_baselines(spark, paths.lake_baselines_dir()).cache()
     return {
         "spec": spec,
@@ -131,31 +132,61 @@ def test_bigger_leak_never_lowers_the_score(spark, setup):
     assert (large.to_numpy() >= small.to_numpy() - 1e-6).mean() > 0.9
 
 
-def test_large_simulated_leak_raises_an_alert_quickly(spark, setup):
-    """Simulator as oracle: a ~30 m3/h leak on a quiet day is flagged within 4 windows."""
-    from leakwatch.bdt.alerts import AlertRule, run_alerts
+def model_view(setup, feats: pd.DataFrame) -> pd.DataFrame:
+    """``feats`` as the live model sees them: re-baselined against the lake's preceding days.
 
-    feats = features_of(spark, setup, with_leak(setup["wide"], 0.030))
+    The live stream seeds the same history from the batch features (D-038); rows without a full
+    reference are dropped, so the earlier days only serve as reference.
+    """
+    from leakwatch.bdt.data import load_features
+    from leakwatch.bdt.train import feature_view
+
+    params = setup["scorer"].params
+    if params.meta.get("feature_view") != "rebaselined":
+        return feats
+    cfg, spec = setup["cfg"], setup["spec"]
+    hist = load_features(2018)
+    t0 = feats["window_start"].min()
+    hist = hist[(hist["window_start"] >= t0 - pd.Timedelta(days=9)) & (hist["window_start"] < t0)]
+    keys = ["source", "scenario_id", "window_start", "window_end"]
+    cols = [*keys, *params.feature_columns]
+    both = pd.concat([hist[cols], feats[cols]], ignore_index=True)
+    both["scenario_id"] = both["scenario_id"].astype("object").where(both["scenario_id"].notna())
+    out = feature_view(both, spec, "rebaselined", cfg)
+    return out[out["window_start"] >= t0].reset_index(drop=True)
+
+
+def test_large_simulated_leak_raises_an_alert_as_soon_as_the_rule_allows(spark, setup):
+    """Simulator as oracle: a ~30 m3/h leak on a quiet day is flagged within m + 4 windows.
+
+    m is the live model's persistence (32 windows = 8 h since D-038; the fast path, D-043, may
+    open it sooner). The quiet morning itself raises nothing.
+    """
+    from leakwatch.bdt.alerts import AlertRule, fast_threshold, run_alerts
+
+    feats = model_view(setup, features_of(spark, setup, with_leak(setup["wide"], 0.030)))
     scorer = setup["scorer"]
     scored, shares = scorer.score_frame(feats)
     params = scorer.params
+    m = int(params.persistence_windows)
+    live = str(setup["cfg"]["bdt"]["live_model"])
     rule = AlertRule(
         threshold=float(params.threshold),
-        persistence_windows=int(params.persistence_windows),
+        persistence_windows=m,
         close_after_windows=4,
         top_n=3,
         series_area={s: "A" for s in scorer.series},
         origin="batch",
         model="test",
+        fast_threshold=fast_threshold(setup["cfg"], live, float(params.threshold)),
     )
     alerts = run_alerts(scored, shares, scorer.series, rule)
     fired = alerts[alerts["start_ts"] >= LEAK_AT]
     assert not fired.empty
-    assert fired["start_ts"].min() <= LEAK_AT + pd.Timedelta(hours=1, minutes=15) + pd.Timedelta(
-        minutes=15 * 4
-    )
+    window = pd.Timedelta(seconds=setup["spec"].window_s)
+    assert fired["start_ts"].min() <= LEAK_AT + window + pd.Timedelta(minutes=15 * (m + 4))
     quiet = alerts[alerts["start_ts"] < LEAK_AT]
-    assert quiet.empty  # the quiet morning itself raises nothing
+    assert quiet.empty
 
 
 def test_appending_later_days_does_not_change_earlier_alerts(spark, setup):
