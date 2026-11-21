@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-20T16:56:38+00:00",
-    "git_commit": "cd6b2f4",
+    "generated_at": "2026-11-21T00:38:41+00:00",
+    "git_commit": "a7898f5",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -12,7 +12,7 @@
     "cost_water_eur_m3": 0.8,
     "cost_crew_eur": 500.0
   },
-  "detector": "kmeans_residual_ci",
+  "detector": "kmeans_rebaselined",
   "perfect_submission_2019": {
     "total_score_eur": 523153.82,
     "paper_table4_eur": 523154
@@ -55,2045 +55,279 @@
       "score_eur": 127626
     }
   ],
+  "placement_rule": "the placement with the best 2018 score (localizer on a tie), D-041",
+  "placements": {
+    "localizer": {
+      "2018": {
+        "total_score_eur": 68059.51,
+        "true_positives": 6,
+        "false_positives": 31,
+        "detections": 45,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": 160576.58,
+        "true_positives": 13,
+        "false_positives": 155,
+        "detections": 196,
+        "alerts": 196
+      }
+    },
+    "sensor_drop": {
+      "2018": {
+        "total_score_eur": 50230.81,
+        "true_positives": 4,
+        "false_positives": 32,
+        "detections": 45,
+        "alerts": 45
+      },
+      "2019": {
+        "total_score_eur": 140857.86,
+        "true_positives": 13,
+        "false_positives": 139,
+        "detections": 196,
+        "alerts": 196
+      }
+    }
+  },
+  "placement": "localizer",
+  "revisit_rule": {
+    "rule": "no second report at a pipe within d days of the last one kept there; d with the best 2018 score, ties to the shorter window (D-042)",
+    "scores_2018": {
+      "0": 68059.51,
+      "3": 71059.51,
+      "7": 71559.51,
+      "14": 73559.51,
+      "30": 75559.51
+    },
+    "chosen_days": 30.0
+  },
+  "carry_forward": {
+    "enabled": true,
+    "previous_reports": 24,
+    "closed_by_a_repair": 9,
+    "open_pipes": [
+      "p254",
+      "p147",
+      "p660",
+      "p295",
+      "p296",
+      "p144",
+      "p89",
+      "p346",
+      "p291",
+      "p701",
+      "p468",
+      "p253"
+    ],
+    "reported_at": "2019-01-01T00:05:00+00:00"
+  },
+  "steps_2019": {
+    "placement_only": 160576.58,
+    "with_revisit_rule": 217076.58,
+    "with_carry_forward": 235933.37
+  },
+  "random_baseline": {
+    "2018": {
+      "draws": 200,
+      "alerts_per_draw": 45,
+      "mean_eur": 58690.54,
+      "p95_eur": 83330.95,
+      "max_eur": 105348.75,
+      "system_eur": 75559.51,
+      "p_value": 0.1443
+    },
+    "2019": {
+      "draws": 200,
+      "alerts_per_draw": 196,
+      "mean_eur": 228929.76,
+      "p95_eur": 285871.45,
+      "max_eur": 331077.32,
+      "system_eur": 217076.58,
+      "p_value": 0.597
+    }
+  },
   "years": {
     "2018": {
       "role": "development (rules applied to 2018)",
-      "total_score_eur": 27541.39,
-      "true_positives": 10,
-      "false_positives": 202,
-      "false_negatives": 4,
-      "repeated_detections": 79,
-      "tp_rate": 0.7143,
+      "placement": "localizer",
+      "revisit_days": 30.0,
+      "total_score_eur": 75559.51,
+      "true_positives": 6,
+      "false_positives": 16,
+      "false_negatives": 8,
+      "repeated_detections": 2,
+      "tp_rate": 0.4286,
       "leaks": 14,
-      "detections": 291,
+      "detections": 24,
       "detected_leaks": [
         "p257",
-        "p461",
-        "p232",
-        "p628",
-        "p654",
-        "p427",
-        "p183",
-        "p810",
-        "p158",
-        "p369"
-      ],
-      "missed_leaks": [
         "p673",
         "p538",
-        "p866",
-        "p31"
+        "p31",
+        "p183",
+        "p158"
       ],
-      "alerts": 291,
-      "localized_by": {
-        "localizer": 291
-      },
+      "missed_leaks": [
+        "p461",
+        "p232",
+        "p427",
+        "p628",
+        "p866",
+        "p654",
+        "p810",
+        "p369"
+      ],
+      "alerts": 45,
+      "carried_forward": 0,
       "per_detection": [
         {
-          "link_id": "p227",
-          "ts": "2018-01-01T02:45:00+00:00",
+          "link_id": "p240",
+          "ts": "2018-01-08T04:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p227",
-          "ts": "2018-01-02T03:15:00+00:00",
+          "link_id": "p79",
+          "ts": "2018-01-08T16:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p227",
-          "ts": "2018-01-03T02:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-03T14:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-03T19:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-04T04:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-04T13:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-05T03:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-05T20:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-06T16:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-06T23:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-07T08:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-07T11:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-01-07T23:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2018-01-08T08:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p27",
-          "ts": "2018-01-08T23:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2018-01-09T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p279",
-          "ts": "2018-01-10T00:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-01-11T01:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-01-12T00:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p82",
-          "ts": "2018-01-13T03:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p807",
-          "ts": "2018-01-14T02:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-01-14T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p12",
-          "ts": "2018-01-14T20:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-01-16T03:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-01-16T14:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p12",
-          "ts": "2018-01-16T18:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p276",
-          "ts": "2018-01-17T14:00:00+00:00",
+          "link_id": "p254",
+          "ts": "2018-01-09T05:00:00+00:00",
           "leak": "p257",
-          "distance_m": 222.3,
-          "score_eur": 44281.85,
+          "distance_m": 146.1,
+          "score_eur": 44521.56,
           "label": "tp",
-          "delay_h": 216.5,
-          "water_saved_m3": 55815.4
+          "delay_h": 15.5,
+          "water_saved_m3": 55956.4
         },
         {
-          "link_id": "p267",
-          "ts": "2018-01-17T18:45:00+00:00",
+          "link_id": "p147",
+          "ts": "2018-01-09T17:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p410",
-          "ts": "2018-01-19T03:30:00+00:00",
+          "link_id": "p660",
+          "ts": "2018-02-04T00:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p443",
-          "ts": "2018-01-21T04:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p240",
-          "ts": "2018-01-23T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-01-25T05:30:00+00:00",
+          "link_id": "p295",
+          "ts": "2018-02-10T18:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p257",
-          "ts": "2018-01-26T03:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-01-26T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p441",
-          "ts": "2018-01-27T04:00:00+00:00",
-          "leak": "p461",
-          "distance_m": 271.2,
-          "score_eur": 15207.76,
+          "link_id": "p674",
+          "ts": "2018-03-05T23:45:00+00:00",
+          "leak": "p673",
+          "distance_m": 44.2,
+          "score_eur": 9442.87,
           "label": "tp",
-          "delay_h": 95.58,
-          "water_saved_m3": 19574.6
-        },
-        {
-          "link_id": "p451",
-          "ts": "2018-01-30T04:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-01-31T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p405",
-          "ts": "2018-02-02T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p609",
-          "ts": "2018-02-02T09:45:00+00:00",
-          "leak": "p232",
-          "distance_m": 53.3,
-          "score_eur": 3672.79,
-          "label": "tp",
-          "delay_h": 55.17,
-          "water_saved_m3": 4702.1
-        },
-        {
-          "link_id": "p441",
-          "ts": "2018-02-03T17:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p634",
-          "ts": "2018-02-03T19:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p594",
-          "ts": "2018-02-04T08:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p430",
-          "ts": "2018-02-04T14:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p609",
-          "ts": "2018-02-04T19:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p607",
-          "ts": "2018-02-05T02:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p430",
-          "ts": "2018-02-05T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p611",
-          "ts": "2018-02-05T20:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p430",
-          "ts": "2018-02-06T15:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p609",
-          "ts": "2018-02-06T17:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p611",
-          "ts": "2018-02-06T20:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p545",
-          "ts": "2018-02-07T06:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p563",
-          "ts": "2018-02-07T13:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p609",
-          "ts": "2018-02-07T21:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p441",
-          "ts": "2018-02-08T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p594",
-          "ts": "2018-02-08T08:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p430",
-          "ts": "2018-02-08T14:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p609",
-          "ts": "2018-02-08T17:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p430",
-          "ts": "2018-02-08T20:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p609",
-          "ts": "2018-02-09T15:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p609",
-          "ts": "2018-02-09T17:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p614",
-          "ts": "2018-02-09T19:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p611",
-          "ts": "2018-02-09T20:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-02-11T10:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-02-13T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p5",
-          "ts": "2018-02-15T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p27",
-          "ts": "2018-02-16T02:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-02-17T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p872",
-          "ts": "2018-02-18T04:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p859",
-          "ts": "2018-02-19T13:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p295",
-          "ts": "2018-02-19T15:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-02-20T06:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p461",
-          "ts": "2018-02-21T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p95",
-          "ts": "2018-02-21T08:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p438",
-          "ts": "2018-02-22T08:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p452",
-          "ts": "2018-02-23T16:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p450",
-          "ts": "2018-02-24T16:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p493",
-          "ts": "2018-02-25T15:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p240",
-          "ts": "2018-02-26T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-02-26T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p12",
-          "ts": "2018-02-26T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-02-27T02:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-02-27T15:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p438",
-          "ts": "2018-02-27T16:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-02-28T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p353",
-          "ts": "2018-02-28T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p454",
-          "ts": "2018-02-28T20:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p441",
-          "ts": "2018-03-01T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-03-01T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p497",
-          "ts": "2018-03-01T17:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p455",
-          "ts": "2018-03-01T19:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p295",
-          "ts": "2018-03-02T08:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p353",
-          "ts": "2018-03-02T16:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p726",
-          "ts": "2018-03-02T17:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p853",
-          "ts": "2018-03-03T17:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p497",
-          "ts": "2018-03-03T22:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p455",
-          "ts": "2018-03-04T15:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p470",
-          "ts": "2018-03-05T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-04-06T10:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p393",
-          "ts": "2018-04-07T11:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-04-10T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p295",
-          "ts": "2018-04-12T13:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-04-13T06:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p441",
-          "ts": "2018-04-16T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p27",
-          "ts": "2018-04-18T11:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-04-19T10:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p27",
-          "ts": "2018-04-23T03:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p448",
-          "ts": "2018-04-23T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p508",
-          "ts": "2018-04-23T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p295",
-          "ts": "2018-04-26T06:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-05-02T10:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p336",
-          "ts": "2018-05-03T10:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p240",
-          "ts": "2018-05-04T03:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p295",
-          "ts": "2018-05-09T07:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p602",
-          "ts": "2018-05-10T11:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p634",
-          "ts": "2018-05-11T03:00:00+00:00",
-          "leak": "p628",
-          "distance_m": 176.2,
-          "score_eur": 11113.66,
-          "label": "tp",
-          "delay_h": 204.08,
-          "water_saved_m3": 14259.1
-        },
-        {
-          "link_id": "p403",
-          "ts": "2018-05-13T04:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p430",
-          "ts": "2018-05-13T06:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p4",
-          "ts": "2018-05-13T16:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p634",
-          "ts": "2018-05-14T04:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p634",
-          "ts": "2018-05-14T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p110",
-          "ts": "2018-06-12T11:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-06-15T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "delay_h": 8.0,
+          "water_saved_m3": 11895.7
         },
         {
           "link_id": "p296",
-          "ts": "2018-06-17T03:30:00+00:00",
+          "ts": "2018-03-23T18:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p257",
-          "ts": "2018-06-17T07:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p27",
-          "ts": "2018-06-18T13:30:00+00:00",
+          "link_id": "p251",
+          "ts": "2018-05-15T05:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p257",
-          "ts": "2018-06-23T11:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p540",
-          "ts": "2018-06-25T09:30:00+00:00",
+          "link_id": "p144",
+          "ts": "2018-05-15T22:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p363",
-          "ts": "2018-06-25T13:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p905",
-          "ts": "2018-06-26T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-06-27T10:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-06-28T03:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-06-30T07:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p86",
-          "ts": "2018-07-02T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p62",
-          "ts": "2018-07-04T11:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-07-05T02:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p373",
-          "ts": "2018-07-05T07:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p614",
-          "ts": "2018-07-06T10:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-07-07T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-07-07T17:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p42",
-          "ts": "2018-07-08T07:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-07-10T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p369",
-          "ts": "2018-07-10T12:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p86",
-          "ts": "2018-07-11T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p872",
-          "ts": "2018-07-12T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p807",
-          "ts": "2018-07-12T07:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p295",
-          "ts": "2018-07-13T06:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p692",
-          "ts": "2018-07-15T07:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p654",
-          "ts": "2018-07-16T01:00:00+00:00",
-          "leak": "p654",
-          "distance_m": 0.0,
-          "score_eur": 13625.36,
+          "link_id": "p226",
+          "ts": "2018-05-18T16:45:00+00:00",
+          "leak": "p538",
+          "distance_m": 237.3,
+          "score_eur": 8673.34,
           "label": "tp",
-          "delay_h": 261.33,
-          "water_saved_m3": 17031.7
+          "delay_h": 8.17,
+          "water_saved_m3": 11336.1
         },
         {
-          "link_id": "p373",
-          "ts": "2018-07-17T05:00:00+00:00",
+          "link_id": "p89",
+          "ts": "2018-05-23T15:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p537",
-          "ts": "2018-07-17T09:30:00+00:00",
+          "link_id": "p147",
+          "ts": "2018-05-30T05:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p267",
-          "ts": "2018-07-18T04:30:00+00:00",
+          "link_id": "p147",
+          "ts": "2018-07-05T15:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p42",
-          "ts": "2018-07-18T07:30:00+00:00",
+          "link_id": "p346",
+          "ts": "2018-07-08T15:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p6",
-          "ts": "2018-07-21T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2018-07-21T10:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p759",
-          "ts": "2018-07-22T08:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2018-07-24T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p321",
-          "ts": "2018-07-24T12:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-07-25T00:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-07-25T07:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-07-26T06:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2018-07-28T03:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p408",
-          "ts": "2018-07-28T09:45:00+00:00",
-          "leak": "p427",
-          "distance_m": 273.3,
-          "score_eur": 14675.71,
+          "link_id": "p240",
+          "ts": "2018-07-09T08:00:00+00:00",
+          "leak": "p31",
+          "distance_m": 263.2,
+          "score_eur": 6079.89,
           "label": "tp",
-          "delay_h": 3961.33,
-          "water_saved_m3": 18914.0
+          "delay_h": 261.42,
+          "water_saved_m3": 8148.2
         },
         {
-          "link_id": "p82",
-          "ts": "2018-07-29T02:00:00+00:00",
+          "link_id": "p291",
+          "ts": "2018-07-20T03:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p86",
-          "ts": "2018-07-29T03:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p42",
-          "ts": "2018-07-29T20:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-07-30T16:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-07-31T18:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-08-01T20:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p614",
-          "ts": "2018-08-02T18:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-08-03T20:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p381",
-          "ts": "2018-08-05T05:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p410",
-          "ts": "2018-08-05T07:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-08-06T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p654",
-          "ts": "2018-08-06T21:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2018-08-12T19:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-08-13T08:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-08-14T04:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p91",
-          "ts": "2018-08-14T08:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-08-14T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p86",
-          "ts": "2018-08-15T08:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p582",
-          "ts": "2018-08-15T18:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p87",
-          "ts": "2018-08-16T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p91",
-          "ts": "2018-08-16T10:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p83",
-          "ts": "2018-08-16T16:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-08-17T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p125",
-          "ts": "2018-08-17T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p531",
-          "ts": "2018-08-18T03:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-08-18T05:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p86",
-          "ts": "2018-08-18T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p520",
-          "ts": "2018-08-18T17:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p582",
-          "ts": "2018-08-19T08:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-08-19T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-08-19T15:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p905",
-          "ts": "2018-08-20T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p862",
-          "ts": "2018-08-20T07:30:00+00:00",
-          "leak": "p183",
-          "distance_m": 109.4,
-          "score_eur": 3698.66,
-          "label": "tp",
-          "delay_h": 316.92,
-          "water_saved_m3": 4851.3
-        },
-        {
-          "link_id": "p227",
-          "ts": "2018-08-21T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p5",
-          "ts": "2018-08-21T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-08-22T03:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p872",
-          "ts": "2018-08-22T08:15:00+00:00",
-          "leak": "p810",
-          "distance_m": 128.0,
-          "score_eur": 11764.71,
-          "label": "tp",
-          "delay_h": 605.17,
-          "water_saved_m3": 14972.6
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-08-22T16:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p890",
-          "ts": "2018-08-23T08:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p443",
-          "ts": "2018-08-23T16:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p890",
-          "ts": "2018-08-24T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-08-24T13:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-08-24T15:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p71",
-          "ts": "2018-08-25T11:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p851",
-          "ts": "2018-08-25T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p441",
-          "ts": "2018-08-25T17:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-08-25T18:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-08-25T19:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p589",
-          "ts": "2018-08-26T10:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p450",
-          "ts": "2018-08-26T15:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-08-26T20:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p454",
-          "ts": "2018-08-27T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p295",
-          "ts": "2018-08-27T08:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p807",
-          "ts": "2018-08-28T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-08-29T03:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p253",
-          "ts": "2018-08-29T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p5",
-          "ts": "2018-08-29T12:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p324",
-          "ts": "2018-08-29T14:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p545",
-          "ts": "2018-08-29T17:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p807",
-          "ts": "2018-08-30T07:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p87",
-          "ts": "2018-08-30T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-08-31T10:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p253",
-          "ts": "2018-08-31T12:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p82",
-          "ts": "2018-08-31T22:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-09-01T10:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-09-03T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p373",
-          "ts": "2018-09-11T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2018-09-12T12:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-09-13T04:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-09-16T08:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p851",
-          "ts": "2018-09-19T12:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p298",
-          "ts": "2018-09-20T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p369",
-          "ts": "2018-09-23T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p905",
-          "ts": "2018-09-24T04:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-09-29T08:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2018-09-30T13:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p12",
-          "ts": "2018-10-04T13:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-10-05T04:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p702",
-          "ts": "2018-10-06T03:30:00+00:00",
-          "leak": "p158",
-          "distance_m": 215.3,
-          "score_eur": 7819.56,
-          "label": "tp",
-          "delay_h": 0.92,
-          "water_saved_m3": 10223.0
-        },
-        {
-          "link_id": "p718",
-          "ts": "2018-10-06T08:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p718",
-          "ts": "2018-10-07T06:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p746",
-          "ts": "2018-10-10T06:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p718",
-          "ts": "2018-10-11T06:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p214",
-          "ts": "2018-10-13T08:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p5",
-          "ts": "2018-10-15T07:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p451",
-          "ts": "2018-10-17T06:00:00+00:00",
+          "link_id": "p701",
+          "ts": "2018-07-20T17:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
@@ -2101,385 +335,99 @@
         },
         {
           "link_id": "p468",
-          "ts": "2018-10-17T07:15:00+00:00",
+          "ts": "2018-07-25T16:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p494",
-          "ts": "2018-10-18T07:15:00+00:00",
+          "link_id": "p147",
+          "ts": "2018-08-04T18:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p7",
-          "ts": "2018-10-19T07:30:00+00:00",
+          "link_id": "p347",
+          "ts": "2018-08-08T12:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p267",
-          "ts": "2018-10-20T07:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p253",
-          "ts": "2018-10-20T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p83",
-          "ts": "2018-10-21T06:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p403",
-          "ts": "2018-10-26T03:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-10-26T11:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p344",
-          "ts": "2018-10-27T16:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p240",
-          "ts": "2018-10-28T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p353",
-          "ts": "2018-10-28T10:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p344",
-          "ts": "2018-10-28T15:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-10-29T14:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-10-30T10:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p240",
-          "ts": "2018-10-30T12:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2018-10-30T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p410",
-          "ts": "2018-10-31T10:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p410",
-          "ts": "2018-10-31T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p408",
-          "ts": "2018-11-01T10:15:00+00:00",
-          "leak": "p369",
-          "distance_m": 151.1,
-          "score_eur": 2681.33,
+          "link_id": "p856",
+          "ts": "2018-08-09T14:45:00+00:00",
+          "leak": "p183",
+          "distance_m": 55.6,
+          "score_eur": 7133.69,
           "label": "tp",
-          "delay_h": 152.17,
-          "water_saved_m3": 3666.4
+          "delay_h": 60.17,
+          "water_saved_m3": 9032.8
         },
         {
-          "link_id": "p403",
-          "ts": "2018-11-01T14:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p450",
-          "ts": "2018-11-02T12:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2018-11-03T11:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-11-03T17:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p106",
-          "ts": "2018-11-04T12:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p5",
-          "ts": "2018-11-04T15:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p336",
-          "ts": "2018-11-05T05:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2018-11-05T11:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p905",
-          "ts": "2018-11-05T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-11-06T11:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-11-07T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p369",
-          "ts": "2018-11-07T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p161",
-          "ts": "2018-11-08T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "link_id": "p53",
+          "ts": "2018-10-06T23:45:00+00:00",
+          "leak": "p158",
+          "distance_m": 44.3,
+          "score_eur": 7708.16,
+          "label": "tp",
+          "delay_h": 21.17,
+          "water_saved_m3": 9727.5
         },
         {
           "link_id": "p253",
-          "ts": "2018-11-08T12:00:00+00:00",
+          "ts": "2018-10-26T10:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2018-11-08T13:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p254",
-          "ts": "2018-11-13T12:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-11-14T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-11-18T04:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p369",
-          "ts": "2018-12-06T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2018-12-06T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p353",
-          "ts": "2018-12-16T13:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2018-12-17T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2018-12-30T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
         }
       ]
     },
     "2019": {
       "role": "test (official)",
-      "total_score_eur": 216536.21,
-      "true_positives": 9,
-      "false_positives": 116,
-      "false_negatives": 14,
-      "repeated_detections": 35,
-      "tp_rate": 0.3913,
+      "placement": "localizer",
+      "revisit_days": 30.0,
+      "total_score_eur": 235933.37,
+      "true_positives": 14,
+      "false_positives": 50,
+      "false_negatives": 9,
+      "repeated_detections": 19,
+      "tp_rate": 0.6087,
       "leaks": 23,
-      "detections": 160,
+      "detections": 83,
       "detected_leaks": [
         "p257",
-        "p810",
-        "p523",
-        "p280",
-        "p427",
-        "p710",
-        "p514",
-        "p331",
-        "p277"
-      ],
-      "missed_leaks": [
         "p654",
+        "p523",
         "p827",
         "p653",
-        "p193",
-        "p142",
+        "p280",
+        "p710",
+        "p277",
         "p680",
-        "p586",
         "p721",
+        "p586",
         "p800",
-        "p123",
-        "p455",
         "p762",
-        "p426",
         "p879"
       ],
-      "alerts": 160,
-      "localized_by": {
-        "localizer": 160
-      },
+      "missed_leaks": [
+        "p427",
+        "p810",
+        "p514",
+        "p331",
+        "p193",
+        "p142",
+        "p123",
+        "p455",
+        "p426"
+      ],
+      "alerts": 196,
+      "carried_forward": 12,
       "rank_among_top6": 3,
       "above_all_tabulated": false,
       "below_tabulated": false,
@@ -2487,886 +435,446 @@
       "teams_in_competition": 18,
       "per_detection": [
         {
-          "link_id": "p6",
-          "ts": "2019-01-01T13:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p564",
-          "ts": "2019-01-03T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p494",
-          "ts": "2019-01-04T04:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p742",
-          "ts": "2019-01-04T07:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2019-01-05T04:00:00+00:00",
+          "link_id": "p254",
+          "ts": "2019-01-01T00:05:00+00:00",
           "leak": "p257",
-          "distance_m": 0.0,
-          "score_eur": 46532.17,
+          "distance_m": 146.1,
+          "score_eur": 46828.13,
           "label": "tp",
-          "delay_h": 8678.5,
-          "water_saved_m3": 58165.2
+          "delay_h": 8578.58,
+          "water_saved_m3": 58839.6
         },
         {
-          "link_id": "p494",
-          "ts": "2019-01-06T07:00:00+00:00",
+          "link_id": "p147",
+          "ts": "2019-01-01T00:05:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p35",
-          "ts": "2019-01-06T18:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p554",
-          "ts": "2019-01-07T13:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p582",
-          "ts": "2019-01-08T13:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p448",
-          "ts": "2019-01-10T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p110",
-          "ts": "2019-01-11T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p809",
-          "ts": "2019-01-11T07:00:00+00:00",
-          "leak": "p810",
-          "distance_m": 47.0,
-          "score_eur": 46305.29,
+          "link_id": "p660",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": "p654",
+          "distance_m": 297.9,
+          "score_eur": 37374.62,
           "label": "tp",
-          "delay_h": 4011.92,
-          "water_saved_m3": 57979.6
-        },
-        {
-          "link_id": "p905",
-          "ts": "2019-01-13T06:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p91",
-          "ts": "2019-01-14T13:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-01-15T13:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p200",
-          "ts": "2019-01-15T23:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p494",
-          "ts": "2019-01-18T05:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p508",
-          "ts": "2019-01-19T05:15:00+00:00",
-          "leak": "p523",
-          "distance_m": 151.1,
-          "score_eur": 6888.09,
-          "label": "tp",
-          "delay_h": 78.25,
-          "water_saved_m3": 8924.9
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-02T06:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-03T07:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-07T05:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-08T03:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-08T07:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p110",
-          "ts": "2019-02-08T13:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-09T03:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p110",
-          "ts": "2019-02-10T06:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-10T16:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p5",
-          "ts": "2019-02-11T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p353",
-          "ts": "2019-02-11T08:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-11T22:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p386",
-          "ts": "2019-02-12T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-13T02:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p386",
-          "ts": "2019-02-13T12:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p353",
-          "ts": "2019-02-14T05:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p373",
-          "ts": "2019-02-15T06:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-02-16T00:00:00+00:00",
-          "leak": "p280",
-          "distance_m": 239.9,
-          "score_eur": 31366.73,
-          "label": "tp",
-          "delay_h": 130.92,
-          "water_saved_m3": 39708.2
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-02-16T12:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p27",
-          "ts": "2019-02-17T03:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2019-02-19T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-02-19T13:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p408",
-          "ts": "2019-02-20T05:00:00+00:00",
-          "leak": "p427",
-          "distance_m": 273.3,
-          "score_eur": 29680.2,
-          "label": "tp",
-          "delay_h": 8924.58,
-          "water_saved_m3": 37669.6
-        },
-        {
-          "link_id": "p257",
-          "ts": "2019-02-21T08:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p893",
-          "ts": "2019-02-21T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p82",
-          "ts": "2019-02-22T06:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p520",
-          "ts": "2019-02-23T12:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p298",
-          "ts": "2019-02-24T03:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-02-26T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-02-26T08:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-02-26T23:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-02-27T12:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p86",
-          "ts": "2019-02-28T02:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-02-28T06:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p276",
-          "ts": "2019-03-01T06:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-03-01T10:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p279",
-          "ts": "2019-03-01T12:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p91",
-          "ts": "2019-03-02T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p766",
-          "ts": "2019-03-03T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-03-03T16:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p905",
-          "ts": "2019-03-04T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2019-03-04T12:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2019-03-05T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2019-03-06T01:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2019-03-06T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p807",
-          "ts": "2019-03-07T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-03-08T03:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-03-08T06:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2019-03-08T22:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-03-09T08:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-03-10T01:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-03-11T09:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p12",
-          "ts": "2019-03-11T12:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p251",
-          "ts": "2019-03-12T13:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p742",
-          "ts": "2019-03-13T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p756",
-          "ts": "2019-03-13T08:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2019-03-14T01:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-03-14T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p520",
-          "ts": "2019-03-14T21:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p582",
-          "ts": "2019-03-16T03:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-03-17T02:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p766",
-          "ts": "2019-03-17T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-03-17T17:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-03-18T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-03-19T08:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p520",
-          "ts": "2019-03-20T01:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p868",
-          "ts": "2019-03-21T02:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p418",
-          "ts": "2019-03-21T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p675",
-          "ts": "2019-03-23T09:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p520",
-          "ts": "2019-03-23T12:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p443",
-          "ts": "2019-03-24T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p746",
-          "ts": "2019-03-25T04:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p859",
-          "ts": "2019-03-25T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p251",
-          "ts": "2019-03-25T12:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p267",
-          "ts": "2019-03-25T16:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p807",
-          "ts": "2019-03-26T04:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p66",
-          "ts": "2019-03-26T07:45:00+00:00",
-          "leak": "p710",
-          "distance_m": 149.6,
-          "score_eur": 29216.46,
-          "label": "tp",
-          "delay_h": 41.5,
-          "water_saved_m3": 36832.1
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-03-26T21:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p5",
-          "ts": "2019-03-28T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p564",
-          "ts": "2019-03-29T06:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-03-29T10:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p388",
-          "ts": "2019-03-30T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p410",
-          "ts": "2019-03-30T07:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2019-03-31T02:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p427",
-          "ts": "2019-03-31T04:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-03-31T23:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p520",
-          "ts": "2019-04-02T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p872",
-          "ts": "2019-04-03T04:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p520",
-          "ts": "2019-04-03T09:15:00+00:00",
-          "leak": "p514",
-          "distance_m": 283.4,
-          "score_eur": 14417.27,
-          "label": "tp",
-          "delay_h": 12.58,
-          "water_saved_m3": 18612.0
+          "delay_h": 4316.42,
+          "water_saved_m3": 47338.9
         },
         {
           "link_id": "p295",
-          "ts": "2019-04-03T19:00:00+00:00",
+          "ts": "2019-01-01T00:05:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p6",
-          "ts": "2019-04-04T01:00:00+00:00",
+          "link_id": "p296",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p144",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p89",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p346",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p291",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p701",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p468",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p253",
+          "ts": "2019-01-01T00:05:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p523",
+          "ts": "2019-01-16T07:30:00+00:00",
+          "leak": "p523",
+          "distance_m": 0.0,
+          "score_eur": 8712.18,
+          "label": "tp",
+          "delay_h": 8.5,
+          "water_saved_m3": 10890.2
+        },
+        {
+          "link_id": "p822",
+          "ts": "2019-01-25T03:00:00+00:00",
+          "leak": "p827",
+          "distance_m": 254.1,
+          "score_eur": 6248.62,
+          "label": "tp",
+          "delay_h": 8.5,
+          "water_saved_m3": 8340.2
+        },
+        {
+          "link_id": "p147",
+          "ts": "2019-02-01T18:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p253",
+          "ts": "2019-02-07T12:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-02-13T10:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p346",
+          "ts": "2019-02-15T14:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p147",
+          "ts": "2019-03-13T14:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-03-16T12:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p346",
+          "ts": "2019-03-18T12:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p657",
+          "ts": "2019-03-21T15:00:00+00:00",
+          "leak": "p653",
+          "distance_m": 204.4,
+          "score_eur": 9833.92,
+          "label": "tp",
+          "delay_h": 433.83,
+          "water_saved_m3": 12718.2
+        },
+        {
+          "link_id": "p347",
+          "ts": "2019-04-12T10:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p254",
+          "ts": "2019-04-13T07:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p147",
+          "ts": "2019-04-17T15:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p346",
+          "ts": "2019-04-18T14:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p378",
+          "ts": "2019-04-22T08:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-04-23T07:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p299",
+          "ts": "2019-05-05T04:45:00+00:00",
+          "leak": "p280",
+          "distance_m": 43.6,
+          "score_eur": 23895.3,
+          "label": "tp",
+          "delay_h": 2007.67,
+          "water_saved_m3": 29959.9
+        },
+        {
+          "link_id": "p79",
+          "ts": "2019-05-13T15:30:00+00:00",
+          "leak": "p710",
+          "distance_m": 280.0,
+          "score_eur": 23895.5,
+          "label": "tp",
+          "delay_h": 1201.25,
+          "water_saved_m3": 30452.8
+        },
+        {
+          "link_id": "p346",
+          "ts": "2019-05-21T15:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p12",
+          "ts": "2019-05-24T00:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p147",
+          "ts": "2019-05-26T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p292",
+          "ts": "2019-06-01T06:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p347",
+          "ts": "2019-06-07T14:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p701",
+          "ts": "2019-06-08T13:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p569",
+          "ts": "2019-06-10T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p346",
+          "ts": "2019-06-25T15:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-06-28T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p347",
+          "ts": "2019-07-08T09:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p701",
+          "ts": "2019-07-10T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p251",
+          "ts": "2019-07-12T04:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p298",
+          "ts": "2019-07-17T17:00:00+00:00",
+          "leak": "p277",
+          "distance_m": 172.2,
+          "score_eur": 21856.68,
+          "label": "tp",
+          "delay_h": 1147.08,
+          "water_saved_m3": 27679.6
+        },
+        {
+          "link_id": "p147",
+          "ts": "2019-07-22T15:30:00+00:00",
+          "leak": "p680",
+          "distance_m": 275.9,
+          "score_eur": 16256.17,
+          "label": "tp",
+          "delay_h": 294.75,
+          "water_saved_m3": 20895.1
+        },
+        {
+          "link_id": "p7",
+          "ts": "2019-07-26T07:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p346",
+          "ts": "2019-07-27T09:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p292",
+          "ts": "2019-07-31T05:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p79",
+          "ts": "2019-08-04T09:00:00+00:00",
+          "leak": "p721",
+          "distance_m": 279.1,
+          "score_eur": 28612.61,
+          "label": "tp",
+          "delay_h": 54.0,
+          "water_saved_m3": 36347.2
+        },
+        {
+          "link_id": "p569",
+          "ts": "2019-08-05T15:45:00+00:00",
+          "leak": "p586",
+          "distance_m": 109.7,
+          "score_eur": 11246.82,
+          "label": "tp",
+          "delay_h": 241.08,
+          "water_saved_m3": 14287.1
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-08-07T04:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p347",
+          "ts": "2019-08-08T09:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p676",
+          "ts": "2019-08-11T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p567",
+          "ts": "2019-08-12T16:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
@@ -3374,297 +882,97 @@
         },
         {
           "link_id": "p254",
-          "ts": "2019-04-04T03:15:00+00:00",
+          "ts": "2019-08-28T07:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p35",
-          "ts": "2019-04-06T01:45:00+00:00",
+          "link_id": "p346",
+          "ts": "2019-08-29T08:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p564",
-          "ts": "2019-04-06T22:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p531",
-          "ts": "2019-04-07T02:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-04-07T10:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2019-04-07T14:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p389",
-          "ts": "2019-04-08T01:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p520",
-          "ts": "2019-04-11T03:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p42",
-          "ts": "2019-04-11T16:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p772",
-          "ts": "2019-04-15T01:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p418",
-          "ts": "2019-04-15T19:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p772",
-          "ts": "2019-04-15T21:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p78",
-          "ts": "2019-04-16T01:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p373",
-          "ts": "2019-04-16T17:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p46",
-          "ts": "2019-04-16T23:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p86",
-          "ts": "2019-05-08T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2019-05-08T09:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p7",
-          "ts": "2019-05-08T18:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p370",
-          "ts": "2019-05-09T02:15:00+00:00",
-          "leak": "p331",
-          "distance_m": 259.6,
-          "score_eur": 47517.72,
+          "link_id": "p181",
+          "ts": "2019-08-31T10:00:00+00:00",
+          "leak": "p800",
+          "distance_m": 80.8,
+          "score_eur": 11957.49,
           "label": "tp",
-          "delay_h": 448.08,
-          "water_saved_m3": 59938.0
+          "delay_h": 356.0,
+          "water_saved_m3": 15115.2
         },
         {
-          "link_id": "p62",
-          "ts": "2019-05-12T00:00:00+00:00",
+          "link_id": "p12",
+          "ts": "2019-09-01T07:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p388",
-          "ts": "2019-05-12T21:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p766",
-          "ts": "2019-05-13T01:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p739",
-          "ts": "2019-05-15T17:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p831",
-          "ts": "2019-05-16T02:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p416",
-          "ts": "2019-05-16T18:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p784",
-          "ts": "2019-05-16T20:00:00+00:00",
+          "link_id": "p292",
+          "ts": "2019-09-07T01:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p675",
-          "ts": "2019-05-17T04:00:00+00:00",
+          "link_id": "p240",
+          "ts": "2019-09-10T08:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p91",
-          "ts": "2019-05-20T04:30:00+00:00",
+          "link_id": "p7",
+          "ts": "2019-09-13T03:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p341",
+          "ts": "2019-09-14T08:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p147",
+          "ts": "2019-09-15T08:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": 0.0,
           "label": "repeat"
         },
         {
-          "link_id": "p675",
-          "ts": "2019-05-21T02:00:00+00:00",
+          "link_id": "p347",
+          "ts": "2019-09-28T09:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p675",
-          "ts": "2019-05-23T03:15:00+00:00",
+          "link_id": "p346",
+          "ts": "2019-10-01T15:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p106",
-          "ts": "2019-05-23T05:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p494",
-          "ts": "2019-05-25T00:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p410",
-          "ts": "2019-05-26T01:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p582",
-          "ts": "2019-05-26T09:30:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p353",
-          "ts": "2019-05-26T17:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p257",
-          "ts": "2019-05-27T19:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": 0.0,
-          "label": "repeat"
-        },
-        {
-          "link_id": "p614",
-          "ts": "2019-05-29T01:45:00+00:00",
+          "link_id": "p240",
+          "ts": "2019-10-11T07:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
@@ -3672,65 +980,113 @@
         },
         {
           "link_id": "p12",
-          "ts": "2019-05-30T04:30:00+00:00",
+          "ts": "2019-10-13T08:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p84",
-          "ts": "2019-05-30T09:45:00+00:00",
+          "link_id": "p298",
+          "ts": "2019-10-20T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p704",
+          "ts": "2019-10-21T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p347",
+          "ts": "2019-10-31T08:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p35",
-          "ts": "2019-05-30T13:00:00+00:00",
+          "link_id": "p346",
+          "ts": "2019-11-02T09:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p675",
-          "ts": "2019-05-31T06:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p6",
-          "ts": "2019-05-31T22:30:00+00:00",
-          "leak": "p277",
-          "distance_m": 293.4,
-          "score_eur": 22612.28,
+          "link_id": "p796",
+          "ts": "2019-11-04T16:00:00+00:00",
+          "leak": "p762",
+          "distance_m": 225.7,
+          "score_eur": 13047.41,
           "label": "tp",
-          "delay_h": 24.58,
-          "water_saved_m3": 28876.5
+          "delay_h": 629.75,
+          "water_saved_m3": 16779.5
         },
         {
-          "link_id": "p35",
-          "ts": "2019-06-02T07:30:00+00:00",
+          "link_id": "p251",
+          "ts": "2019-11-10T08:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p240",
+          "ts": "2019-11-14T07:45:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p267",
-          "ts": "2019-06-02T09:30:00+00:00",
+          "link_id": "p266",
+          "ts": "2019-11-16T09:45:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p12",
+          "ts": "2019-11-17T08:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p905",
-          "ts": "2019-06-02T15:30:00+00:00",
+          "link_id": "p253",
+          "ts": "2019-11-20T09:15:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p147",
+          "ts": "2019-11-24T09:00:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": 0.0,
+          "label": "repeat"
+        },
+        {
+          "link_id": "p346",
+          "ts": "2019-12-03T15:30:00+00:00",
+          "leak": null,
+          "distance_m": null,
+          "score_eur": -500.0,
+          "label": "fp"
+        },
+        {
+          "link_id": "p347",
+          "ts": "2019-12-06T09:00:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
@@ -3738,51 +1094,37 @@
         },
         {
           "link_id": "p12",
-          "ts": "2019-06-03T15:00:00+00:00",
+          "ts": "2019-12-20T09:15:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p46",
-          "ts": "2019-06-03T16:30:00+00:00",
+          "link_id": "p240",
+          "ts": "2019-12-21T08:30:00+00:00",
           "leak": null,
           "distance_m": null,
           "score_eur": -500.0,
           "label": "fp"
         },
         {
-          "link_id": "p267",
-          "ts": "2019-06-05T01:15:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "link_id": "p882",
+          "ts": "2019-12-23T15:30:00+00:00",
+          "leak": "p879",
+          "distance_m": 152.8,
+          "score_eur": 1167.92,
+          "label": "tp",
+          "delay_h": 795.58,
+          "water_saved_m3": 1778.3
         },
         {
-          "link_id": "p520",
-          "ts": "2019-06-07T02:00:00+00:00",
+          "link_id": "p254",
+          "ts": "2019-12-29T08:30:00+00:00",
           "leak": null,
           "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p531",
-          "ts": "2019-06-08T06:00:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
-        },
-        {
-          "link_id": "p35",
-          "ts": "2019-06-11T00:45:00+00:00",
-          "leak": null,
-          "distance_m": null,
-          "score_eur": -500.0,
-          "label": "fp"
+          "score_eur": 0.0,
+          "label": "repeat"
         }
       ]
     }
