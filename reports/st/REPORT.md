@@ -2,29 +2,29 @@
 
 Draft generated from the metrics files.
 
-- `make test-report`: 610 passed, 0 failed, 0 skipped in 628 s; line coverage of `src/leakwatch` 71.4% (`reports/metrics/test_summary.json` (code 4bfbde7)).
+- `make test-report`: 677 passed, 0 failed, 0 skipped in 717 s; line coverage of `src/leakwatch` 74.0% (`reports/metrics/test_summary.json` (code b0e9f9c)).
 
 | test folder | tests |
 |---|---|
-| contract | 39 |
+| contract | 41 |
 | integration | 2 |
 | metamorphic | 5 |
-| unit | 564 |
+| unit | 629 |
 
 Tests run: `slow or not slow`. Modules with the most uncovered lines (most are job entry points exercised by `make` targets rather than by unit tests):
 
 | module | statements | covered |
 |---|---|---|
-| `dl/gnn.py` | 405 | 51.9% |
-| `demo/runner.py` | 226 | 27.0% |
+| `demo/runner.py` | 246 | 31.3% |
+| `dl/gnn.py` | 456 | 71.5% |
 | `dl/gnn_data.py` | 170 | 26.5% |
 | `features/build.py` | 122 | 0.0% |
 | `bdt/train.py` | 166 | 28.9% |
 | `bdt/evaluate.py` | 141 | 23.4% |
 | `dl/lstm_ae.py` | 219 | 50.7% |
 | `stream/live_replay.py` | 103 | 0.0% |
+| `bdt/synthetic.py` | 151 | 32.5% |
 | `bdt/scaling.py` | 146 | 32.9% |
-| `eval/battledim_score.py` | 246 | 61.8% |
 
 ## Test kinds (PRD §11)
 
@@ -38,13 +38,13 @@ Tests run: `slow or not slow`. Modules with the most uncovered lines (most are j
 
 ## Mutation testing (D-040)
 
-mutmut 3.8.1 changed the code one small edit at a time and reran the unit tests: 2,735 mutants, 2,181 killed, 296 survived, 0 timeouts, 258 in code no unit test reaches (mostly CLI entry points). Mutation score killed / (killed + survived) = **88.0%** (`reports/metrics/st_mutation.json` (code fa0a731)). Every survivor is listed in the metrics file; many are equivalent (same behaviour).
+mutmut 3.8.1 changed the code one small edit at a time and reran the unit tests: 3,448 mutants, 2,512 killed, 338 survived, 0 timeouts, 598 in code no unit test reaches (mostly CLI entry points). Mutation score killed / (killed + survived) = **88.1%** (`reports/metrics/st_mutation.json` (code 7a780e4)). Every survivor is listed in the metrics file; many are equivalent (same behaviour).
 
 | module | killed | survived | timeout | no tests | score |
 |---|---|---|---|---|---|
-| `src/leakwatch/bdt/alerts.py` | 481 | 42 | 0 | 0 | 92.0% |
+| `src/leakwatch/bdt/alerts.py` | 505 | 43 | 0 | 0 | 92.2% |
 | `src/leakwatch/copilot/guardrails.py` | 545 | 78 | 0 | 0 | 87.5% |
 | `src/leakwatch/copilot/sql_guard.py` | 113 | 23 | 0 | 0 | 83.1% |
-| `src/leakwatch/eval/battledim_score.py` | 461 | 52 | 0 | 258 | 89.9% |
-| `src/leakwatch/eval/detection.py` | 488 | 91 | 0 | 0 | 84.3% |
+| `src/leakwatch/eval/battledim_score.py` | 746 | 115 | 0 | 598 | 86.6% |
+| `src/leakwatch/eval/detection.py` | 510 | 69 | 0 | 0 | 88.1% |
 | `src/leakwatch/features/rebaseline.py` | 93 | 10 | 0 | 0 | 90.3% |

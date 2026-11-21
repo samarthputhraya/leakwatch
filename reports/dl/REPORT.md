@@ -41,7 +41,7 @@ Figure: `reports/figures/dl_detector_comparison_2019.png` (dotted lines: chance 
 - Training data: 5,000 leak scenarios over 782 junctions (leak diameter 5–30 mm, ±10% demand noise, 2 cm sensor noise) (`reports/metrics/gnn_dataset.json` (code 758379a)).
 - Each scenario runs on one of 120 perturbed networks (D-038): pipe roughness × U(1 ± 0.10), 0–6 small background leaks already running, whole-network demand × N(1, 0.05) per run; the reference is the median of 3 leak-free runs of the same network. A sensitivity matrix (one 15 mm leak per junction on the nominal model) gives each node the cosine between the observed residuals and its own signature.
 
-Held-out simulated leaks: 667 test scenarios; 561 more with leak diameters 14–17 mm that were never trained on (`reports/metrics/dl_gnn.json` (code d5931bf)).
+Held-out simulated leaks: 667 test scenarios; 561 more with leak diameters 14–17 mm that were never trained on (`reports/metrics/dl_gnn.json` (code 208f706)).
 
 | model | inputs | top-1 | top-5 | top-5 medium + large | mean distance top-1 (m) | within 300 m (best of 5) | top-5 unseen sizes | training (min) |
 |---|---|---|---|---|---|---|---|---|
@@ -109,6 +109,35 @@ Recorded leaks, localized 2 h after the outflow first reaches half its peak:
 | 2019 | posterior | 906 | 36.8% | 42.1% |
 
 Gain of the posterior in leaks found within 300 m (top-1), paired bootstrap over leaks, 95% interval: 2018 vs nearest_sensor: 7.1% [0.0%, 21.4%]; 2018 vs network: -7.1% [-21.4%, 0.0%]; 2019 vs nearest_sensor: 5.3% [0.0%, 15.8%]; 2019 vs network: 21.1% [5.3%, 42.1%].
+
+### System localizer: GLS inversion (D-044)
+
+Each junction is scored by the weighted error of its best leak-size fit to the sensitivity matrix, the weights being the inverse noise covariance (simulated training residuals or 2018 normal windows). PRD metric: top-5 accuracy of the exact leak junction, held-out simulated medium + large leaks (diameter >= 0.01 m), test split of `make gnn` (`reports/metrics/dl_localizer.json` (code 235f296)).
+
+| cue | medium + large top-5 | 95% CI | all sizes top-5 | ≤ 300 m (top-1) | ≤ 300 m (best of 5) |
+|---|---|---|---|---|---|
+| gls_sim | 0.694 | 0.646–0.738 | 0.477 | 93.5% | 100.0% |
+| gls_real | 0.633 | 0.584–0.680 | 0.451 | 85.1% | 90.3% |
+| sensitivity_cosine | 0.390 | 0.343–0.440 | 0.264 | 73.6% | 84.5% |
+| network | 0.304 | 0.260–0.352 | 0.211 | 73.6% | 90.3% |
+| posterior | 0.278 | 0.235–0.324 | 0.207 | 77.8% | 91.9% |
+| nearest_sensor | 0.191 | 0.155–0.234 | 0.154 | 66.5% | 80.1% |
+| interpolation | 0.136 | 0.105–0.174 | 0.120 | 47.9% | 62.6% |
+| rank_all_sim | 0.345 | 0.300–0.395 | 0.270 | 79.6% | 94.5% |
+
+Choice (best mean rank over three development measures: held-out simulated medium + large top-5 (PRD), 2018 recorded leaks within 300 m (top-1), 2018 official score of the placement (one report per 2018 batch alert at the top node); ties: the 2018 official score. 2019 never used): **gls_sim**; the official score alone would pick rank_all_sim.
+
+| candidate | cues | sims top-5 | 2018 leaks ≤ 300 m | 2018 official | mean rank |
+|---|---|---|---|---|---|
+| posterior | network + sensor prior 300 m | 0.278 | 21.4% | €73,937 | 5.67 |
+| gls_sim | GLS (sim noise) | 0.694 | 35.7% | €75,144 | 2.00 |
+| gls_real | GLS (real noise) | 0.633 | 42.9% | €44,929 | 3.00 |
+| gls_sim_prior | GLS (sim noise) + sensor prior 300 m | 0.633 | 35.7% | €52,011 | 3.33 |
+| gls_real_prior | GLS (real noise) + sensor prior 300 m | 0.633 | 42.9% | €39,555 | 3.33 |
+| rank_all_sim | rank fusion of GLS (sim noise) + network + sensor prior 300 m + interpolation | 0.345 | 28.6% | €77,918 | 4.00 |
+| rank_all_real | rank fusion of GLS (real noise) + network + sensor prior 300 m + interpolation | 0.369 | 28.6% | €65,681 | 4.67 |
+
+2019 recorded leaks within 300 m (computed after the choice, reported only): gls_sim 26.3%; posterior 36.8%; rank_all_sim 26.3%.
 
 ## 3. Model cards
 

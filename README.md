@@ -32,22 +32,27 @@ file records the git commit of the code that produced it. Subject report drafts:
 | Result | Value | Source (`reports/metrics/`) |
 |---|---|---|
 | BattLeDIM SCADA | 12,509,280 readings per year (119 sensors, 5 min); 33 leaks, 23 active in 2019 | `data_summary.json` |
-| Kafka replay throughput (2018) | 123,851 readings/s (target 10,000), 0 delivery errors | `replay_battledim_2018.json` |
+| Kafka replay throughput (2018) | 170,190 readings/s (target 10,000), 0 delivery errors | `replay_battledim_2018.json` |
 | Batch = stream features | 0 of 16,327,708 cells differ | `features_parity_battledim.json` |
 | Raw lake | 100,108,512 readings, 901.1 MB Parquet | `lake_layers_summary.json` |
 | Batch features + K-Means scoring, largest scale | 100,108,512 readings in 4.1 min (404,676 readings/s, peak 4.35 GB) | `bdt_scaling.json` |
 | K-Means 2019 (live model) | 19/19 leaks alerted within 7 days (chance level 97.7%), precision 0.364, 2.38 false alarms/week, median 20.8 h to detection | `bdt_kmeans_2019.json` |
 | K-Means 2019 (all 228 features) | 19/19 leaks alerted within 7 days (chance level 99.6%), precision 0.437, 2.90 false alarms/week, median 18.1 h to detection | `bdt_kmeans_2019.json` |
 | Simulated leaks on normal 2018 data, by detector | residual: 51.1% detected, 1.21 false alarms/week; residual_ci: 72.2% detected, 1.07 false alarms/week; rebaselined: 60.0% detected, 0.00 false alarms/week (180 leaks, 10–30 mm) | `bdt_synthetic_leaks.json` |
-| Live alert (2019 replay at 360×) | 104.7 s wall from leak start to alert; same alert as the batch run: True | `bdt_live_replay_2019.json` |
+| Live alert (2019 replay at 360×) | 93.2 s wall from leak start to alert; same alert as the batch run: True | `bdt_live_replay_2019.json` |
 | Best 2019 detection with ≤ 2 false alarms/week | LSTM-AE 100.0% (chance 95.2%); K-Means (all PRD features) 42.1% (chance 91.5%); K-Means (residual features) 68.4% (chance 98.8%); K-Means (residual, combined index) 36.8% (chance 90.5%); K-Means (re-baselined, combined index) 100.0% (chance 93.5%) | `dl_lstm_ae.json` |
 | Localizer on held-out simulated leaks (gcn_sens_no_context) | top-5 21.1% (MLP 14.5%); medium + large leaks 30.4% (target 60%, MLP 20.2%); best of top 5 within 300 m 77.1% | `dl_gnn.json` |
 | Localizer on the 2019 BattLeDIM leaks (19, network × sensor prior, D-042) | 36.8% within 300 m (best of 5: 42.1%); network alone 15.8%, most-dropped sensor 31.6%; gain over the network 21.1% (95% CI 5.3% to 42.1%) | `dl_gnn_prior.json` |
-| BattLeDIM 2020 official score, 2019 (D-037) | €236,433: 14 of 23 leaks, 49 false positives; would rank 3 of the 6 tabulated teams (of 18; winner €264,873); random alert timing scores at least as well with p = 0.5970 | `battledim_score.json` |
-| Mutation score, 6 core modules (D-040) | 88.0% of mutants killed (2,735 mutants of the scorer, detection metrics, re-baselining, alert rule, SQL guard and guardrails) | `st_mutation.json` |
-| Copilot v3 (nvidia/nemotron-3-ultra-550b-a55b) | SQL execution 90.6%, answers 97.2%, hallucinated numbers after guardrail 0.0%, refusals 100.0%; data answers median 13.2 s (aim ≤ 10 s, free endpoint) | `pe_eval_v3.json` |
-| Demo rehearsal (inject → alert → top 5 → work order) | 3 of 3 runs within 60 s; slowest 55.4 s; nearest of the localizer's top 5 to the leak: n100 172 m / n300 2,886 m / n470 0 m (at the alert, before refinement: 172 m / 2,886 m / 0 m) | `demo_runs.json` |
-| Tests | 610 passed, 0 failed; line coverage 71.4% | `test_summary.json` |
+| System localizer, GLS inversion (D-044, chosen: gls_sim) | held-out simulated medium + large leaks top-5 69.4% (95% CI 64.6%–73.8%; target 60%); 2018 leaks within 300 m 35.7%; 2019 leaks within 300 m 26.3% (previous posterior 36.8%) | `dl_localizer.json` |
+| Slow detectors for 10 mm leaks (night inflow, pressure CUSUM; D-048) | best 0.0% detected at 0 false alarms on 2018 normal data (night inflow spread 7.92 m³/h) | `bdt_slow_detectors.json` |
+| BattLeDIM 2020 official score, 2019 (D-037) | €115,210: 10 of 23 leaks, 70 false positives; below the 6 tabulated teams (6th €127,626); random alert timing scores at least as well with p = 0.9602 | `battledim_score.json` |
+| Detector timing with every report at the true leak, 2018 (D-047) | €169,673 vs random times €153,917 (p = 0.0100) | `battledim_score.json` |
+| Detector timing with every report at the true leak, 2019 (D-047) | €500,484 vs random times €516,115 (p = 1.0000) | `battledim_score.json` |
+| Mutation score, 6 core modules (D-040) | 88.1% of mutants killed (3,448 mutants of the scorer, detection metrics, re-baselining, alert rule, SQL guard and guardrails) | `st_mutation.json` |
+| Copilot v3 (nvidia/nemotron-3-ultra-550b-a55b) | SQL execution 93.8%, answers 94.4%, hallucinated numbers after guardrail 0.0%, refusals 100.0%; data answers median 6.9 s (aim ≤ 10 s, free endpoint) | `pe_eval_v3.json` |
+| Live scored stream at 360× (micro-batch time) | p50 7.0 s, p95 10.4 s (aim ≤ 10 s) | `bdt_live_replay_2019.json` |
+| Demo rehearsal (inject → alert → top 5 → work order) | 4 of 5 runs within 30 s; slowest 46.3 s; nearest of the localizer's top 5 to the leak: n100 0 m / n300 0 m / n470 0 m / n100 0 m / n300 2,345 m (at the alert, before refinement: 0 m / 0 m / 0 m / 0 m / 2,345 m) | `demo_runs.json` |
+| Tests | 677 passed, 0 failed; line coverage 74.0%, core modules 93.0% | `test_summary.json` |
 <!-- results:end -->
 
 What the numbers say, briefly (details and figures in the report drafts):
