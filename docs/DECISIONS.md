@@ -247,3 +247,42 @@ Every non-obvious technical decision, newest at the bottom. Format: date · deci
 - Written before the retrained localizer's results were looked at. **Placement**: an alert becomes one report (pipe, time). Two placements exist: the localizer's top candidate (`detections_from_alerts`) and the pressure sensor whose re-baselined residual dropped most in the hour before the alert (`bdt.report`, used to score the detector alone in D-038). `make battledim-score` now scores both on 2018 and 2019 and the system uses the one with the better **2018** score (localizer on a tie); both are reported.
 - **LSTM-AE persistence**: its m was the smallest candidate within ≤ 2 false alarms/week on the 2018 validation days, while the live K-Means m is the best official 2018 score within that limit (D-038). For a like-for-like comparison the LSTM-AE now uses the K-Means rule (`dl.lstm.persistence_rule: official_2018`; shared code in `eval.alerting.tune_persistence`). This is applied after its first re-baselined run (m = 3: 2018 €14,142, 2019 €105,685, kept here); the rule itself was fixed for K-Means before 2019 was looked at, and nothing else changes.
 - **Pipelines that score with the live model** follow it: the scaling benchmark re-baselines each (source, scenario) series in one Spark task (`groupBy` + `applyInPandas`) before scoring, as training does; `make live-replay` replays 17 h (6 h before the p523 leak, then room for the 8 h persistence) instead of 14 h.
+
+
+### D-042 · 2026-11-21 · Posterior localizer, two dispatch rules, and a random-timing baseline for the official score
+- **Why now.** Under the D-041 rules the 2019 score fell to €140,858 (rank 6 of the 6 tabulated teams). The pre-D-038 system had €216,536. Every change below was designed after that total was seen, and each one was chosen on 2018 only. 2019 was scored once, at the end. Ideas tried on 2018 and dropped: ranking sensors by drop / std (+€2k on 2018) and reporting the top-k sensors per alert (k ≥ 2 lowered the 2018 score).
+- **2018 diagnosis.** 24 of the 45 alerts in 2018 are driven by the tank level T1 (21 of them are false positives). The trained network alone often names nodes in a different pressure zone from the leak. The sensor ranking cannot reach the 5 of 14 leaks that are more than 300 m from every sensor.
+- **Posterior localizer** (`dl.gnn.posterior`, `make gnn-prior`).
+  - p(node) ∝ p_net(node) · exp(−d(node, s*)/L), where s* is the pressure sensor that fell most and d is the pipe distance.
+  - L is chosen from [none, 1200, 600, 300, 150, 75, 37.5] m by the official 2018 score of the live alerts. 2018 scores: €13,952 / 30,316 / 31,316 / **68,060** / 67,984 / 59,784 / 49,747, so **L = 300 m** (`dl.gnn.sensor_prior_m`). Alerts, work orders and the live stream all use it.
+  - The 2019 scores are reported but not used: −€3,394 / 66,859 / 72,084 / 160,577 / 172,172 / 183,236 / 107,675. L = 75 m would have scored more on 2019; it is not used.
+- **Posterior on the recorded leaks** (oracle timing, 2 h after half the peak outflow; within 300 m, top-1):
+
+  | Year | Posterior | Network alone | Most-dropped sensor |
+  |---|---|---|---|
+  | 2019 (19 leaks) | 36.8% | 15.8% | 31.6% |
+  | 2019, best of 5 | 42.1% | 26.3% | 36.8% |
+  | 2018 (14 leaks) | 21.4% | 28.6% | 14.3% |
+
+  - On 2019, the paired bootstrap 95% interval of the gain over the network is +21.1 pts [+5.3, +42.1]. The gain over the sensor alone is +5.3 pts [0, +15.8], which is not significant.
+- **Placement** (D-041 rule). Localizer (now the posterior) €68,060 vs most-dropped sensor €50,231 on 2018, so the system uses the localizer.
+- **Revisit rule** (`bdt.report.revisit_filter`). No second report at a pipe within d days of the last report kept there.
+  - The grid [0, 3, 7, 14, 30] was set before scoring. 2018 scores: €68,060 / 71,060 / 71,560 / 73,560 / **75,560**, so **d = 30 days**.
+  - 30 days is the edge of the grid. The grid was not extended after seeing that.
+- **Carry-forward** (`bdt.report.carry_forward`).
+  - A 2018 report that no later repair within 300 m explains stays an open work order and is reported at 00:05 on 1 January 2019.
+  - The repair list is `2018_Fixed_Leakages_Report.txt`, the 2018 repair report every BattLeDIM team had. The 2018 leak labels are not used.
+  - There is nothing to tune and no 2017 to test it on, so 2019 is reported with and without it.
+  - Of 24 final 2018 reports, 9 were closed by a repair and 12 pipes stayed open. Those 12 reports found 2 leftover leaks (p257 €46,828; p654 €37,375), 8 were false positives and 2 were repeats.
+- **2019 result.**
+  - Step by step: placement only €160,577 → with the revisit rule €217,077 → with the carry-forward **€235,933**. That is 14 of 23 leaks, 50 false positives, rank 3 among the 6 tabulated teams of 18 (Tongji €264,873, Under Pressure €260,562).
+  - The 2018 development score is €75,560 (6 of 14 leaks, 16 false positives).
+- **Random-timing baseline** (`battledim_score.random_baseline_draws: 200`). Random alert times, the same number of alerts, the same placement and revisit rule, no backlog.
+
+  | Year | Random mean | Random 95th pct | System | p (one-sided) |
+  |---|---|---|---|---|
+  | 2018 | €58,691 | €83,331 | €75,560 | 0.144 |
+  | 2019 | €228,930 | €285,871 | €217,077 | 0.597 |
+
+  - **The detector's timing does not beat chance on the official score.** With 10 leaks running at once in 2019, a report almost anywhere near a sensor that just fell finds some leak. The score is earned by where reports land (the posterior) and how they are dispatched (the two rules), not by when the alerts fire.
+  - The detection metrics with chance levels (`bdt_kmeans_2019.json`, `dl_lstm_ae.json`) and the simulated-leak benchmark (`bdt_synthetic_leaks.json`) remain the evidence for detection timing. This result is reported, not hidden.
