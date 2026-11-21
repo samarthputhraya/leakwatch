@@ -14,7 +14,8 @@ PY_DIRS := src tests scripts notebooks
 	stream-features features-parity features-stream-reset bdt-train bdt-eval live-replay \
 	sim-scale sim-ingest lstm-ae gnn-data gnn index dispatch pe-eval demo-runner dashboard \
 	demo-check bdt-scaling reports test-report prepare llm-local llm-check bdt-synthetic gnn-apply \
-	gnn-prior bdt-fast-path battledim-score mutation localizer bdt-slow localizer-multileak
+	gnn-prior bdt-fast-path battledim-score mutation localizer bdt-slow localizer-multileak \
+	demo-stop dashboard-next
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -200,6 +201,10 @@ demo: ## live demo: runner (replay + Spark + leak injection) + dashboard on :850
 
 demo-runner: ## only the demo backend (replay + streams + leak injection + work orders)
 	$(RUN) python -m leakwatch.demo.runner
+
+demo-stop: ## stop a demo left running (runner, its Spark session, dashboard); Kafka stays up
+	@pkill -f 'leakwatch\.demo\.runner' && echo "stopped the demo runner" || echo "no demo runner running"
+	@pkill -f 'leakwatch\.dashboard\.(serve|api)' && echo "stopped the dashboard" || echo "no dashboard running"
 
 dashboard: ## only the Streamlit dashboard (http://localhost:8501)
 	$(RUN) python -m leakwatch.dashboard.serve --server.headless true

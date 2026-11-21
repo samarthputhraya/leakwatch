@@ -8,3 +8,5 @@
 # Fixtures copied from BattLeDIM stay byte-identical (their MD5s are checked).
 tests/fixtures/battledim/dataset_configuration.yaml -text
 tests/fixtures/battledim/2018_Fixed_Leakages_Report.txt -text
+# Vendored front-end libraries stay byte-identical (their SHA-256 values are checked).
+src/leakwatch/dashboard/static/vendor/* -text

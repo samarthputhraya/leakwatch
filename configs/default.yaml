@@ -229,6 +229,16 @@ demo:
   quiet_before_inject_s: 10
   warm_batches: 3                  # "running" once the scored stream has finished 3 batches with data (D-043)
 
+dashboard:
+  # Control-room screen (D-052). Display only: nothing here changes the pipeline or the demo runner.
+  host: 127.0.0.1                  # the page is for the demo laptop's own browser
+  port: 8501
+  snapshot_seconds: 1.0            # how often the server re-reads state.json and the demo lake
+  poll_ms: 1000                    # how often the page asks the server for the snapshot
+  stale_after_s: 15                # state.json older than this while "running" = runner not responding
+  chart_hours: 24                  # simulated hours shown in the score and pressure charts
+  alerts_limit: 50                 # newest alerts read per snapshot
+
 st:
   # D-049: the code behind a reported number or a safety check; `make test-report` reports
   # their statement-weighted line coverage (aim >= 80%) next to the whole package's

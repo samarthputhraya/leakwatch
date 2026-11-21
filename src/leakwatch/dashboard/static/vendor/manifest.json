@@ -1,0 +1,32 @@
+[
+  {
+    "file": "deck.gl.min.js",
+    "package": "deck.gl",
+    "version": "9.4.1",
+    "source": "https://cdn.jsdelivr.net/npm/deck.gl@9.4.1/dist.min.js",
+    "repository": "https://github.com/visgl/deck.gl",
+    "license": "MIT",
+    "bytes": 2078081,
+    "sha256": "08857e84bc2e5478a62ce1dc59b9b5fae9ae0a21104c78503dece316d69a1ca6"
+  },
+  {
+    "file": "echarts.min.js",
+    "package": "echarts",
+    "version": "6.1.0",
+    "source": "https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js",
+    "repository": "https://github.com/apache/echarts",
+    "license": "Apache-2.0",
+    "bytes": 1121883,
+    "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0"
+  },
+  {
+    "file": "htm-preact.module.js",
+    "package": "htm",
+    "version": "3.1.1",
+    "source": "https://cdn.jsdelivr.net/npm/htm@3.1.1/preact/standalone.module.js",
+    "repository": "https://github.com/developit/htm",
+    "license": "Apache-2.0 (htm) and MIT (preact, bundled)",
+    "bytes": 13194,
+    "sha256": "72284e8e9079c87817145df1110f74e8a2aa040b2fc384922e18dfcb46fc1fd7"
+  }
+]

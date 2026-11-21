@@ -45,10 +45,13 @@ copilot = [
     "rapidocr-onnxruntime==1.4.4",
     "opencv-python-headless==4.10.0.84",
 ]
-dashboard = ["streamlit==1.45.1", "plotly==5.24.1"]
+# Control-room screen: FastAPI serves the page and its JSON (docs/DECISIONS.md D-052); Streamlit +
+# Plotly remain for the earlier page (`make dashboard-legacy`).
+dashboard = ["fastapi==0.165.0", "uvicorn==0.54.0", "streamlit==1.45.1", "plotly==5.24.1"]
 
 [dependency-groups]
 dev = [
+    "httpx==0.28.1",
     "hypothesis==6.170.17",
     "ipykernel==7.4.0",
     "mutmut==3.8.1",
