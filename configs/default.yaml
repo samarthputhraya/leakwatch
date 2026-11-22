@@ -224,7 +224,7 @@ demo:
   background_start: "2018-11-19 00:00"   # Monday; no batch alert of the live model Nov 18 - Dec 6 2018 (D-025)
   background_hours: 168
   signature_hours: 6               # EPANET leak-minus-no-leak deltas; held constant afterwards
-  leak_diameter_m: 0.03            # default demo leak (~30 m3/h at L-Town pressures)
+  leak_diameter_m: 0.03            # default demo leak (EPANET: 54-60 m3/h at n100/n300/n470/n641)
   check_nodes: [n100, n300, n470]  # junctions `make demo-check` injects at (areas A)
   quiet_before_inject_s: 10
   warm_batches: 3                  # "running" once the scored stream has finished 3 batches with data (D-043)

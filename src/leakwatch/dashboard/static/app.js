@@ -373,9 +373,7 @@ function OrderStep({ inc }) {
   if (o.state === 'unreadable') {
     return { on: false, title, body: html`<p class="problem">The work order in the lake could not be read.</p>` };
   }
-  const short = [o.priority, o.loss_m3h != null && `${o.loss_m3h.toFixed(1)} m³/h`, o.pipes.length && `${o.pipes.length} pipes`]
-    .filter(Boolean).join(', ');
-  return { on: true, title, short, body: html`<${OrderCard} order=${o} inc=${inc} />` };
+  return { on: true, title, short: o.short, body: html`<${OrderCard} order=${o} inc=${inc} />` };
 }
 
 const thousands = (m) => m.toLocaleString('en');
@@ -399,8 +397,7 @@ function RevealStep({ inc, revealed, onReveal }) {
   else where = 'No pipe path joins it to candidate 1.';
   const nearest = t.rank == null && t.nearest_rank != null && t.nearest_rank !== 1
     ? html` The nearest, candidate ${t.nearest_rank}, is <b>${thousands(t.nearest_m)} m</b> away.` : '';
-  const short = `${t.node_id}, ${t.rank != null ? `candidate ${t.rank}` : 'not a candidate'}`;
-  return { on: true, title, short, body: html`
+  return { on: true, title, short: t.short, body: html`
     <p>The leak is at <b>${t.node_id}</b>, ${t.rank != null ? html`candidate <b>${t.rank}</b> of ${t.of}.` : html`not one of the ${t.of} candidates.`}${' '}${where}${nearest}</p>
     ${(t.flow_m3h != null || t.loss_now_m3h != null) && html`<p>${t.flow_m3h != null && html`Simulated leak <b>${t.flow_m3h.toFixed(1)} m³/h</b>`}${t.flow_m3h != null && t.loss_now_m3h != null ? ', ' : ''}${t.loss_now_m3h != null && html`current estimate <b>${t.loss_now_m3h.toFixed(1)} m³/h</b>`}.</p>`}` };
 }

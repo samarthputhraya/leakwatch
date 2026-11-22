@@ -157,7 +157,7 @@ def model_view(setup, feats: pd.DataFrame) -> pd.DataFrame:
 
 
 def test_large_simulated_leak_raises_an_alert_as_soon_as_the_rule_allows(spark, setup):
-    """Simulator as oracle: a ~30 m3/h leak on a quiet day is flagged within m + 4 windows.
+    """Simulator as oracle: a 30 mm leak on a quiet day is flagged within m + 4 windows.
 
     m is the live model's persistence (32 windows = 8 h since D-038; the fast path, D-043, may
     open it sooner). The quiet morning itself raises nothing.

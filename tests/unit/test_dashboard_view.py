@@ -487,6 +487,8 @@ def test_template_order_comes_first_with_its_own_loss_time():
     out = view.order_view([TEMPLATE], LOSS_VERSIONS, LEAK, TZ)
     assert out["state"] == "template" and out["priority"] == "P1"
     assert out["loss_m3h"] == 40.8 and out["loss_at"] == "02:30 IST"  # version 1, 21:00 UTC
+    # Folded, the step says when its loss figure was estimated (the alert's keeps changing).
+    assert out["short"] == "P1, 40.8 m³/h at 02:30 IST, 7 pipes"
     assert out["version"] == (
         "Template version, 18 s after the click. The model's version replaces it when it arrives."
     )
@@ -547,6 +549,7 @@ def test_reveal_of_the_n470_run_names_rank_distance_and_both_flows():
         "nearest_rank": 2,
         "flow_m3h": 57.0,
         "loss_now_m3h": 54.0,
+        "short": "n470, candidate 2; leak 57.0 m³/h, estimate 54.0 m³/h",
     }
 
 
@@ -554,6 +557,7 @@ def test_reveal_when_the_leak_is_not_a_candidate_or_cannot_be_reached():
     far = {"a": 300.0, "b": 120.0, "c": None}
     out = view.truth_view({**LEAK, "node_id": "n300"}, ["a", "b", "c"], None, lambda x, y: far[y])
     assert out["rank"] is None and out["to_first_m"] == 300
+    assert out["short"] == "n300, not a candidate; leak 57.0 m³/h"  # no current estimate
     assert out["nearest_m"] == 120 and out["nearest_rank"] == 2
     none = view.truth_view(LEAK, ["a"], None, lambda x, y: None)
     assert none["to_first_m"] is None and none["nearest_m"] is None

@@ -443,16 +443,27 @@ def order_view(
     else:
         line = "Template version" + ("" if after is None else f", {after} s after the click")
         line += ". The model's version replaces it when it arrives."
+    priority = str(doc.get("priority") or "") or None
+    loss_at = None if at is None else fmt_time(at, tz, date=False)
+    pipes = [str(p) for p in doc.get("pipes_to_inspect") or []]
+    # The folded line says when the order's loss figure was estimated: the alert's own estimate
+    # keeps changing after the order is written (the copilot and the reveal show the newer one).
+    parts = [
+        priority,
+        None if loss is None else f"{loss:.1f} m³/h" + (f" at {loss_at}" if loss_at else ""),
+        f"{len(pipes)} pipe{'' if len(pipes) == 1 else 's'}" if pipes else None,
+    ]
     return {
         "state": state,
-        "priority": str(doc.get("priority") or "") or None,
+        "priority": priority,
         "loss_m3h": None if loss is None else round(loss, 1),
-        "loss_at": None if at is None else fmt_time(at, tz, date=False),
-        "pipes": [str(p) for p in doc.get("pipes_to_inspect") or []],
+        "loss_at": loss_at,
+        "pipes": pipes,
         "actions": actions,
         "sources": sources_view(doc.get("manual_citations")),
         "summary": str(doc.get("summary") or ""),
         "version": line,
+        "short": ", ".join(p for p in parts if p),
     }
 
 
@@ -473,6 +484,12 @@ def truth_view(
     first = next((d for d, r in found if r == 1), None)
     near = min(found) if found else None
     flow = number(leak.get("est_flow_m3h"))
+    # The folded line keeps the check visible: the simulated leak flow next to the estimate.
+    short = f"{node}, " + (f"candidate {rank}" if rank is not None else "not a candidate")
+    if flow is not None:
+        short += f"; leak {flow:.1f} m³/h"
+        if loss_now is not None:
+            short += f", estimate {loss_now:.1f} m³/h"
     return {
         "node_id": node,
         "rank": rank,
@@ -482,6 +499,7 @@ def truth_view(
         "nearest_rank": None if near is None else near[1],
         "flow_m3h": None if flow is None else round(flow, 1),
         "loss_now_m3h": loss_now,
+        "short": short,
     }
 
 
