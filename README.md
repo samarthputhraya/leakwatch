@@ -53,7 +53,7 @@ file records the git commit of the code that produced it. Subject report drafts:
 | Copilot v3 (nvidia/nemotron-3-ultra-550b-a55b) | SQL execution 93.8%, answers 94.4%, hallucinated numbers after guardrail 0.0%, refusals 100.0%; data answers median 6.9 s (aim ≤ 10 s, free endpoint) | `pe_eval_v3.json` |
 | Live scored stream at 360× (micro-batch time) | p50 7.0 s, p95 10.4 s (aim ≤ 10 s) | `bdt_live_replay_2019.json` |
 | Demo rehearsal (inject → alert → top 5 → work order) | 4 of 5 runs within 30 s; slowest 52.4 s; nearest of the localizer's top 5 to the leak: n100 0 m / n300 2,886 m / n470 0 m / n100 0 m / n300 0 m (at the alert, before refinement: 0 m / 2,886 m / 0 m / 0 m / 0 m) | `demo_runs.json` |
-| Tests | 838 passed, 0 failed; line coverage 73.9%, core modules 93.0% | `test_summary.json` |
+| Tests | 839 passed, 0 failed; line coverage 73.9%, core modules 93.0% | `test_summary.json` |
 <!-- results:end -->
 
 What the numbers say, briefly (details and figures in the report drafts):
