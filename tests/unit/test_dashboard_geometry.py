@@ -102,6 +102,15 @@ def test_pipe_distance_follows_the_pipes(built):
     assert built.pipe_distance_m("n470", "no such node") is None
 
 
+def test_pipe_ends_read_the_pipe_graph():
+    g = nx.Graph()
+    g.add_edge("n641", "n229", name="p701", length=39.0)
+    geo = geometry.Geometry(payload={}, graph=g)
+    assert set(geo.pipe_ends("p701")) == {"n229", "n641"}
+    assert geo.pipe_ends("p999") is None
+
+
+@pytest.mark.needs_data
 def test_pipe_ends_name_the_two_junctions_of_a_pipe(built):
     assert set(built.pipe_ends("p701")) == {"n229", "n641"}  # 39 m: the owner's n641 run
     assert built.pipe_ends("no such pipe") is None
