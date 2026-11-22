@@ -2,14 +2,14 @@
 
 Draft generated from the metrics files.
 
-- `make test-report`: 843 passed, 0 failed, 0 skipped in 1,502 s; line coverage of `src/leakwatch` 73.9% (`reports/metrics/test_summary.json` (code bd26231)).
+- `make test-report`: 847 passed, 0 failed, 0 skipped in 810 s; line coverage of `src/leakwatch` 73.9% (`reports/metrics/test_summary.json` (code 8286f90)).
 
 | test folder | tests |
 |---|---|
 | contract | 41 |
 | integration | 2 |
 | metamorphic | 5 |
-| unit | 795 |
+| unit | 799 |
 
 Tests run: `slow or not slow`. Modules with the most uncovered lines (most are job entry points exercised by `make` targets rather than by unit tests):
 
