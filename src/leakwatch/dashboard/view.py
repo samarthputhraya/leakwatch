@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -113,17 +114,30 @@ def runner_view(
 def clock_view(
     state: Mapping[str, Any], demo_cfg: Mapping[str, Any], tz: str
 ) -> dict[str, Any] | None:
-    """Simulated time, replay speed and position in the replay (None before it starts)."""
+    """Simulated time, replay speed and position in the replay.
+
+    Before the replay starts only the speed is known (None if not even that): the header and
+    the speed control show it while the runner starts.
+    """
     sim = to_utc(state.get("sim_ts"))
+    speed = float(state.get("speed") or 0.0)
+    shown = f"{speed:,.0f}×" if speed > 0 else None
     if sim is None:
-        return None
+        if shown is None:
+            return None
+        return {
+            "sim_ts": None,
+            "sim_time": None,
+            "speed": shown,
+            "replay_fraction": None,
+            "replay_left": None,
+        }
     start = to_utc(str(state.get("background_start") or demo_cfg["background_start"]))
     total = timedelta(hours=float(demo_cfg["background_hours"]))
-    speed = float(state.get("speed") or 0.0)
     out: dict[str, Any] = {
         "sim_ts": sim.isoformat(),
         "sim_time": fmt_time(sim, tz),
-        "speed": f"{speed:,.0f}×" if speed > 0 else None,
+        "speed": shown,
         "replay_fraction": None,
         "replay_left": None,
     }
@@ -547,14 +561,12 @@ def detector_benchmark(metrics: Mapping[str, Any] | None, live_model: str) -> di
     Leaks added to normal 2018 background (D-030); the variant whose ``model`` is the live one.
     A small leak may never raise an alert, and the screen says so while it waits for one.
     """
+    if not metrics:
+        return None
     try:
-        variant = next(
-            v
-            for v in metrics["variants"].values()
-            if v.get("model") == live_model  # type: ignore[index]
-        )
+        variant = next(v for v in metrics["variants"].values() if v.get("model") == live_model)
         sizes = sorted((int(mm), float(rate)) for mm, rate in variant["by_diameter_mm"].items())
-        n = int(metrics["scenarios"])  # type: ignore[index]
+        n = int(metrics["scenarios"])
     except (KeyError, TypeError, ValueError, StopIteration, AttributeError):
         return None
     if not sizes:
@@ -741,15 +753,97 @@ def charts_view(
 LOSS_QUESTION = "How much water have we lost since this alert started?"
 
 
-def copilot_context(incident: Mapping[str, Any] | None) -> str | None:
-    """The one line sent before the operator's question, shown on the page as it is sent."""
+def _zone(tz: str, at: datetime | None = None) -> tuple[str, str]:
+    """The display zone's name and UTC offset at ``at``: ``("IST", "+05:30")``."""
+    local = (at or datetime(2018, 1, 1, tzinfo=UTC)).astimezone(ZoneInfo(tz))
+    minutes = round(local.utcoffset().total_seconds() / 60)  # type: ignore[union-attr]
+    sign, minutes = ("-" if minutes < 0 else "+"), abs(minutes)
+    return str(local.tzname()), f"{sign}{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def copilot_context(incident: Mapping[str, Any] | None, tz: str = "UTC") -> str:
+    """The line sent before every operator question, shown on the page as it is sent.
+
+    The copilot works in UTC (its tools and prompt write UTC, and its guardrail checks the times
+    it writes against them); the line gives the alert on screen in both zones and says that a
+    time the operator types is in the display zone.
+    """
+    name, offset = _zone(tz)
+    zone = f"Times in the question are {name} (UTC{offset}) unless marked UTC; the lake is in UTC."
     if not incident:
-        return None
+        return f"Context: {zone[0].lower()}{zone[1:]}"
     start = to_utc(incident.get("start_ts"))
-    when = "" if start is None else f", which fired at {start:%Y-%m-%d %H:%M} UTC"
+    when = ""
+    if start is not None:
+        local = start.astimezone(ZoneInfo(tz))
+        when = f", which fired at {start:%Y-%m-%d %H:%M} UTC ({local:%Y-%m-%d %H:%M} {name})"
     return (
-        f"Context: the alert on screen is {incident['alert_id']} in Area {incident['area']}{when}."
+        f"Context: the alert on screen is {incident['alert_id']} in Area {incident['area']}{when}. "
+        f"{zone}"
     )
+
+
+# A date-time the copilot wrote: ISO date, time, optional seconds, optional UTC mark; not one
+# that already names another zone.
+_ANSWER_TS = re.compile(
+    r"(?<![\d-])(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?"
+    r"(?:\s?(?:UTC|Z|\+00:?00)\b|Z)?(?!\s?(?:[A-Z]{3,4}\b|[+-]\d))"
+)
+# A clock time marked UTC, or a range of two ("06:45–06:55 UTC", "06:45 to 06:55 UTC").
+_ANSWER_CLOCK = re.compile(
+    r"(?<![\d:-])(\d{2}):(\d{2})(?:(\s?(?:–|—|-|to|and)\s?)(\d{2}):(\d{2}))?\s?UTC\b"
+)
+_CODE = re.compile(r"(`[^`]*`)")
+# The same time again in brackets, as some answers add it: "(which is 2018-11-20 11:15 IST)".
+_AGAIN = r"\((?:which is |that is |i\.e\.,? |or |= )?"
+
+
+def display_times(text: str, tz: str) -> str:
+    """Times in a copilot answer, shown in the display zone (``2018-11-23 03:00 IST``).
+
+    The copilot writes UTC (its rule 1: times as the tools write them), with or without the
+    ``UTC`` mark; each date-time and each ``HH:MM UTC`` is converted. Times that name a zone
+    already, and anything inside backticks (SQL), stay as written. A converted time followed by
+    its own display-zone equivalent in brackets (the context line's form) is written once.
+    """
+    name, _ = _zone(tz)
+    zone = ZoneInfo(tz)
+    # (the first time may be in bold: "**2018-11-20 16:45 IST** (which is ...)")
+    twice = re.compile(
+        rf"(\d{{4}}-\d{{2}}-\d{{2}} (\d{{2}}:\d{{2}}(?::\d{{2}})?) {name})(\*{{0,2}}) "
+        rf"{_AGAIN}(?:\1|\2 {name}|\d{{4}}-\d{{2}}-\d{{2}} \2 {name})\)"
+    )
+    # "10:00 IST (04:30 UTC)", once converted, says the same time twice
+    twice_clock = re.compile(
+        rf"(?<![\d:])((\d{{2}}:\d{{2}}(?::\d{{2}})?) {name})(\*{{0,2}}) {_AGAIN}\2 {name}\)"
+    )
+
+    def stamp(m: re.Match[str]) -> str:
+        y, mo, d, h, mi, sec = (int(g) if g else 0 for g in m.groups())
+        try:
+            local = datetime(y, mo, d, h, mi, sec, tzinfo=UTC).astimezone(zone)
+        except ValueError:  # not a real date or time: leave it as written
+            return m.group(0)
+        clock = f"{local:%H:%M:%S}" if m.group(6) else f"{local:%H:%M}"
+        return f"{local:%Y-%m-%d} {clock} {local.tzname()}"
+
+    def hhmm(h: str, mi: str) -> str | None:
+        if int(h) > 23 or int(mi) > 59:
+            return None
+        return f"{datetime(2018, 1, 1, int(h), int(mi), tzinfo=UTC).astimezone(zone):%H:%M}"
+
+    def clock(m: re.Match[str]) -> str:
+        first = hhmm(m.group(1), m.group(2))
+        second = hhmm(m.group(4), m.group(5)) if m.group(4) else ""
+        if first is None or second is None:  # not a real time: leave it as written
+            return m.group(0)
+        return f"{first}{m.group(3) or ''}{second} {name}"
+
+    def convert(part: str) -> str:
+        part = twice.sub(r"\1\3", _ANSWER_CLOCK.sub(clock, _ANSWER_TS.sub(stamp, part)))
+        return twice_clock.sub(r"\1\3", part)
+
+    return "".join(p if p.startswith("`") else convert(p) for p in _CODE.split(text or ""))
 
 
 def _ms(value: Any) -> int | None:
@@ -823,10 +917,11 @@ def loss_answer_view(result: Mapping[str, Any], seconds: float, tz: str) -> dict
     return {"state": "answer", "text": text, "charts": [], "how": how, "volume_m3": volume}
 
 
-def copilot_view(answer: Any) -> dict[str, Any]:
+def copilot_view(answer: Any, tz: str = "UTC") -> dict[str, Any]:
     """The agent's ``CopilotAnswer`` for the page: text, charts, and how it was answered.
 
-    An answer that failed inside the agent becomes a sentence, never the error text itself.
+    Times in the text and in the checked values are shown in the display zone (the copilot
+    writes UTC). An answer that failed inside the agent becomes a sentence, never the error text.
     """
     if getattr(answer, "error", None):
         return {
@@ -838,15 +933,20 @@ def copilot_view(answer: Any) -> dict[str, Any]:
     charts = [
         c for c in (answer_chart_view(ch) for ch in getattr(answer, "charts", None) or []) if c
     ]
+    # refused by the scope pre-filter: no model was asked, whatever model is configured
+    prefilter = bool(getattr(report, "scope_prefilter", False))
     return {
         "state": "refused" if getattr(answer, "refused", False) else "answer",
-        "text": str(getattr(answer, "answer", "") or ""),
+        "text": display_times(str(getattr(answer, "answer", "") or ""), tz),
         "charts": charts,
         "how": {
             "tools": [c.name + ("" if c.ok else " (failed)") for c in calls],
             "sql": [c.sql for c in calls if getattr(c, "sql", None)],
-            "checked": list(getattr(report, "numbers_checked", None) or []),
-            "model": getattr(answer, "model", None),
+            "checked": [
+                display_times(str(c), tz) for c in getattr(report, "numbers_checked", None) or []
+            ],
+            "model": None if prefilter else getattr(answer, "model", None),
+            "prefilter": prefilter,
             "seconds": round(float(getattr(answer, "latency_s", 0.0) or 0.0), 1),
         },
     }
@@ -1053,7 +1153,7 @@ def live_view(
         )
         theirs = [o for o in orders if o.get("alert_id") == current.get("alert_id")]
         incident["order"] = order_view(theirs, mine, leak, tz)
-        incident["context"] = copilot_context(incident)
+        incident["context"] = copilot_context(incident, tz)
         incident["truth"] = (
             None
             if leak is None or distance is None or not incident["candidates"]
@@ -1083,6 +1183,8 @@ def live_view(
         "open_alerts": len(open_alerts),
         "leaks": leaks_view(state, failed_leaks, tz, alerts),
         "incident": incident,
+        # sent before every copilot question (the alert on screen, if any, and the time zone)
+        "ask_context": copilot_context(incident, tz),
         "drops": drops,
         "analysed": None
         if last is None or (end := to_utc(last.get("window_end"))) is None

@@ -107,6 +107,14 @@ def test_speed_and_restart():
     assert app([], "finished").post("/api/demo/restart").status_code == 200
     offline = app([], "offline").post("/api/demo/restart")
     assert offline.status_code == 409 and "make demo" in offline.json()["message"]
+    # a starting runner has not joined its command topic yet: the command would be lost
+    early: list = []
+    for res in (
+        app(early, "starting").post("/api/demo/speed", json={"speed": 720}),
+        app(early, "starting").post("/api/demo/restart"),
+    ):
+        assert res.status_code == 409 and res.json()["message"] == api.STARTING
+    assert early == []
 
 
 def test_settings_offer_the_configured_sizes_and_speeds():

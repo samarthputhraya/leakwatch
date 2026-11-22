@@ -90,7 +90,9 @@ function Controls({ settings, clock, runner, size, setSize, notify }) {
   const current = clock && clock.speed ? Number(clock.speed.replace(/[^0-9]/g, '')) : settings.speeds[0];
   const chosen = speed ?? current;
   const send = async (url, body) => { const res = await call('POST', url, body); notify(res.ok ? null : res.message); };
-  const down = runner.code === 'offline' || runner.code === 'stale' || runner.code === 'error';
+  // While the runner starts it does not read its commands yet: a speed or restart sent then is lost.
+  const starting = runner.code === 'starting';
+  const down = starting || runner.code === 'offline' || runner.code === 'stale' || runner.code === 'error';
   return html`<details class="controls">
     <summary>Demo controls</summary>
     <div class="controls-panel">
@@ -111,7 +113,8 @@ function Controls({ settings, clock, runner, size, setSize, notify }) {
         onBlur=${() => setArmed(false)}>
         ${armed ? 'Click again to restart the replay' : 'Restart replay'}
       </button>
-      <p class="fine">Restart clears the leaks and alerts of this run and replays the week from Monday.</p>
+      <p class="fine">${starting ? 'Speed and restart work once the replay is warming up. '
+        : ''}Restart clears the leaks and alerts of this run and replays the week from Monday.</p>
     </div>
   </details>`;
 }
@@ -123,8 +126,8 @@ function Header({ runner, clock, analysed, tabs, children }) {
     ${tabs}
     <div class="meta">
     <dl class="facts">
-      ${clock && html`<div class="fact"><dt>Simulated time</dt><dd>${clock.sim_time}</dd></div>`}
-      ${clock && analysed && html`<div class="fact" title="Newest window the stream has scored; the replay runs ahead of it"><dt>Analysed up to</dt><dd>${analysed}</dd></div>`}
+      ${clock && clock.sim_time && html`<div class="fact"><dt>Simulated time</dt><dd>${clock.sim_time}</dd></div>`}
+      ${clock && clock.sim_time && analysed && html`<div class="fact" title="Newest window the stream has scored; the replay runs ahead of it"><dt>Analysed up to</dt><dd>${analysed}</dd></div>`}
       ${clock && clock.speed && html`<div class="fact"><dt>Replay speed</dt><dd>${clock.speed}</dd></div>`}
       ${clock && clock.replay_left && runner.code !== 'finished' && runner.code !== 'finishing' && html`<div class="fact"><dt>Replay ends in</dt><dd>${clock.replay_left}</dd></div>`}
     </dl>
@@ -479,13 +482,16 @@ function Answer({ qa, tz, tzName }) {
     ${(qa.charts || []).map((c) => html`<${AnswerChart} chart=${c} tz=${tz} tzName=${tzName} />`)}
     ${how && html`<details class="how"><summary>How this was answered: ${summary}</summary>
       ${how.sql.length > 0 && html`<p>SQL that ran:</p>${how.sql.map((q) => html`<pre class="sql">${q}</pre>`)}`}
-      ${how.checked.length > 0 && html`<p>Checked against the tool results: ${how.checked.join('; ')}</p>`}
-      ${!how.model && html`<p>Answered by the estimate_loss tool directly; no language model was involved.</p>`}
+      ${how.checked.length > 0 && html`<p>Checked against the tool results (times in ${tzName}): ${how.checked.join('; ')}</p>`}
+      ${how.sql.length > 0 && html`<p>The lake keeps UTC; the answer's times are shown in ${tzName}.</p>`}
+      ${!how.model && html`<p>${how.prefilter
+        ? 'Refused by the scope filter before any model call: the question is off-topic or tries to change the copilot\'s instructions.'
+        : 'Answered by the estimate_loss tool directly; no language model was involved.'}</p>`}
     </details>`}
   </div>`;
 }
 
-function CopilotStep({ inc, qa, ask, settings }) {
+function CopilotStep({ inc, qa, ask, settings, context }) {
   const title = STEPS[5];
   const [text, setText] = useState('');
   const asking = !!qa && qa.state === 'asking';
@@ -495,7 +501,7 @@ function CopilotStep({ inc, qa, ask, settings }) {
     if (text.trim() && !asking) { ask({ question: text.trim() }); setText(''); }
   };
   return { on: !!qa && qa.state !== 'asking', title, body: html`
-    ${inc && inc.context && html`<p class="context"><span>Sent with your question</span>${inc.context}</p>`}
+    ${context && html`<p class="context"><span>Sent with your question</span>${context}</p>`}
     <form class="row ask" onSubmit=${submit}>
       <input aria-label="Question for the copilot" maxlength="500" value=${text}
         placeholder=${inc ? 'Ask about this alert, a sensor or a procedure' : 'Ask about a sensor, an alert or a procedure'}
@@ -527,7 +533,7 @@ function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, o
     detector: settings ? settings.detector : null, days: settings ? settings.leak_visible_days : null });
   const bench = settings ? settings.localizer : null;
   const steps = [first, AlertStep({ inc }), LocatedStep({ inc, bench, net }), OrderStep({ inc }),
-    RevealStep({ inc, revealed, onReveal, bench }), CopilotStep({ inc, qa: copilot.qa, ask: copilot.ask, settings })];
+    RevealStep({ inc, revealed, onReveal, bench }), CopilotStep({ inc, qa: copilot.qa, ask: copilot.ask, settings, context: vm.ask_context })];
   const now = steps.reduce((last, s, i) => (s.on ? i : last), 0);
   // Finished steps fold to one line once the work order is on screen, so the open step fits.
   // The reveal stays open: it is the check of everything above it.

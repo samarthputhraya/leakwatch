@@ -285,12 +285,12 @@ class FakeCopilot:
         self.sent.append(("loss", alert_id))
         return {"available": True, "est_volume_m3": 120.0, "est_loss_m3h": 40.0, "duration_h": 3.0}
 
-    def ask(self, question):
+    def ask(self, question, context=None):
         if self.fail:
             raise RuntimeError("connection refused by api.example")
-        self.sent.append(("ask", question))
+        self.sent.append(("ask", question, context))
         return SimpleNamespace(
-            answer="Fine.",
+            answer="It fired at 2018-11-19 20:15 UTC.",
             tool_calls=[],
             charts=[],
             refused=False,
@@ -328,16 +328,39 @@ def test_questions_go_to_the_model_with_the_visible_context_line():
         "/api/copilot/ask", json={"alert_id": "5bab5c3a", "question": " Which pipe first? "}
     )
     assert res.json()["state"] == "answer" and res.json()["question"] == "Which pipe first?"
+    zone = "Times in the question are IST (UTC+05:30) unless marked UTC; the lake is in UTC."
     assert fake.sent == [
         (
             "ask",
-            "Context: the alert on screen is 5bab5c3a in Area A, "
-            "which fired at 2018-11-19 20:15 UTC.\n\nWhich pipe first?",
+            "Which pipe first?",  # the scope pre-filter reads the question alone
+            "Context: the alert on screen is 5bab5c3a in Area A, which fired at 2018-11-19 20:15 "
+            f"UTC (2018-11-20 01:45 IST). {zone}",
         )
     ]
+    assert res.json()["text"] == "It fired at 2018-11-20 01:45 IST."  # the copilot's UTC, in IST
     plain = FakeCopilot()
     copilot_client(plain).post("/api/copilot/ask", json={"question": "What is L-Town?"})
-    assert plain.sent == [("ask", "What is L-Town?")]  # no alert named: no context line
+    # no alert named: the line only gives the time zone
+    assert plain.sent == [("ask", "What is L-Town?", f"Context: t{zone[1:]}")]
+
+
+def test_the_copilot_builds_one_model_client_ahead_of_the_first_question(monkeypatch):
+    from leakwatch.copilot import llm, settings
+
+    built = []
+    monkeypatch.setattr(
+        settings, "llm_settings", lambda: SimpleNamespace(configured=True, model="m")
+    )
+    monkeypatch.setattr(llm, "build_llm", lambda s, cfg: built.append(cfg) or object())
+    helper = api.Copilot()
+    helper.warm()
+    first = helper._client()
+    assert helper._client() is first and len(built) == 1  # one client for every question
+    assert "timeout_s" in built[0]  # the copilot.llm section of the config
+    monkeypatch.setattr(settings, "llm_settings", lambda: SimpleNamespace(configured=False))
+    idle = api.Copilot()
+    idle.warm()
+    assert idle._llm is None  # no model configured: nothing to build
 
 
 def test_copilot_states_without_a_model_with_a_failure_and_without_a_question():

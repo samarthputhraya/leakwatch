@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import ClassVar
 
 import pandas as pd
@@ -122,6 +123,10 @@ def test_clock_shows_simulated_time_speed_and_what_is_left_of_the_replay():
     assert clock["replay_fraction"] == pytest.approx(77.5 / 168, abs=1e-4)
     assert clock["replay_left"] == "1 min 53 s"  # 90.5 simulated hours at 2880x
     assert view.clock_view({"status": "starting"}, CFG["demo"], TZ) is None
+    # starting: no simulated time yet, but the speed the replay will run at
+    early = view.clock_view({"status": "starting", "speed": 2880.0}, CFG["demo"], TZ)
+    assert early["sim_time"] is None and early["speed"] == "2,880×"
+    assert early["replay_left"] is None and early["replay_fraction"] is None
 
 
 def test_clock_is_bounded_and_survives_a_missing_speed():
@@ -693,12 +698,50 @@ LOSS = {
 }
 
 
-def test_the_context_line_names_the_alert_as_it_is_sent():
+def test_the_context_line_names_the_alert_and_the_time_zone_as_it_is_sent():
     incident = view.incident_view(RUN_ALERT, [LEAK], VERSIONS, TZ)
-    assert view.copilot_context(incident) == (
-        "Context: the alert on screen is 5bab5c3a in Area A, which fired at 2018-11-19 20:15 UTC."
+    assert view.copilot_context(incident, TZ) == (
+        "Context: the alert on screen is 5bab5c3a in Area A, which fired at 2018-11-19 20:15 UTC "
+        "(2018-11-20 01:45 IST). Times in the question are IST (UTC+05:30) unless marked UTC; "
+        "the lake is in UTC."
     )
-    assert view.copilot_context(None) is None
+    assert view.copilot_context(None, TZ) == (
+        "Context: times in the question are IST (UTC+05:30) unless marked UTC; the lake is in UTC."
+    )
+
+
+def test_copilot_times_are_shown_in_ist():
+    """The copilot writes UTC (as its tools do); the screen shows every time in IST."""
+    said = (
+        "Pressure at n54 over 2018-11-22 21:30 to 2018-11-23 21:30 UTC: lowest 35.58 m at "
+        "2018-11-23 19:10 UTC, highest at 2018-11-23T05:15:00Z; the alert fired at 04:15 UTC."
+    )
+    assert view.display_times(said, TZ) == (
+        "Pressure at n54 over 2018-11-23 03:00 IST to 2018-11-24 03:00 IST: lowest 35.58 m at "
+        "2018-11-24 00:40 IST, highest at 2018-11-23 10:45:00 IST; the alert fired at 09:45 IST."
+    )
+    # a time that names its zone, SQL in backticks, and the context line's pair stay readable
+    kept = "Seen at 2018-11-20 01:45 IST; ran `WHERE ts >= '2018-11-19 20:15'`."
+    assert view.display_times(kept, TZ) == kept
+    pair = "It fired at 2018-11-19 20:15 UTC (2018-11-20 01:45 IST)."
+    assert view.display_times(pair, TZ) == "It fired at 2018-11-20 01:45 IST."
+    # seen live: the model converted the operator's 10:00 IST and named both
+    both = "The pressure at n54 at 10:00 IST (04:30 UTC) on 21 Nov 2018 was 38.17 m."
+    assert view.display_times(both, TZ) == (
+        "The pressure at n54 at 10:00 IST on 21 Nov 2018 was 38.17 m."
+    )
+    # also seen live: the pair with "which is", and a range of clock times
+    which = "It started at 2018-11-20 05:45 UTC (which is 2018-11-20 11:15 IST)."
+    assert view.display_times(which, TZ) == "It started at 2018-11-20 11:15 IST."
+    bold = "It started at **2018-11-20 11:15 UTC** (which is 2018-11-20 16:45 IST)."
+    assert view.display_times(bold, TZ) == "It started at **2018-11-20 16:45 IST**."
+    window = "The first reading in the 06:45–06:55 UTC window, or between 06:45 and 07:00 UTC."
+    assert view.display_times(window, TZ) == (
+        "The first reading in the 12:15–12:25 IST window, or between 12:15 and 12:30 IST."
+    )
+    assert view.display_times("Window 2018-13-40 25:99 and 99:99 UTC.", TZ) == (
+        "Window 2018-13-40 25:99 and 99:99 UTC."  # not real times: left as written
+    )
 
 
 def test_the_loss_chip_answers_with_a_number_and_says_it_is_an_estimate():
@@ -762,12 +805,30 @@ def test_copilot_answers_show_text_chart_and_how_they_were_found():
         "sql": ["SELECT 1"],
         "checked": ["4438.7"],
         "model": "some-model",
+        "prefilter": False,
         "seconds": 7.8,
     }
     assert len(out["charts"]) == 1  # the empty one is dropped
     chart = out["charts"][0]
     assert chart["series"][0]["points"] == [[view.epoch_ms(view.to_utc("2018-11-19T20:00Z")), 50.1]]
     assert chart["markers"][0]["text"] == "alert fired"
+
+
+def test_a_question_refused_by_the_scope_filter_names_no_model():
+    refused = SimpleNamespace(
+        answer="I can only help with LeakWatch questions.",
+        tool_calls=[],
+        charts=[],
+        refused=True,
+        latency_s=0.0,
+        guardrail=SimpleNamespace(scope_prefilter=True, numbers_checked=[]),
+        error=None,
+        model="some-model",  # configured, but not asked
+    )
+    out = view.copilot_view(refused, TZ)
+    assert out["state"] == "refused"
+    assert out["how"]["model"] is None and out["how"]["prefilter"] is True
+    assert view.copilot_view(Answer(), TZ)["how"]["prefilter"] is False
 
 
 def test_a_failed_model_call_becomes_a_sentence():

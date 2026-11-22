@@ -70,6 +70,21 @@ def test_out_of_scope_is_refused_without_a_model_call(ctx):
     assert llm.requests == []
 
 
+def test_a_context_line_does_not_let_an_off_topic_question_through(ctx):
+    """The dashboard sends a line about the alert on screen ("alert", "Area" are network words);
+    the pre-filter reads the operator's question alone."""
+    line = (
+        "Context: the alert on screen is 5bab5c3a in Area A, which fired at 2018-11-19 20:15 UTC."
+    )
+    llm = ScriptedLLM([])
+    ans = CopilotAgent(llm, ctx, "v3").ask("Write a poem about the monsoon", context=line)
+    assert ans.refused and ans.guardrail.scope_prefilter and llm.requests == []
+    llm = ScriptedLLM([reply("It fired at 2018-11-19 20:15 UTC.")])
+    ans = CopilotAgent(llm, ctx, "v3").ask("When did it fire?", context=line)
+    assert llm.requests[0]["messages"][-1]["content"] == f"{line}\n\nWhen did it fire?"
+    assert ans.guardrail.unsupported_after == []  # the time is in the line that was sent
+
+
 def test_v2_passes_off_topic_questions_to_the_model(ctx):
     llm = ScriptedLLM([reply("Sorry, I can only help with LeakWatch questions.")])
     ans = CopilotAgent(llm, ctx, "v2").ask("Write a poem about the monsoon")

@@ -68,6 +68,7 @@ ORDER_SQL = (
 RESIDUAL_COLUMN = re.compile(r"^pressure__(\w+?)__residual$")
 NOT_FROM_PAGE = "This request did not come from the dashboard page."
 KAFKA_DOWN = "The command could not be sent: Kafka did not accept it. Start Kafka with `make up`."
+STARTING = "The runner is still starting and would not see this. Try again once it is warming up."
 
 
 class CommandNotSentError(RuntimeError):
@@ -491,8 +492,42 @@ def main_lake_alerts(cfg: Mapping[str, Any]) -> list[dict[str, Any]]:
 class Copilot:
     """The copilot on the demo lake: the loss chip without a model, other questions with one.
 
-    A new tool context per question, as the old page did: a restart rebuilds the demo lake.
+    A new tool context per question, as the old page did: a restart rebuilds the demo lake. One
+    model client serves every question, built ahead of the first one by :meth:`warm`.
     """
+
+    def __init__(self) -> None:
+        self._llm: Any = None
+        self._llm_lock = threading.Lock()
+
+    def warm(self) -> None:
+        """Import the copilot and build its model client before the first question (a thread).
+
+        Without it the first question waited for these imports: about 15 s on the demo laptop
+        while Spark was starting.
+        """
+        if not self.configured():
+            return
+        t0 = time.perf_counter()
+        try:
+            from leakwatch.copilot import agent  # noqa: F401  (tool loop, guardrails, tools)
+
+            self._client()
+        except Exception as exc:
+            log.warning("copilot warm-up failed: %s", exc)
+            return
+        log.info("copilot ready in %.1f s", time.perf_counter() - t0)
+
+    def _client(self) -> Any:
+        """The shared model client (built once; the questions are serialized by the page)."""
+        with self._llm_lock:
+            if self._llm is None:
+                from leakwatch.common.config import load_config
+                from leakwatch.copilot.llm import build_llm
+                from leakwatch.copilot.settings import llm_settings
+
+                self._llm = build_llm(llm_settings(), load_config()["copilot"]["llm"])
+            return self._llm
 
     def configured(self) -> bool:
         """Whether a language model is set in ``.env``."""
@@ -507,16 +542,17 @@ class Copilot:
 
         return estimate_loss(ToolContext(lake_root=demo_lake()), {"alert_id": alert_id})
 
-    def ask(self, question: str) -> Any:
-        """The agent's ``CopilotAnswer`` (agent, prompts and guardrails as they are)."""
+    def ask(self, question: str, context: str | None = None) -> Any:
+        """The agent's ``CopilotAnswer`` (agent, prompts and guardrails as they are).
+
+        ``context`` goes before the question; the scope pre-filter reads the question alone.
+        """
         from leakwatch.copilot.agent import CopilotAgent
-        from leakwatch.copilot.llm import build_llm
-        from leakwatch.copilot.settings import llm_settings
         from leakwatch.copilot.tools import ToolContext
         from leakwatch.demo.runner import demo_lake
 
         ctx = ToolContext(lake_root=demo_lake())
-        return CopilotAgent(build_llm(llm_settings(), ctx.cfg["llm"]), ctx).ask(question)
+        return CopilotAgent(self._client(), ctx).ask(question, context=context)
 
 
 class AskBody(BaseModel):
@@ -595,6 +631,9 @@ def create_app(
     async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
         if background:
             snapshots.start()
+            warm = getattr(helper, "warm", None)
+            if warm is not None:  # the copilot's imports, off the request path
+                threading.Thread(target=warm, name="copilot-warm-up", daemon=True).start()
         yield
         snapshots.stop()
 
@@ -668,17 +707,24 @@ def create_app(
             )
         return command("inject_leak", node_id=body.node_id, diameter_m=body.diameter_mm / 1000)
 
+    def not_listening() -> Response | None:
+        """A refusal while the runner cannot take a command (a starting runner drops it)."""
+        code = current()["runner"]["code"]
+        if code in ("offline", "stale", "error"):
+            return refused(409, "The demo runner is not running. Start it with `make demo`.")
+        if code == "starting":
+            return refused(409, STARTING)
+        return None
+
     @app.post("/api/demo/speed")
     def speed(body: SpeedBody) -> Response:
         if body.speed not in [int(s) for s in dash["speeds"]]:
             return refused(422, "That replay speed is not offered.")
-        return command("set_speed", speed=body.speed)
+        return not_listening() or command("set_speed", speed=body.speed)
 
     @app.post("/api/demo/restart")
     def restart() -> Response:
-        if current()["runner"]["code"] in ("offline", "stale", "error"):
-            return refused(409, "The demo runner is not running. Start it with `make demo`.")
-        return command("reset")
+        return not_listening() or command("reset")
 
     @app.get("/api/results")
     def results() -> Response:
@@ -710,19 +756,20 @@ def create_app(
         if not asking.acquire(blocking=False):
             return refused(409, "The copilot is still answering the previous question.")
         started = time.perf_counter()
+        tz = str(cfg["project"]["display_timezone"])
         try:
             if body.direct:
                 if not incident:
                     return refused(409, "There is no alert on screen to ask about.")
                 result = helper.loss(incident["alert_id"])
-                tz = str(cfg["project"]["display_timezone"])
                 out = view.loss_answer_view(result, time.perf_counter() - started, tz)
                 return json_response({**out, "question": view.LOSS_QUESTION})
             if not helper.configured():
                 return json_response({"state": "no_model", "text": NOT_CONFIGURED_MESSAGE})
-            context = view.copilot_context(incident) if body.alert_id else None
-            sent = f"{context}\n\n{question}" if context else question
-            return json_response({**view.copilot_view(helper.ask(sent)), "question": question})
+            # The line shown above the question box: the alert asked about (if any) and the zone.
+            context = view.copilot_context(incident if body.alert_id else None, tz)
+            answer = helper.ask(question, context)
+            return json_response({**view.copilot_view(answer, tz), "question": question})
         except Exception as exc:
             log.error("copilot question failed: %s", exc)
             return json_response(

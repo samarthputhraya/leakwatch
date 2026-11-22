@@ -194,9 +194,18 @@ class CopilotAgent:
         return msgs[-keep:] if keep > 0 else []
 
     def ask(
-        self, question: str, history: Sequence[Mapping[str, Any]] | None = None
+        self,
+        question: str,
+        history: Sequence[Mapping[str, Any]] | None = None,
+        context: str | None = None,
     ) -> CopilotAnswer:
-        """Answer one question (see module docstring)."""
+        """Answer one question (see module docstring).
+
+        ``context`` is a line the caller sends before the question (the dashboard: the alert on
+        screen and the time zone). The scope pre-filter reads the question alone, so an off-topic
+        question is refused without a model call even when that line names an alert; the number
+        guardrail accepts numbers from both.
+        """
         t0 = time.perf_counter()
         spec = self.spec
         report = GuardrailReport(enforced=spec.guardrails)
@@ -219,6 +228,7 @@ class CopilotAgent:
         if spec.guardrails and guardrails.is_out_of_scope(question):
             report.scope_prefilter = True
             return finish(guardrails.REFUSAL_TEXT)
+        sent = f"{context}\n\n{question}" if context else question
         if self.llm is None:
             return finish(NOT_CONFIGURED_MESSAGE, error="llm_not_configured")
 
@@ -232,7 +242,7 @@ class CopilotAgent:
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": self.system_prompt()},
             *self._history(history),
-            {"role": "user", "content": question},
+            {"role": "user", "content": sent},
         ]
         tools = self.registry.schemas()
         try:
@@ -246,7 +256,7 @@ class CopilotAgent:
             )
             draft = outcome.content.strip()
             report.draft_answer = draft
-            answer = self._guard(question, draft, messages, tools, execute, results, report)
+            answer = self._guard(sent, draft, messages, tools, execute, results, report)
         except LLMError as exc:
             log.warning("model call failed: %s", exc)
             # llm_unavailable: rate limit, timeout or server error (a retry may work);
@@ -349,6 +359,7 @@ def ask(
     question: str,
     history: Sequence[Mapping[str, Any]] | None = None,
     prompt_version: str | None = None,
+    context: str | None = None,
 ) -> CopilotAnswer:
     """Dashboard API: answer ``question`` given earlier ``history`` (OpenAI-style messages)."""
-    return get_default_agent(prompt_version).ask(question, history)
+    return get_default_agent(prompt_version).ask(question, history, context)
