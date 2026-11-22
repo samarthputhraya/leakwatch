@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated_at": "2026-11-22T03:36:59+00:00",
-    "git_commit": "3d246a8",
+    "generated_at": "2026-11-22T07:57:55+00:00",
+    "git_commit": "7c8ca6e",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
@@ -12,76 +12,76 @@
       "node": "n100",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 25.3,
-      "seconds_to_localizer": 25.4,
-      "seconds_to_work_order": 27.7,
-      "seconds_to_model_work_order": 32.2,
-      "wall_s": 32.2,
-      "seconds_to_running": 98.0,
+      "seconds_to_alert": 49.2,
+      "seconds_to_localizer": 49.8,
+      "seconds_to_work_order": 52.4,
+      "seconds_to_model_work_order": 59.7,
+      "wall_s": 59.7,
+      "seconds_to_running": 132.1,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
-        "n100",
         "n474",
-        "n483",
+        "n100",
         "n482",
-        "n103"
+        "n101",
+        "n483"
       ],
       "distance_at_alert": {
-        "top1_m": 0.0,
+        "top1_m": 58.8652,
         "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-21T04:45:00+00:00",
-      "sim_hours_inject_to_alert": 14.75,
-      "seconds_to_refined_localizer": 37.0,
+      "alert_start_sim": "2018-11-22T08:00:00+00:00",
+      "sim_hours_inject_to_alert": 26.75,
+      "seconds_to_refined_localizer": 66.1,
       "localizer_top5": [
-        "n100",
         "n474",
-        "n483",
+        "n100",
         "n482",
-        "n103"
+        "n101",
+        "n483"
       ],
       "distance": {
-        "top1_m": 0.0,
+        "top1_m": 58.8652,
         "best_of_top5_m": 0.0
       },
-      "ok": true
+      "ok": false
     },
     {
       "run": 2,
       "node": "n300",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 10.3,
-      "seconds_to_localizer": 10.4,
-      "seconds_to_work_order": 11.6,
-      "seconds_to_model_work_order": 17.3,
-      "wall_s": 17.3,
-      "seconds_to_running": 14.0,
+      "seconds_to_alert": 18.6,
+      "seconds_to_localizer": 18.8,
+      "seconds_to_work_order": 20.1,
+      "seconds_to_model_work_order": 28.2,
+      "wall_s": 28.2,
+      "seconds_to_running": 22.0,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
-        "n157",
-        "n461",
-        "n462",
-        "n539",
-        "n90"
+        "n348",
+        "n347",
+        "n1",
+        "n349",
+        "n350"
       ],
       "distance_at_alert": {
-        "top1_m": 2256.3351,
-        "best_of_top5_m": 1479.6578000000002
+        "top1_m": 2986.9186999999997,
+        "best_of_top5_m": 2886.3714
       },
-      "alert_start_sim": "2018-11-19T21:30:00+00:00",
-      "sim_hours_inject_to_alert": 4.0,
-      "seconds_to_refined_localizer": 17.6,
+      "alert_start_sim": "2018-11-20T06:15:00+00:00",
+      "sim_hours_inject_to_alert": 6.25,
+      "seconds_to_refined_localizer": 28.8,
       "localizer_top5": [
-        "n157",
-        "n461",
-        "n462",
-        "n539",
-        "n90"
+        "n348",
+        "n347",
+        "n1",
+        "n349",
+        "n350"
       ],
       "distance": {
-        "top1_m": 2256.3351,
-        "best_of_top5_m": 1479.6578000000002
+        "top1_m": 2986.9186999999997,
+        "best_of_top5_m": 2886.3714
       },
       "ok": true
     },
@@ -90,33 +90,33 @@
       "node": "n470",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 9.2,
-      "seconds_to_localizer": 9.4,
-      "seconds_to_work_order": 10.8,
-      "seconds_to_model_work_order": 18.5,
-      "wall_s": 18.5,
-      "seconds_to_running": 18.0,
+      "seconds_to_alert": 17.6,
+      "seconds_to_localizer": 17.7,
+      "seconds_to_work_order": 19.0,
+      "seconds_to_model_work_order": 48.1,
+      "wall_s": 48.1,
+      "seconds_to_running": 22.0,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
         "n469",
         "n470",
         "n471",
         "n94",
-        "n468"
+        "n1"
       ],
       "distance_at_alert": {
         "top1_m": 48.9692,
         "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-20T00:30:00+00:00",
-      "sim_hours_inject_to_alert": 3.5,
-      "seconds_to_refined_localizer": 18.9,
+      "alert_start_sim": "2018-11-20T06:00:00+00:00",
+      "sim_hours_inject_to_alert": 6.25,
+      "seconds_to_refined_localizer": 48.7,
       "localizer_top5": [
         "n469",
         "n470",
         "n471",
         "n94",
-        "n468"
+        "n1"
       ],
       "distance": {
         "top1_m": 48.9692,
@@ -129,33 +129,33 @@
       "node": "n100",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 18.9,
-      "seconds_to_localizer": 19.0,
-      "seconds_to_work_order": 20.2,
-      "seconds_to_model_work_order": 26.9,
-      "wall_s": 26.9,
-      "seconds_to_running": 16.0,
+      "seconds_to_alert": 27.5,
+      "seconds_to_localizer": 27.6,
+      "seconds_to_work_order": 28.9,
+      "seconds_to_model_work_order": 38.3,
+      "wall_s": 38.3,
+      "seconds_to_running": 24.0,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
         "n474",
+        "n100",
+        "n482",
         "n101",
-        "n477",
-        "n97",
-        "n100"
+        "n476"
       ],
       "distance_at_alert": {
         "top1_m": 58.8652,
         "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-20T07:30:00+00:00",
-      "sim_hours_inject_to_alert": 11.5,
-      "seconds_to_refined_localizer": 27.2,
+      "alert_start_sim": "2018-11-20T14:00:00+00:00",
+      "sim_hours_inject_to_alert": 13.5,
+      "seconds_to_refined_localizer": 39.1,
       "localizer_top5": [
         "n474",
+        "n100",
+        "n482",
         "n101",
-        "n477",
-        "n97",
-        "n100"
+        "n476"
       ],
       "distance": {
         "top1_m": 58.8652,
@@ -168,42 +168,42 @@
       "node": "n300",
       "diameter_m": 0.03,
       "quiet_before_inject": true,
-      "seconds_to_alert": 10.3,
-      "seconds_to_localizer": 10.6,
-      "seconds_to_work_order": 10.7,
-      "seconds_to_model_work_order": 17.3,
-      "wall_s": 17.3,
-      "seconds_to_running": 14.0,
+      "seconds_to_alert": 14.3,
+      "seconds_to_localizer": 14.5,
+      "seconds_to_work_order": 15.7,
+      "seconds_to_model_work_order": 21.7,
+      "wall_s": 21.7,
+      "seconds_to_running": 22.0,
       "speed": 2880.0,
       "localizer_top5_at_alert": [
-        "n156",
-        "n533",
-        "n532",
-        "n154",
-        "n143"
+        "n303",
+        "n740",
+        "n739",
+        "n738",
+        "n300"
       ],
       "distance_at_alert": {
-        "top1_m": 2295.1865,
-        "best_of_top5_m": 2295.1865
+        "top1_m": 0.0,
+        "best_of_top5_m": 0.0
       },
-      "alert_start_sim": "2018-11-19T22:15:00+00:00",
-      "sim_hours_inject_to_alert": 3.75,
-      "seconds_to_refined_localizer": 17.6,
+      "alert_start_sim": "2018-11-20T05:15:00+00:00",
+      "sim_hours_inject_to_alert": 4.75,
+      "seconds_to_refined_localizer": 22.1,
       "localizer_top5": [
-        "n156",
-        "n533",
-        "n532",
-        "n154",
-        "n143"
+        "n303",
+        "n740",
+        "n739",
+        "n738",
+        "n300"
       ],
       "distance": {
-        "top1_m": 2295.1865,
-        "best_of_top5_m": 2295.1865
+        "top1_m": 0.0,
+        "best_of_top5_m": 0.0
       },
       "ok": true
     }
   ],
-  "all_ok": true,
+  "all_ok": false,
   "budget_s": 30.0,
   "note": "wall seconds from the inject command to each artefact in the demo lake; the leak signature is simulated with EPANET and added to replayed BattLeDIM 2018 data"
 }
