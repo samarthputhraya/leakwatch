@@ -52,10 +52,14 @@ function useLive() {
       setLost(!res.ok);
       if (!stop) timer = setTimeout(tick, pollMs);
     };
-    call('GET', '/api/settings').then((s) => {
-      if (s.ok) { pollMs = s.poll_ms; setSettings(s); }
-      tick();
+    // The snapshot does not wait for the settings: the page shows the runner's state at once.
+    // Settings that did not arrive (the server was still starting) are asked for again.
+    const settle = () => call('GET', '/api/settings').then((s) => {
+      if (stop) return;
+      if (s.ok) { pollMs = s.poll_ms; setSettings(s); } else setTimeout(settle, 5000);
     });
+    settle();
+    tick();
     return () => { stop = true; clearTimeout(timer); };
   }, []);
   return { vm, lost, settings };
@@ -92,7 +96,8 @@ function Controls({ settings, clock, runner, size, setSize, notify }) {
     <div class="controls-panel">
       <label for="leak-size">Leak size <output>${size} mm</output></label>
       <input id="leak-size" type="range" min=${settings.leak_mm.min} max=${settings.leak_mm.max} step="5"
-        value=${size} onInput=${(e) => setSize(Number(e.target.value))} />
+        value=${size} onInput=${(e) => setSize(Number(e.target.value))} aria-describedby=${settings.detector ? 'leak-size-note' : undefined} />
+      ${settings.detector && html`<p class="fine" id="leak-size-note">${settings.detector.sentence}</p>`}
       <label for="replay-speed">Replay speed</label>
       <div class="row">
         <select id="replay-speed" value=${chosen} onChange=${(e) => setSpeed(Number(e.target.value))}>
@@ -182,7 +187,7 @@ function Legend({ net, drops, incident, floor, truth }) {
     <span><i class="ramp" aria-hidden="true"></i>Drop along the pipes, interpolated between sensors (0 to ${metres(net.tint_full_m)})</span>
     ${incident && incident.candidates.length > 0 && html`<span><svg width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="var(--amber)"/>
       <text x="9" y="13" text-anchor="middle" font-size="11" font-weight="700" fill="var(--sheet)">1</text></svg>Candidate, by rank</span>`}
-    ${incident && incident.order && incident.order.pipes && incident.order.pipes.length > 0 && html`<span><svg width="26" height="12" aria-hidden="true"><path d="M2 6H24" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/></svg>Pipe to inspect, numbered in order</span>`}
+    ${incident && incident.order && incident.order.pipes && incident.order.pipes.length > 0 && html`<span><svg width="26" height="12" aria-hidden="true"><path d="M2 6H24" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/></svg>Pipe to inspect, numbered in order when zoomed in</span>`}
     ${truth && html`<span><svg width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="var(--coral)" stroke-width="2.4"/><path d="M10 0v3.5M10 16.5V20M0 10h3.5M16.5 10H20" stroke="var(--coral)" stroke-width="2"/></svg>True leak (after the reveal)</span>`}
     ${drops && html`<span class="when">Readings of the window ending ${drops.time}</span>`}
   </div>`;
@@ -253,7 +258,25 @@ function Instruments({ charts }) {
 
 const STEPS = ['Start a leak', 'Alert', 'Located', 'Work order', 'Check against the true leak', 'Ask the copilot'];
 
-function LeakStep({ leaks, net, size, canStart, why, busy, onStart }) {
+// Step 1 while no alert of this leak is open: still waiting for one, or why its alert closed.
+function leakAfter(alert, detector, days) {
+  if (!alert) return `Waiting for an alert.${detector ? ` ${detector.sentence}` : ''}`;
+  if (alert.status === 'open') return '';
+  const ran = `Its alert in Area ${alert.area} ran from ${alert.started}${alert.ended ? ` to ${alert.ended}` : ''} and closed when the score fell back below the threshold.`;
+  // A leak that has run for about `days` is inside the detector's own reference (D-038).
+  const folded = days && alert.leak_days != null && alert.leak_days >= days - 1;
+  return folded ? `${ran} The detector compares each window with the median of a week of earlier windows; `
+    + `after about ${days} days a running leak is part of that median.` : ran;
+}
+
+// "300", "N300" and " n300 " all name junction n300; null when no junction has that name.
+function junctionNamed(net, typed) {
+  if (!net || !typed) return null;
+  const name = /^\d+$/.test(typed) ? `n${typed}` : typed.toLowerCase();
+  return net.junctions.includes(name) ? name : null;
+}
+
+function LeakStep({ leaks, net, size, canStart, why, busy, onStart, inc, detector, days }) {
   const [node, setNode] = useState('');
   const active = leaks.active[leaks.active.length - 1];
   const pending = leaks.pending[leaks.pending.length - 1];
@@ -265,19 +288,23 @@ function LeakStep({ leaks, net, size, canStart, why, busy, onStart }) {
   }
   if (active) {
     return { on: true, title: `Leak started at ${active.node_id}`, when: active.started, short: `${active.diameter_mm} mm`, body: html`
-      <p><b>${active.diameter_mm} mm</b> hole, simulated with EPANET${leaks.active.length > 1 ? `. ${leaks.active.length - 1} earlier leak${leaks.active.length > 2 ? 's' : ''} still running.` : ''}</p>` };
+      <p><b>${active.diameter_mm} mm</b> hole, simulated with EPANET${leaks.active.length > 1 ? `. ${leaks.active.length - 1} earlier leak${leaks.active.length > 2 ? 's' : ''} still running.` : ''}</p>
+      ${!inc && html`<p class="fine">${leakAfter(active.alert, detector, days)}</p>`}` };
   }
-  const known = net && net.junctions.includes(node);
+  const known = junctionNamed(net, node);
+  const wrong = !!node && !!net && !known && !/^n$/i.test(node);  // a lone "n" is a name being typed
   return { on: true, open: true, title: 'Start a leak', body: html`
     ${failed && html`<p class="problem" role="alert">The leak at ${failed.node_id} could not be simulated. Pick another junction.</p>`}
     <p>Click any junction on the map, or name one here. EPANET simulates the leak and adds it to the replayed readings.</p>
-    <form class="row" onSubmit=${(e) => { e.preventDefault(); if (known) onStart(node); }}>
+    <form class="row" onSubmit=${(e) => { e.preventDefault(); if (known) onStart(known); }}>
       <input list="junctions" value=${node} placeholder="Junction, for example n470" aria-label="Junction"
+        aria-invalid=${wrong ? 'true' : undefined} aria-describedby="junction-note"
         onInput=${(e) => setNode(e.target.value.trim())} />
       <button class="btn" type="submit" disabled=${!known || !canStart || busy}>${busy ? 'Sending…' : `Start a ${size} mm leak`}</button>
     </form>
     ${net && html`<datalist id="junctions">${net.junctions.map((j) => html`<option value=${j} />`)}</datalist>`}
-    ${!canStart && html`<p class="fine">${why}</p>`}` };
+    <p class="fine" id="junction-note" aria-live="polite">${wrong
+      ? `${node} is not a junction of L-Town. Junctions are named n1 to n${net.junctions.length}.` : !canStart ? why : ''}</p>` };
 }
 
 const COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five'];
@@ -299,16 +326,19 @@ function AlertStep({ inc }) {
 }
 
 // The localizer names junctions to inspect, not one answer; the benchmark says how good the list is.
-function LocatedStep({ inc, bench }) {
+function LocatedStep({ inc, bench, net }) {
   if (!inc) return { on: false, title: STEPS[2] };
   if (!inc.candidates.length) {
     return { on: false, title: STEPS[2], body: html`<p>The localizer has not answered for this alert yet.</p>` };
   }
   const n = inc.candidates.length;
-  return { on: true, title: STEPS[2], short: `${n} to inspect, ${inc.candidates[0]} first`, body: html`
+  const weak = inc.led_by ? ', weak pressure signal' : '';  // the note below, in the folded line
+  return { on: true, title: STEPS[2], short: `${n} to inspect, ${inc.candidates[0]} first${weak}`, body: html`
     <p>${COUNT[n] || n} junction${n === 1 ? '' : 's'} to inspect, best first${inc.located_after_s != null
       ? html`, <b>${inc.located_after_s} s</b> after the click` : ''}.</p>
     <ol class="cands" aria-label="Candidate junctions, best first">${inc.candidates.map((c, i) => html`<li><i>${i + 1}</i>${c}</li>`)}</ol>
+    ${inc.led_by && html`<p class="note">Most of this alert's score came from <b>${inc.led_by.label}</b>${inc.led_by.share_pct != null
+      ? `, ${inc.led_by.share_pct}%` : ''}. The localizer reads only the ${net ? net.counts.pressure_sensors : ''} pressure sensors, so this list rests on a weaker signal.</p>`}
     ${bench && html`<p class="fine">${bench.sentence}</p>`}` };
 }
 
@@ -460,7 +490,10 @@ function CopilotStep({ inc, qa, ask, settings }) {
   const [text, setText] = useState('');
   const asking = !!qa && qa.state === 'asking';
   const loss = settings ? settings.loss_question : null;
-  const submit = (e) => { e.preventDefault(); if (text.trim() && !asking) ask({ question: text.trim() }); };
+  const submit = (e) => {
+    e.preventDefault();
+    if (text.trim() && !asking) { ask({ question: text.trim() }); setText(''); }
+  };
   return { on: !!qa && qa.state !== 'asking', title, body: html`
     ${inc && inc.context && html`<p class="context"><span>Sent with your question</span>${inc.context}</p>`}
     <form class="row ask" onSubmit=${submit}>
@@ -489,10 +522,11 @@ function useCopilot(inc) {
 function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, onReveal, settings }) {
   const [unfolded, setUnfolded] = useState({});
   const copilot = useCopilot(vm.incident);
-  const first = LeakStep({ leaks: vm.leaks, net, size, canStart, why, busy, onStart });
   const inc = vm.incident;
+  const first = LeakStep({ leaks: vm.leaks, net, size, canStart, why, busy, onStart, inc,
+    detector: settings ? settings.detector : null, days: settings ? settings.leak_visible_days : null });
   const bench = settings ? settings.localizer : null;
-  const steps = [first, AlertStep({ inc }), LocatedStep({ inc, bench }), OrderStep({ inc }),
+  const steps = [first, AlertStep({ inc }), LocatedStep({ inc, bench, net }), OrderStep({ inc }),
     RevealStep({ inc, revealed, onReveal, bench }), CopilotStep({ inc, qa: copilot.qa, ask: copilot.ask, settings })];
   const now = steps.reduce((last, s, i) => (s.on ? i : last), 0);
   // Finished steps fold to one line once the work order is on screen, so the open step fits.
@@ -615,7 +649,7 @@ function useCamera(map, incident) {
       setZoomed(false);
     }
   }, [map, target]);
-  const frame = (nodes) => { if (map) setZoomed(map.focus(nodes)); };
+  const frame = (nodes) => { if (map) setZoomed(map.focus(nodes, true)); };  // the reveal, framed close
   const toggle = () => {
     if (!map || !incident) return;
     if (zoomed) { map.home(); setZoomed(false); } else setZoomed(map.focus(incident.focus));
@@ -642,7 +676,8 @@ function App() {
     addEventListener('keydown', close);
     return () => removeEventListener('keydown', close);
   }, [pick]);
-  if (!vm && !lost) return html`<div class="app" aria-busy="true"></div>`;
+  // The server's first snapshot can take a few seconds after `make demo` starts it.
+  if (!vm && !lost) return html`<div class="app" aria-busy="true"><p class="boot">Reading the demo's state…</p></div>`;
   const shown = lost ? { ...(vm || {}), ...SERVER_LOST } : vm;
   const leakSize = size ?? (settings ? settings.leak_mm.default : 30);
   const canStart = shown.runner.code === 'running';

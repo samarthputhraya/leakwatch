@@ -12,8 +12,13 @@ const ADD = {
   blendColorSrcFactor: 'src-alpha', blendColorDstFactor: 'one',
   blendAlphaSrcFactor: 'one', blendAlphaDstFactor: 'one', depthWriteEnabled: false,
 };
-// Smallest view around the candidates (metres), so the streets around them stay readable.
-const FOCUS_MIN = [760, 480];
+// Smallest view around the candidates (metres), so the streets around them stay readable, and the
+// margin added around them: [min width, min height, margin x, margin y].
+const FOCUS_MIN = [760, 480, 240, 180];
+// The reveal frames the true leak and candidate 1 closer, so a short distance stays readable.
+const REVEAL_MIN = [300, 180, 160, 120];
+// Work-order pipe numbers once a metre is this many pixels (closer than the candidates' view).
+const NUMBERS_PX_PER_M = 1.4;
 const MOVE_MS = 700; // rings and tint move between two real windows in this time
 
 function token(name) {
@@ -40,27 +45,42 @@ export function createMap(el, net, { onPick, onError }) {
   for (let x = gx0; x <= gx1; x += 100) grid.push({ a: [x, gy0], b: [x, gy1], major: x % 500 === 0 });
   for (let y = gy0; y <= gy1; y += 100) grid.push({ a: [gx0, y], b: [gx1, y], major: y % 500 === 0 });
 
-  const st = { selected: null, drops: null, incident: null, truth: null, zoomed: false, key: '', ripple: 0 };
+  // `scale`: pixels per metre of the current view, in half-zoom steps (labels depend on it);
+  // `moved`: the user has panned or zoomed since the view was last set.
+  const st = { selected: null, drops: null, incident: null, truth: null, zoomed: false, key: '', ripple: 0, scale: null, moved: false };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const move = (ms) => (reduced ? {} : ms);
 
-  // View that fits a box [minx, miny, maxx, maxy] into the free part of the canvas: the banner
-  // covers the top (padTop px) and the legend the bottom (padBottom px).
-  function fit(box, padX, padTop, padBottom = padTop) {
-    const w = Math.max(200, el.clientWidth - padX), h = Math.max(160, el.clientHeight - padTop - padBottom);
+  // The free band of the canvas, measured: the banner covers its top and the legend its bottom,
+  // and both change height with the window and the incident.
+  function pads() {
+    const box = el.getBoundingClientRect();
+    const rect = (sel) => { const n = el.parentElement.querySelector(sel); return n ? n.getBoundingClientRect() : null; };
+    const banner = rect('.banner'), legend = rect('.legend');
+    const top = banner && banner.height ? banner.bottom - box.top + 14 : 24;
+    const bottom = legend && legend.height ? box.bottom - legend.top + 10 : 24;
+    return [Math.max(24, top), Math.max(24, bottom)];
+  }
+
+  // View that fits a box [minx, miny, maxx, maxy] into the free band of the canvas.
+  function fit(box, padX) {
+    const [padTop, padBottom] = pads();
+    const w = Math.max(200, el.clientWidth - padX), h = Math.max(140, el.clientHeight - padTop - padBottom);
     const zoom = Math.log2(Math.min(w / (box[2] - box[0]), h / (box[3] - box[1])));
     const lift = (padBottom - padTop) / 2 / 2 ** zoom; // world y grows upwards (flipY false)
     return { target: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2 - lift, 0], zoom };
   }
-  const home = () => { const v = fit(net.bounds, 64, 120); v.target[1] -= 10 / 2 ** v.zoom; return v; };
+  const home = () => fit(net.bounds, 64);
 
-  function focusBox(nodes) {
+  // `tight` frames the reveal (the leak and candidate 1) closer than the candidates' view.
+  function focusBox(nodes, tight = false) {
     const pts = nodes.map(xy).filter(Boolean);
     if (!pts.length) return null;
+    const [minW, minH, marginW, marginH] = tight ? REVEAL_MIN : FOCUS_MIN;
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    const w = Math.max(FOCUS_MIN[0], Math.max(...xs) - Math.min(...xs) + 240);
-    const h = Math.max(FOCUS_MIN[1], Math.max(...ys) - Math.min(...ys) + 180);
+    const w = Math.max(minW, Math.max(...xs) - Math.min(...xs) + marginW);
+    const h = Math.max(minH, Math.max(...ys) - Math.min(...ys) + marginH);
     return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
   }
 
@@ -77,14 +97,15 @@ export function createMap(el, net, { onPick, onError }) {
   }
   const drop = (s) => (st.drops ? st.drops.values[s] || 0 : 0);
 
-  // The work order's pipes, numbered in inspection order (numbers once the view is close enough).
+  // The work order's pipes, numbered in inspection order (numbers once the view is close enough:
+  // at the candidates' view they would cover the candidates).
   function orderLayers(inc, z, key) {
     const ids = inc && inc.order && inc.order.pipes ? inc.order.pipes : [];
     const data = ids.map((id, i) => ({ p: pipeById[id], n: String(i + 1) })).filter((d) => d.p);
     if (!data.length) return [];
     const out = [new PathLayer({ id: 'order-pipes', data, getPath: (d) => d.p.path, getColor: C.ink,
       getWidth: st.zoomed ? 5 : 3.5, widthUnits: 'pixels', capRounded: true, updateTriggers: { getWidth: z } })];
-    if (st.zoomed) {
+    if (st.scale != null && st.scale >= NUMBERS_PX_PER_M) {
       out.push(new TextLayer({ id: 'order-numbers', data, getText: (d) => d.n, getSize: 12.5, getColor: C.sheet,
         getPosition: (d) => [(d.p.path[0][0] + d.p.path[1][0]) / 2, (d.p.path[0][1] + d.p.path[1][1]) / 2],
         fontFamily: FONT, fontWeight: 700, background: true, getBackgroundColor: C.ink, backgroundPadding: [4, 1],
@@ -113,14 +134,19 @@ export function createMap(el, net, { onPick, onError }) {
         getRadius: st.zoomed ? 18 : 12, filled: false, stroked: true, getLineColor: C.coral, lineWidthUnits: 'pixels',
         getLineWidth: 2.8, updateTriggers: { getRadius: z } }),
     );
-    const labels = [{ p: at, text: `True leak ${t.node_id}`, o: [0, (st.zoomed ? 18 : 12) + 16] }];
+    const below = [0, (st.zoomed ? 18 : 12) + 16];
+    const labels = [{ p: at, text: `True leak ${t.node_id}`, o: below }];
     if (first && t.rank !== 1 && t.to_first_m != null) {
-      labels.push({ p: [(at[0] + first[0]) / 2, (at[1] + first[1]) / 2], text: `${t.to_first_m.toLocaleString('en')} m to candidate 1`, o: [0, 0] });
+      const distance = `${t.to_first_m.toLocaleString('en')} m to candidate 1`;
+      // On the line when it is long enough on screen to carry it; otherwise under the leak's name.
+      const onScreen = Math.hypot(at[0] - first[0], at[1] - first[1]) * (st.scale || 0);
+      if (onScreen >= 220) labels.push({ p: [(at[0] + first[0]) / 2, (at[1] + first[1]) / 2], text: distance, o: [0, 0] });
+      else labels.push({ p: at, text: distance, o: [0, below[1] + 22] });
     }
     out.push(new TextLayer({ id: 'truth-labels', data: labels, getPosition: (d) => d.p, getText: (d) => d.text,
       getPixelOffset: (d) => d.o, getSize: 13.5, getColor: C.coral, fontFamily: FONT, fontWeight: 600, characterSet: 'auto',
       background: true, getBackgroundColor: [...C.sheet, 235], backgroundPadding: [5, 3],
-      updateTriggers: { getText: st.key, getPixelOffset: z } }));
+      updateTriggers: { getText: [st.key, st.scale], getPixelOffset: [z, st.scale] } }));
     return out;
   }
 
@@ -248,6 +274,7 @@ export function createMap(el, net, { onPick, onError }) {
   }
 
   let deckgl;
+  let redraw = 0; // a pending redraw after the scale changed
   try {
     deckgl = new DeckGL({
       container: el,
@@ -255,6 +282,9 @@ export function createMap(el, net, { onPick, onError }) {
       initialViewState: home(),
       controller: { inertia: !reduced, doubleClickZoom: false },
       getCursor: ({ isHovering, isDragging }) => (isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'),
+      onViewStateChange: ({ interactionState: i }) => {
+        if (i && (i.isDragging || i.isPanning || i.isZooming)) st.moved = true;
+      },
       onHover: ({ object, x, y }) => {
         tip.hidden = !object;
         if (object) {
@@ -265,7 +295,15 @@ export function createMap(el, net, { onPick, onError }) {
       },
       onAfterRender: () => {
         const vp = deckgl && deckgl.getViewports()[0];
-        if (vp && st.zoomed) updateInset(vp.getBounds());
+        if (!vp) return;
+        if (st.zoomed) updateInset(vp.getBounds());
+        // Some labels depend on the scale: redraw (next frame) when it crosses a half-zoom step.
+        const zoom = Array.isArray(vp.zoom) ? vp.zoom[0] : vp.zoom;
+        const scale = 2 ** (Math.round(zoom * 2) / 2);
+        if (Number.isFinite(scale) && scale !== st.scale && !redraw) {
+          st.scale = scale;
+          redraw = requestAnimationFrame(() => { redraw = 0; draw(); });
+        }
       },
       onError: (error) => onError(error),
       layers: layers(),
@@ -287,6 +325,7 @@ export function createMap(el, net, { onPick, onError }) {
     const box = el.getBoundingClientRect();
     const x = e.clientX - box.left, y = e.clientY - box.top;
     const hit = deckgl.pickObject({ x, y, radius: 14, layerIds: ['junctions'] });
+    tip.hidden = true; // the card that opens names the junction; the hover tip would sit under it
     onPick(hit ? hit.object : null, { x, y });
   };
   el.addEventListener('pointerdown', onDown);
@@ -295,6 +334,16 @@ export function createMap(el, net, { onPick, onError }) {
     deckgl.setProps({ initialViewState: { ...view, transitionDuration: reduced ? 0 : ms,
       transitionInterpolator: new LinearInterpolator(['target', 'zoom']), transitionEasing: easeInOut } });
   }
+  // A window resized (or a page opened in a minimized window) refits the whole network; a view
+  // the camera or the user moved is left as it is.
+  let size = [el.clientWidth, el.clientHeight];
+  const resized = new ResizeObserver(() => {
+    const now = [el.clientWidth, el.clientHeight];
+    if (now[0] === size[0] && now[1] === size[1]) return;
+    size = now;
+    if (!st.zoomed && !st.moved) deckgl.setProps({ initialViewState: home() });
+  });
+  resized.observe(el);
 
   return {
     set(patch) {
@@ -305,23 +354,28 @@ export function createMap(el, net, { onPick, onError }) {
       draw();
       animate();
     },
-    // Fly to junctions (the candidates and the sensors that moved most); false if none is on the map.
-    focus(nodes) {
-      const box = focusBox(nodes);
+    // Fly to junctions (the candidates and the sensors that moved most; `tight` for the reveal);
+    // false if none is on the map.
+    focus(nodes, tight = false) {
+      const box = focusBox(nodes, tight);
       if (!box) return false;
       st.zoomed = true;
+      st.moved = false;
       inset.classList.add('on');
-      fly(fit(box, 80, 100, 170));
+      fly(fit(box, 80));
       draw();
       return true;
     },
     home() {
       st.zoomed = false;
+      st.moved = false;
       inset.classList.remove('on');
       fly(home(), 1200);
       draw();
     },
     destroy() {
+      resized.disconnect();
+      cancelAnimationFrame(redraw);
       el.removeEventListener('pointerdown', onDown);
       el.removeEventListener('click', onClick);
       clearInterval(pulse);

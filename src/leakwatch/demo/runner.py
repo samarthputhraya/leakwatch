@@ -328,6 +328,7 @@ class DemoRunner:
         if cmd.command == "set_speed":
             self.speed = float(cmd.params.get("speed", self.speed))
             self.pacer.set_speed(self.speed, self.sim_ts)
+            self.write_state()  # the header shows it at once, also after the replay has ended
         elif cmd.command == "reset":
             self._reset_flag = True
         elif cmd.command == "inject_leak":
@@ -374,6 +375,7 @@ class DemoRunner:
     def run(self) -> None:
         """Replay until stopped (Ctrl+C); reset on command."""
         demo_root().mkdir(parents=True, exist_ok=True)
+        self.write_state()  # "starting" at once: the screen must not show the last run's end
         threading.Thread(target=self.warm_llm, daemon=True).start()
         start = pd.Timestamp(self.dcfg["background_start"], tz="UTC")
         hours = float(self.dcfg["background_hours"])
@@ -394,8 +396,11 @@ class DemoRunner:
         producer = kafka_io.make_producer(kafka)
         while True:
             # Overwrite a state file left by an earlier runner (or the pre-reset "running") at
-            # once: readers wait for "running", which must mean *this* replay is warm.
+            # once: readers wait for "running", which must mean *this* replay is warm. The last
+            # pass's clock and leaks go too, so "Starting" shows no ended replay's time or leaks.
             self.status = "starting"
+            self.sim_ts = None
+            self.leaks, self.pending = [], []
             self.write_state()
             self.warm_evidence()  # first pass only; alone, before Spark (D-058)
             self.start_streams()

@@ -116,6 +116,10 @@ def test_settings_offer_the_configured_sizes_and_speeds():
     # The localizer's measured hit rates come from reports/metrics/dl_localizer.json.
     assert "not one answer" in body["localizer"]["sentence"]
     assert 0 < body["localizer"]["in_top5_pct"] <= 100
+    # The live detector's catch rate by leak size, from reports/metrics/bdt_synthetic_leaks.json.
+    assert body["detector"]["sentence"].startswith("On ")
+    assert [s["mm"] for s in body["detector"]["by_mm"]] == [10, 20, 30]
+    assert body["leak_visible_days"] == 4.5  # 1 day gap + half of the 7-day reference (D-038)
     assert app([], "finishing").post("/api/demo/restart").status_code == 200
     refused = app([], "finishing").post(
         "/api/demo/inject", json={"node_id": "n100", "diameter_mm": 30}
@@ -180,6 +184,30 @@ def test_leaks_view_separates_pending_active_and_failed():
     assert view.leaks_view({}, [], TZ) == {"pending": [], "active": [], "failed": []}
     both = view.leaks_view(state, [{"leak_id": "p1", "node_id": "n100"}], TZ)
     assert both["pending"] == []  # a failed leak is not also shown as being simulated
+    assert out["active"][0]["alert"] is None  # no alert yet: step 1 says it waits for one
+
+
+def test_a_running_leak_carries_its_newest_alert_open_or_closed():
+    """The re-baselined detector folds a leak that runs for days into its baseline: its alert
+    closes, and step 1 says when and why instead of "waiting for an alert"."""
+    state = {"leaks": [LEAK]}  # began 2018-11-21 20:05 UTC
+    before = {"alert_id": "bg", "status": "closed", "start_ts": "2018-11-21T10:00:00+00:00"}
+    closed = {
+        "alert_id": "a1",
+        "status": "closed",
+        "area": "A",
+        "start_ts": "2018-11-21T21:15:00+00:00",
+        "end_ts": "2018-11-25T16:30:00+00:00",
+    }
+    out = view.leaks_view(state, [], TZ, [before, closed])["active"][0]["alert"]
+    assert out == {
+        "status": "closed",
+        "area": "A",
+        "started": "Thu 22 Nov, 02:45 IST",
+        "ended": "Sun 25 Nov, 22:00 IST",
+        "leak_days": 3.9,  # 2018-11-21 20:05 -> 2018-11-25 16:30 UTC
+    }
+    assert view.leaks_view(state, [], TZ, [before])["active"][0]["alert"] is None  # not its own
 
 
 def st(pending=(), leaks=(), sim="2018-11-21T20:00:00+00:00", status="running") -> dict:

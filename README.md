@@ -125,14 +125,18 @@ runner replays a quiet week of BattLeDIM 2018 through Kafka into the live Spark 
    20 s), then Spark warms up the stream.
 2. Click a junction on the map, or type one (for example `n470`) in step 1 on the right, and
    start a leak. EPANET simulates it and adds its pressure and flow signature to the readings.
+   Until an alert comes, step 1 says how often the live detector caught each simulated leak size
+   (8% of 10 mm, 72% of 20 mm, 100% of 30 mm leaks); **Demo controls** sets the size and speed.
 3. When K-Means raises an alert, the banner turns amber, sensors whose pressure dropped get a
    ring, the area gets a dashed outline, and the map flies to the localizer's five candidates,
    numbered by rank. They are junctions to inspect, best first, not one answer: on the
    held-out benchmark the leak junction was among the five 69% of the time and candidate 1 lay a
-   median 54 m from it, and the screen says so.
+   median 54 m from it, and the screen says so. When the alert came mostly from a flow meter
+   (a leak behind a pressure-reducing valve, such as n300), step 3 notes that the localizer reads
+   only the 33 pressure sensors.
 4. The work order appears in step 4: the template version first, then the model's version.
-5. **Reveal the true leak** marks the real junction, gives its rank and its distance along the
-   pipes to candidate 1, and says which pipe of the work order ends at it.
+5. **Reveal the true leak** zooms to the real junction and candidate 1, gives its rank and its
+   distance along the pipes to candidate 1, and says which pipe of the work order ends at it.
 6. Ask the copilot a question, or press the loss question, which is answered from the alert
    without a model.
 

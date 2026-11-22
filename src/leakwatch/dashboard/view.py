@@ -203,16 +203,49 @@ def leak_view(leak: Mapping[str, Any], tz: str) -> dict[str, Any]:
 
 
 def leaks_view(
-    state: Mapping[str, Any], failed: Sequence[Mapping[str, Any]], tz: str
+    state: Mapping[str, Any],
+    failed: Sequence[Mapping[str, Any]],
+    tz: str,
+    alerts: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, list[dict[str, Any]]]:
-    """Requested leaks: being simulated, running, and those that could not be simulated."""
+    """Requested leaks: being simulated, running, and those that could not be simulated.
+
+    A running leak carries its newest alert (``alert``: status, area, start and end), or None
+    while none has been raised: step 1 then says whether it waits for one or why it closed.
+    """
     failed_ids = {str(f.get("leak_id")) for f in failed}
     pending = [
         p for p in state.get("pending_leaks") or [] if str(p.get("leak_id")) not in failed_ids
     ]
+    running = list(state.get("leaks") or [])
+    owner = {}  # alert id -> the leak it belongs to
+    for a in alerts:
+        leak = match_leak(a, running)
+        if leak is not None:
+            owner[str(a.get("alert_id"))] = leak.get("leak_id")
+    active = []
+    for lk in running:
+        out = leak_view(lk, tz)
+        theirs = [a for a in alerts if owner.get(str(a.get("alert_id"))) == lk.get("leak_id")]
+        last = newest(theirs, "start_ts")
+        out["alert"] = None
+        if last is not None:
+            start, end = to_utc(last.get("start_ts")), to_utc(last.get("end_ts"))
+            began = to_utc(lk.get("start_ts"))
+            out["alert"] = {
+                "status": last.get("status"),
+                "area": last.get("area"),
+                "started": None if start is None else fmt_time(start, tz),
+                "ended": None if end is None else fmt_time(end, tz),
+                # how long the leak had run when its alert ended (days)
+                "leak_days": None
+                if end is None or began is None
+                else round((end - began).total_seconds() / 86400, 1),
+            }
+        active.append(out)
     return {
         "pending": [leak_view(p, tz) for p in pending],
-        "active": [leak_view(lk, tz) for lk in state.get("leaks") or []],
+        "active": active,
         "failed": [leak_view(f, tz) for f in failed],
     }
 
@@ -233,6 +266,9 @@ def sensor_id(name: Any) -> str:
 
 #: How a sensor kind is named next to its id (pressure sensors are named by id alone).
 SENSOR_KINDS = {"pressure": "", "flow": "flow", "level": "tank level", "amr": "household meters"}
+#: Default of ``dashboard.led_by_share_pct``: a flow or level sensor with this share of the
+#: score carried the alert (the step 3 note).
+LED_BY_SHARE_PCT = 50.0
 
 
 def sensor_kind(name: Any) -> str:
@@ -305,12 +341,15 @@ def incident_view(
     leaks: Sequence[Mapping[str, Any]],
     versions: Sequence[Mapping[str, Any]],
     tz: str,
+    led_by_pct: float = LED_BY_SHARE_PCT,
 ) -> dict[str, Any]:
     """The open alert, shaped for rail steps 2 (alert) and 3 (located) and for the map.
 
     ``versions`` are this alert's rows in ``alert_events`` (``updated_at``, ``located``: whether
     that version had localizer candidates). Seconds "after the click" are measured from the
-    matching leak's ``requested_at``; candidates are given by rank only.
+    matching leak's ``requested_at``; candidates are given by rank only. ``led_by`` is the top
+    sensor when it is not a pressure sensor and holds at least ``led_by_pct`` of the score: the
+    localizer reads only the pressure sensors, and step 3 says so (D-061).
     """
     leak = match_leak(alert, leaks)
     start = to_utc(alert.get("start_ts"))
@@ -332,6 +371,13 @@ def incident_view(
                 }
             )
     sensors = sensors[:3]
+    # The localizer reads only the pressure sensors: say so when another sensor carried the alert.
+    lead = sensors[0] if sensors else None
+    led_by = (
+        lead
+        if lead and lead["kind"] != "pressure" and (lead["share_pct"] or 0) >= led_by_pct
+        else None
+    )
     candidates = [
         str(c["node_id"])
         for c in alert.get("gnn_top5") or []
@@ -353,6 +399,7 @@ def incident_view(
         else round((start - began).total_seconds() / 60),
         "ratio": score_ratio(alert),
         "sensors": sensors,
+        "led_by": led_by,
         "candidates": candidates,
         "located_after_s": seconds_between(located_at, asked) if candidates else None,
         "loss_now_m3h": None if loss is None else round(loss, 1),
@@ -492,6 +539,34 @@ def localizer_benchmark(metrics: Mapping[str, Any] | None) -> dict[str, Any] | N
         "from it."
     )
     return out
+
+
+def detector_benchmark(metrics: Mapping[str, Any] | None, live_model: str) -> dict[str, Any] | None:
+    """How often the live detector caught simulated leaks of each size (``bdt_synthetic_leaks``).
+
+    Leaks added to normal 2018 background (D-030); the variant whose ``model`` is the live one.
+    A small leak may never raise an alert, and the screen says so while it waits for one.
+    """
+    try:
+        variant = next(
+            v
+            for v in metrics["variants"].values()
+            if v.get("model") == live_model  # type: ignore[index]
+        )
+        sizes = sorted((int(mm), float(rate)) for mm, rate in variant["by_diameter_mm"].items())
+        n = int(metrics["scenarios"])  # type: ignore[index]
+    except (KeyError, TypeError, ValueError, StopIteration, AttributeError):
+        return None
+    if not sizes:
+        return None
+    by_mm = [{"mm": mm, "pct": round(100 * rate)} for mm, rate in sizes]
+    parts = [f"{s['pct']}% of {s['mm']} mm" for s in by_mm]
+    listed = parts[0] if len(parts) == 1 else f"{', '.join(parts[:-1])} and {parts[-1]}"
+    return {
+        "n": n,
+        "by_mm": by_mm,
+        "sentence": f"On {n:,} simulated leaks the live detector caught {listed} leaks.",
+    }
 
 
 def truth_view(
@@ -787,6 +862,17 @@ def _source(name: str, load: Callable[[str], Mapping[str, Any] | None]) -> dict[
     return {"file": f"reports/metrics/{name}.json", "commit": meta.get("git_commit")}
 
 
+#: Localizers of ``dl_localizer.json`` as the Results chart names them (D-044).
+LOCALIZER_NAMES = {
+    "nearest_sensor": "Nearest sensor",
+    "sensitivity_cosine": "Sensitivity cosine",
+    "network": "Graph network (GCN)",
+    "interpolation": "Interpolation",
+    "gls_sim": "GLS, simulated noise",
+    "gls_real": "GLS, recorded noise",
+}
+
+
 def results_view(
     rows: Sequence[Sequence[str]],
     load: Callable[[str], Mapping[str, Any] | None],
@@ -824,6 +910,7 @@ def results_view(
         bars.append(
             {
                 "name": str(name),
+                "label": LOCALIZER_NAMES.get(str(name), str(name)),
                 "top5_pct": _pct(ml.get("top5")),
                 "ci_pct": [_pct(ci[0]), _pct(ci[1])],
                 "n": ml.get("n"),
@@ -953,7 +1040,13 @@ def live_view(
     incident = None
     if current is not None:
         mine = [v for v in versions if v.get("alert_id") == current.get("alert_id")]
-        incident = incident_view(current, state.get("leaks") or [], mine, tz)
+        incident = incident_view(
+            current,
+            state.get("leaks") or [],
+            mine,
+            tz,
+            float(dash.get("led_by_share_pct", LED_BY_SHARE_PCT)),
+        )
         leak = next(
             (lk for lk in state.get("leaks") or [] if lk.get("leak_id") == incident["leak_id"]),
             None,
@@ -988,7 +1081,7 @@ def live_view(
         "clock": clock_view(state, cfg["demo"], tz) if state else None,
         "banner": banner_view(runner, open_alerts, n_pressure, lake_error, tz),
         "open_alerts": len(open_alerts),
-        "leaks": leaks_view(state, failed_leaks, tz),
+        "leaks": leaks_view(state, failed_leaks, tz, alerts),
         "incident": incident,
         "drops": drops,
         "analysed": None

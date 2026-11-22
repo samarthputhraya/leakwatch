@@ -191,6 +191,10 @@ code { font-family: inherit; border: 1px solid var(--rule); border-radius: var(-
 .btn:disabled { background: none; color: var(--ink-3); border-color: var(--rule); border-style: dashed; cursor: not-allowed; }
 .row { display: flex; gap: var(--space-2); align-items: center; }
 .fine { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.4; }
+.fine:empty { display: none; }
+.boot { margin: 30vh auto 0; text-align: center; color: var(--ink-3); font-size: var(--text-s); }
+/* A caveat about the step it sits in (amber rule: the same colour as the alert it qualifies). */
+.note { font-size: var(--text-xs); color: var(--ink-2); line-height: 1.4; border-left: 2px solid var(--amber); padding: 1px 0 1px 8px; }
 .problem {
   font-size: var(--text-s);
   line-height: 1.4;
@@ -208,6 +212,7 @@ input, select {
   font-size: var(--text-s);
 }
 input::placeholder { color: var(--ink-3); }
+input[aria-invalid="true"] { border-color: var(--amber); }
 input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--ink); width: 100%; }
 
 .controls { position: relative; }
@@ -254,6 +259,7 @@ input[type="range"] { padding: 0; border: 0; background: none; accent-color: var
 .table-view table { border-collapse: collapse; width: 100%; font-size: var(--text-xs); }
 .table-view th, .table-view td { text-align: right; padding: 3px 10px; border-bottom: 1px solid rgba(44, 85, 132, 0.5); white-space: nowrap; }
 .table-view thead th { position: sticky; top: 0; background: var(--panel); color: var(--ink-2); font-weight: 400; }
+.table-view thead th:first-child { text-align: left; }
 .table-view tbody th { text-align: left; font-weight: 400; color: var(--ink-2); }
 .rail { grid-row: 2 / 4; grid-column: 2; background: var(--panel); padding: var(--space-4) 18px 0; overflow-y: auto; scrollbar-width: thin; }
 .rail h2 { font-size: var(--text-s); font-weight: 400; color: var(--ink-3); margin-bottom: 10px; }

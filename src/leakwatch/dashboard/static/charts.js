@@ -99,7 +99,8 @@ export function createCharts(scoreEl, pressureEl) {
     const series = c.pressure.series;
     pressure.setOption({
       ...anim,
-      grid: { left: 40, right: 104, top: 26, bottom: 22 },
+      // the legend's row sits above the labels of the leak and alert lines (they may be at the right)
+      grid: { left: 40, right: 104, top: c.marks.length ? 42 : 26, bottom: 22 },
       legend: {
         top: 0, right: 6, itemWidth: 24, itemHeight: 9, textStyle: text, data: series.map((s) => s.sensor),
       },
@@ -192,11 +193,11 @@ export function drawResultsCharts(detEl, locEl, res) {
   const bars = res.detection.bars;
   det.setOption({
     animation: false,
-    grid: { left: 190, right: 64, top: 30, bottom: 26 },
+    grid: { left: 200, right: 64, top: 30, bottom: 26 },
     legend: { top: 0, right: 0, textStyle: text, itemWidth: 14, itemHeight: 10 },
     tooltip: { ...tip, valueFormatter: (v) => (v == null ? 'not reachable' : `${v}%`) },
     xAxis: { type: 'value', min: 0, max: 100, ...axis, axisLabel: { ...axis.axisLabel, formatter: '{value}%' } },
-    yAxis: { type: 'category', inverse: true, data: bars.map((b) => b.detector), ...axis, axisLabel: { ...text, width: 180, overflow: 'truncate' } },
+    yAxis: { type: 'category', inverse: true, data: bars.map((b) => b.detector), ...axis, axisLabel: { ...text, width: 188, overflow: 'break', lineHeight: 14 } },
     series: [
       { name: 'Leaks detected', type: 'bar', barGap: '15%', barWidth: 9, itemStyle: { color: T.ink, borderRadius: [0, 2, 2, 0] },
         data: bars.map((b) => b.detection_pct),
@@ -210,10 +211,10 @@ export function drawResultsCharts(detEl, locEl, res) {
   const lb = res.localizer.bars;
   loc.setOption({
     animation: false,
-    grid: { left: 130, right: 92, top: 30, bottom: 26 },
-    tooltip: { ...tip, formatter: (ps) => { const b = lb[ps[0].dataIndex]; return `${echarts.format.encodeHTML(b.name)}<br><b>${b.top5_pct}%</b> in the top 5${b.ci_pct[0] != null ? ` (95% CI ${b.ci_pct[0]}–${b.ci_pct[1]}%)` : ''}<br>${b.n} medium + large leaks`; } },
+    grid: { left: 170, right: 92, top: 30, bottom: 26 },
+    tooltip: { ...tip, formatter: (ps) => { const b = lb[ps[0].dataIndex]; return `${echarts.format.encodeHTML(b.label || b.name)}<br><b>${b.top5_pct}%</b> in the top 5${b.ci_pct[0] != null ? ` (95% CI ${b.ci_pct[0]}–${b.ci_pct[1]}%)` : ''}<br>${b.n} medium + large leaks`; } },
     xAxis: { type: 'value', min: 0, max: 100, ...axis, axisLabel: { ...axis.axisLabel, formatter: '{value}%' } },
-    yAxis: { type: 'category', inverse: true, data: lb.map((b) => (b.chosen ? `${b.name} (chosen)` : b.name)), ...axis, axisLabel: text },
+    yAxis: { type: 'category', inverse: true, data: lb.map((b) => (b.chosen ? `${b.label || b.name} (chosen)` : b.label || b.name)), ...axis, axisLabel: text },
     series: [{
       name: 'Top-5 hit rate', type: 'bar', barWidth: 11,
       data: lb.map((b) => ({ value: b.top5_pct, itemStyle: { color: b.chosen ? T.ink : T.pipe, borderRadius: [0, 2, 2, 0] } })),

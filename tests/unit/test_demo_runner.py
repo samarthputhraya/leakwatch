@@ -168,6 +168,21 @@ def test_finish_waits_for_the_streams_and_a_reset_or_the_limit_ends_the_wait(mon
     assert inbox.polls == 1 and not stuck._reset_flag  # gave up after the limit
 
 
+def test_a_new_speed_is_written_at_once(tmp_path, monkeypatch):
+    """After the replay has ended the runner writes no state of its own; the header must still
+    show a speed set from the screen."""
+    from leakwatch.demo import runner as runner_mod
+    from leakwatch.ingest.replayer import Pacer
+
+    monkeypatch.setattr(runner_mod, "demo_root", lambda: tmp_path)
+    r = DemoRunner({"demo": {**CFG["demo"], "background_start": "2018-11-19"}}, 2880.0)
+    r.pacer = Pacer(2880.0)
+    r.status = "finished"
+    r._commands(Inbox('{"command": "set_speed", "params": {"speed": 1440}}'))
+    assert runner_mod.read_state()["speed"] == 1440.0
+    assert runner_mod.read_state()["status"] == "finished"
+
+
 def test_dispatch_without_a_model_writes_only_the_template(tmp_path, monkeypatch):
     from leakwatch.common import lake
     from leakwatch.copilot import testing

@@ -301,6 +301,23 @@ def test_incident_of_the_demo_run():
     assert out["located_after_s"] == 15  # the first version already had candidates
     assert out["loss_now_m3h"] == 54.0
     assert out["focus"] == out["candidates"]
+    assert out["led_by"] is None  # a pressure sensor carried it
+
+
+def test_an_alert_carried_by_the_inflow_is_flagged_for_the_localizer_note():
+    """D-061: the localizer reads only the pressure sensors (the n300 leak behind PRV-1)."""
+    inflow = {
+        **RUN_ALERT,
+        "top_sensors": [
+            {"sensor_id": "flow__p227", "contribution": 0.79},
+            {"sensor_id": "pressure__n296", "contribution": 0.03},
+        ],
+    }
+    out = view.incident_view(inflow, [LEAK], VERSIONS, TZ)
+    assert out["led_by"] == {"id": "p227", "kind": "flow", "label": "p227 (flow)", "share_pct": 79}
+    assert view.incident_view(inflow, [LEAK], VERSIONS, TZ, led_by_pct=80)["led_by"] is None
+    weak = {**inflow, "top_sensors": [{"sensor_id": "flow__p227", "contribution": 0.4}]}
+    assert view.incident_view(weak, [LEAK], VERSIONS, TZ)["led_by"] is None  # not most of it
 
 
 def test_incident_without_candidates_or_a_leak_from_this_screen():
@@ -619,6 +636,31 @@ def test_localizer_benchmark_comes_from_the_chosen_method_and_says_it_is_a_list(
     assert view.localizer_benchmark({**metrics, "chosen": "network"}) is None  # no median
 
 
+def test_detector_benchmark_gives_the_live_models_catch_rate_by_leak_size():
+    metrics = {
+        "scenarios": 180,
+        "variants": {
+            "residual": {"model": "kmeans_residual", "by_diameter_mm": {"10": 0.1}},
+            "rebaselined": {
+                "model": "kmeans_rebaselined",
+                "by_diameter_mm": {"20": 0.7167, "10": 0.0833, "30": 1.0},
+            },
+        },
+    }
+    out = view.detector_benchmark(metrics, "kmeans_rebaselined")
+    assert out["by_mm"] == [{"mm": 10, "pct": 8}, {"mm": 20, "pct": 72}, {"mm": 30, "pct": 100}]
+    assert out["sentence"] == (
+        "On 180 simulated leaks the live detector caught 8% of 10 mm, 72% of 20 mm and 100% of "
+        "30 mm leaks."
+    )
+    assert view.detector_benchmark(metrics, "kmeans") is None  # not among the variants
+    assert view.detector_benchmark(None, "kmeans_rebaselined") is None
+    one = {"scenarios": 5, "variants": {"x": {"model": "m", "by_diameter_mm": {"30": 1}}}}
+    assert view.detector_benchmark(one, "m")["sentence"] == (
+        "On 5 simulated leaks the live detector caught 100% of 30 mm leaks."
+    )
+
+
 def test_reveal_when_the_leak_is_not_a_candidate_or_cannot_be_reached():
     far = {"a": 300.0, "b": 120.0, "c": None}
     out = view.truth_view({**LEAK, "node_id": "n300"}, ["a", "b", "c"], None, lambda x, y: far[y])
@@ -794,8 +836,10 @@ def test_results_charts_show_chance_levels_and_the_target():
     ]
     bars = out["localizer"]["bars"]
     assert [b["name"] for b in bars] == ["nearest_sensor", "gls_sim"]  # candidates left out
+    assert [b["label"] for b in bars] == ["Nearest sensor", "GLS, simulated noise"]
     assert bars[1] == {
         "name": "gls_sim",
+        "label": "GLS, simulated noise",
         "top5_pct": 69.4,
         "ci_pct": [64.6, 73.8],
         "n": 382,

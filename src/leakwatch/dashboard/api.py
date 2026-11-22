@@ -446,6 +446,27 @@ def load_localizer_benchmark() -> dict[str, Any] | None:
         return None
 
 
+def load_detector_benchmark(cfg: Mapping[str, Any]) -> dict[str, Any] | None:
+    """The live detector's catch rate by leak size (``bdt_synthetic_leaks.json``), or None."""
+    from leakwatch.eval import reports
+
+    try:
+        metrics = reports.load("bdt_synthetic_leaks")
+        return view.detector_benchmark(metrics, str(cfg["bdt"]["live_model"]))
+    except Exception as exc:
+        log.warning("detector benchmark not available: %s", exc)
+        return None
+
+
+def rebaseline_days(cfg: Mapping[str, Any]) -> float | None:
+    """How long a running leak stays visible to the re-baselined detector (D-038), in days."""
+    try:
+        ref = cfg["features"]["rebaseline"]
+        return float(ref["gap_days"]) + float(ref["window_days"]) / 2
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def main_lake_alerts(cfg: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Batch alerts of the main lake (newest first), read with a short-lived connection."""
     from leakwatch.common import lake
@@ -614,6 +635,10 @@ def create_app(
                 "tz_name": datetime.now(ZoneInfo(str(cfg["project"]["display_timezone"]))).tzname(),
                 "loss_question": view.LOSS_QUESTION,
                 "localizer": localizer,
+                "detector": load_detector_benchmark(cfg),
+                # D-038: a running leak stays out of its own reference this long, then its
+                # alert closes (gap + half the reference window)
+                "leak_visible_days": rebaseline_days(cfg),
             }
         )
 
