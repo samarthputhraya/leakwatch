@@ -46,7 +46,9 @@ def git_commit() -> str:
             capture_output=True,
             text=True,
             check=True,
-            timeout=30,
+            # From WSL on the Windows disk, git re-reads every file after Windows git touched the
+            # index or the laptop woke up: 29 s was measured once, so 30 s stamped "unknown".
+            timeout=180,
         ).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return "unknown"
