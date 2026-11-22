@@ -21,7 +21,7 @@ STATUS_CODES = {
     "finished": "finished",
 }
 STATUS_TEXT = {
-    "starting": ("Starting", "Kafka replay and Spark are starting."),
+    "starting": ("Starting", "Loading the work-order tools, then starting the replay and Spark."),
     "warming": ("Warming up", "The first micro-batches are being scored."),
     "running": ("Running", ""),
     "finished": ("Replay finished", "The replayed week is over. Restart the replay to run again."),

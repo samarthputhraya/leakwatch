@@ -71,6 +71,31 @@ def test_dispatch_writes_the_template_first_then_the_model_order(tmp_path, monke
     assert r.llm.requests[0]["fast"] is True
 
 
+def test_evidence_path_is_loaded_once(monkeypatch):
+    """D-058: network index and manual search before the streams start, not again on reset."""
+    from leakwatch.copilot import tools
+
+    seen = []
+    monkeypatch.setattr(tools.ToolContext, "get_network", lambda self: seen.append("network"))
+    monkeypatch.setattr(tools, "search_manual", lambda ctx, args: seen.append(args["query"]) or {})
+    r = DemoRunner(CFG, 720.0)
+    r.warm_evidence()
+    r.warm_evidence()
+    assert seen[0] == "network" and len(seen) == 2 and r.evidence_warm
+
+
+def test_a_failed_evidence_warm_up_does_not_stop_the_runner(monkeypatch):
+    from leakwatch.copilot import tools
+
+    def broken(self):
+        raise OSError("network file missing")
+
+    monkeypatch.setattr(tools.ToolContext, "get_network", broken)
+    r = DemoRunner(CFG, 720.0)
+    r.warm_evidence()
+    assert r.evidence_warm
+
+
 def test_dispatch_without_a_model_writes_only_the_template(tmp_path, monkeypatch):
     from leakwatch.common import lake
     from leakwatch.copilot import testing

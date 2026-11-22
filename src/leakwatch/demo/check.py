@@ -145,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
                 "seconds_to_work_order": wo_s,
                 "seconds_to_model_work_order": model_s,
                 "wall_s": round(time.perf_counter() - t_click, 1),
+                # From the runner's start (run 1) or the reset (later runs) to "running".
+                "seconds_to_running": round(warm, 1),
                 "speed": read_state().get("speed"),
             }
             df = current_alerts(sim_before)

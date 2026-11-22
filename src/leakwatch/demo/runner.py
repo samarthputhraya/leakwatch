@@ -84,6 +84,7 @@ class DemoRunner:
         self.dispatch_threads: list[threading.Thread] = []
         self.started = datetime.now(UTC)
         self.llm: Any = None  # one client for every work order, warmed at start (D-046)
+        self.evidence_warm = False  # the work-order evidence path is loaded (D-058)
         self.sim_ts: pd.Timestamp | None = None
         self.status = "starting"
         self._reset_flag = False
@@ -225,6 +226,30 @@ class DemoRunner:
         except Exception as exc:
             log.warning("LLM warm-up failed (work orders fall back to the template): %s", exc)
 
+    def warm_evidence(self) -> None:
+        """Load the work-order evidence path once, before the streams start (D-058).
+
+        The first work order after start spent ~28 s gathering its evidence: the manual search
+        loads the sentence-transformers model (25 s in a fresh process) and the network index
+        (4 s). Both are cached per process, so later orders took 1-3 s. Loading them while Spark
+        warmed the stream slowed both (D-046, reverted), so this runs alone, before Spark starts.
+        A failure only costs the first work order its speed.
+        """
+        if self.evidence_warm:
+            return
+        try:
+            from leakwatch.copilot.tools import ToolContext, search_manual
+
+            t0 = time.perf_counter()
+            ctx = ToolContext(lake_root=demo_lake())
+            ctx.get_network()
+            search_manual(ctx, {"query": str(ctx.cfg["dispatch"]["manual_query"])})
+            log.info("work-order evidence path loaded in %.1f s", time.perf_counter() - t0)
+        except Exception as exc:
+            log.warning("evidence warm-up failed (the first work order will be slower): %s", exc)
+        finally:
+            self.evidence_warm = True
+
     def dispatch(self, alert_ids: list[str]) -> None:
         """Work orders for new alerts: the template at once, then the model's version (D-046).
 
@@ -318,6 +343,7 @@ class DemoRunner:
             # once: readers wait for "running", which must mean *this* replay is warm.
             self.status = "starting"
             self.write_state()
+            self.warm_evidence()  # first pass only; alone, before Spark (D-058)
             self.start_streams()
             self.leaks, self.pending, self._reset_flag = [], [], False
             self.status = "warming up"
