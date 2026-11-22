@@ -1,20 +1,20 @@
 {
   "meta": {
-    "generated_at": "2026-11-22T13:05:22+00:00",
-    "git_commit": "bd26231",
+    "generated_at": "2026-11-22T14:17:23+00:00",
+    "git_commit": "8286f90",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "passed": 843,
+  "passed": 847,
   "failed": 0,
   "skipped": 0,
-  "duration_s": 1502.5,
+  "duration_s": 809.7,
   "by_folder": {
     "contract": 41,
     "integration": 2,
     "metamorphic": 5,
-    "unit": 795
+    "unit": 799
   },
   "coverage_percent": 73.9,
   "coverage_by_module": {
@@ -129,9 +129,9 @@
       "percent": 100.0
     },
     "copilot/agent.py": {
-      "statements": 194,
-      "covered": 183,
-      "percent": 94.3
+      "statements": 195,
+      "covered": 184,
+      "percent": 94.4
     },
     "copilot/chat.py": {
       "statements": 40,
@@ -497,7 +497,7 @@
   "core_coverage": {
     "modules": 20,
     "missing": [],
-    "statements": 2267,
+    "statements": 2268,
     "percent": 93.0,
     "below_80": [
       "bdt/slow_detectors.py"
