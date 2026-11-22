@@ -102,6 +102,11 @@ def test_pipe_distance_follows_the_pipes(built):
     assert built.pipe_distance_m("n470", "no such node") is None
 
 
+def test_pipe_ends_name_the_two_junctions_of_a_pipe(built):
+    assert set(built.pipe_ends("p701")) == {"n229", "n641"}  # 39 m: the owner's n641 run
+    assert built.pipe_ends("no such pipe") is None
+
+
 def test_outline_of_a_grid_runs_at_the_buffer_distance_around_it():
     grid = [(x, y) for x in range(0, 301, 50) for y in range(0, 201, 50)]
     rings = geometry.outline(grid, buffer_m=40, alpha_m=80)

@@ -402,8 +402,12 @@ function RevealStep({ inc, revealed, onReveal, bench }) {
   else where = 'No pipe path joins it to candidate 1.';
   const nearest = t.rank == null && t.nearest_rank != null && t.nearest_rank !== 1
     ? html` The nearest, candidate ${t.nearest_rank}, is <b>${thousands(t.nearest_m)} m</b> away.` : '';
+  // Does the crew's list reach the leak? The first work-order pipe that ends at the leak junction.
+  const pipe = !t.order_checked ? ''
+    : t.order_pipe ? html` Pipe <b>${t.order_pipe.rank}</b> of the work order, ${t.order_pipe.name}, ends at the leak.`
+      : ' No pipe in the work order ends at the leak.';
   return { on: true, title, short: t.short, body: html`
-    <p>The leak is at <b>${t.node_id}</b>, ${t.rank != null ? html`candidate <b>${t.rank}</b> of ${t.of}.` : html`not one of the ${t.of} candidates.`}${' '}${where}${nearest}</p>
+    <p>The leak is at <b>${t.node_id}</b>, ${t.rank != null ? html`candidate <b>${t.rank}</b> of ${t.of}.` : html`not one of the ${t.of} candidates.`}${' '}${where}${nearest}${pipe}</p>
     ${(t.flow_m3h != null || t.loss_now_m3h != null) && html`<p>${t.flow_m3h != null && html`Simulated leak <b>${t.flow_m3h.toFixed(1)} m³/h</b>`}${t.flow_m3h != null && t.loss_now_m3h != null ? ', ' : ''}${t.loss_now_m3h != null && html`current estimate <b>${t.loss_now_m3h.toFixed(1)} m³/h</b>`}.</p>`}` };
 }
 

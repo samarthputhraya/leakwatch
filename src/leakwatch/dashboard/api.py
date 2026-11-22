@@ -199,6 +199,7 @@ class LiveSource:
         self._cache: dict[str, tuple[tuple[int, int], Any]] = {}
         self._n_pressure: int | None = None
         self._distances: dict[tuple[str, str], float | None] = {}
+        self._ends: dict[str, tuple[str, str] | None] = {}
         self._failed = FailedLeaks(float(self.cfg["dashboard"]["failed_leak_seconds"]))
 
     def _connection(self) -> Any:
@@ -322,6 +323,21 @@ class LiveSource:
 
         return distance
 
+    def _pipe_ends(self) -> Callable[[str], tuple[str, str] | None] | None:
+        """The nodes a pipe joins, once the map geometry exists (as ``_distance``)."""
+        from leakwatch.dashboard import geometry
+
+        if geometry.load.cache_info().currsize == 0:
+            return None
+        geo = geometry.load()
+
+        def ends(pipe: str) -> tuple[str, str] | None:
+            if pipe not in self._ends:
+                self._ends[pipe] = geo.pipe_ends(pipe)
+            return self._ends[pipe]
+
+        return ends
+
     def _pressure_sensors(self) -> int | None:
         if self._n_pressure is None:
             from leakwatch.data import network
@@ -359,6 +375,7 @@ class LiveSource:
             scores=rows.get("scores", []),
             orders=rows.get("orders", []),
             distance=self._distance(),
+            pipe_ends=self._pipe_ends(),
         )
         out["generated_at"] = datetime.now(UTC)
         out["build_ms"] = round((time.perf_counter() - started) * 1000, 1)

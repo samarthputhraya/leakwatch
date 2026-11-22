@@ -555,7 +555,36 @@ def test_reveal_of_the_n470_run_names_rank_distance_and_both_flows():
         "flow_m3h": 57.0,
         "loss_now_m3h": 54.0,
         "short": "n470, candidate 2; leak 57.0 m³/h, estimate 54.0 m³/h",
+        "order_checked": False,
+        "order_pipe": None,
     }
+
+
+# Pipe ends in L-Town (data/raw L-TOWN.inp, read 22 Nov 2026): the n641 run's work order.
+N641_PIPES = {
+    "p701": ("n641", "n229"),
+    "p155": ("n226", "n227"),
+    "p674": ("n623", "n226"),
+    "p76": ("n227", "n231"),
+    "p700": ("n640", "n641"),
+    "p673": ("n206", "n623"),
+}
+
+
+def test_reveal_says_which_pipe_of_the_work_order_reaches_the_leak():
+    """Owner's n641 run: candidate 1 was n229, and the order's first pipe joins n229 to n641."""
+    leak = {**LEAK, "node_id": "n641"}
+    cands = ["n229", "n228", "n226", "n641", "n640"]
+    order = list(N641_PIPES)
+    out = view.truth_view(leak, cands, 56.0, lambda a, b: 39.0, order, N641_PIPES.get)
+    assert out["rank"] == 4 and out["order_checked"]
+    assert out["order_pipe"] == {"rank": 1, "name": "p701"}
+    later = view.truth_view(leak, cands, 56.0, lambda a, b: 39.0, order[1:], N641_PIPES.get)
+    assert later["order_pipe"] == {"rank": 4, "name": "p700"}
+    none = view.truth_view(leak, cands, 56.0, lambda a, b: 39.0, ["p155", "x"], N641_PIPES.get)
+    assert none["order_checked"] and none["order_pipe"] is None
+    unknown = view.truth_view(leak, cands, 56.0, lambda a, b: 39.0, order, None)
+    assert not unknown["order_checked"]  # no geometry yet: say nothing about the pipes
 
 
 def test_localizer_benchmark_comes_from_the_chosen_method_and_says_it_is_a_list():

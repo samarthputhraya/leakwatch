@@ -40,6 +40,13 @@ class Geometry:
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             return None
 
+    def pipe_ends(self, name: str) -> tuple[str, str] | None:
+        """The two nodes a pipe joins (None for a name the graph does not have)."""
+        for a, b, link in self.graph.edges(data="name"):
+            if link == name:
+                return str(a), str(b)
+        return None
+
 
 def tint_weights(
     zone_graph: nx.Graph,

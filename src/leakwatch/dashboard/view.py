@@ -499,11 +499,15 @@ def truth_view(
     candidates: Sequence[str],
     loss_now: float | None,
     distance: Callable[[str, str], float | None],
+    order_pipes: Sequence[str] = (),
+    pipe_ends: Callable[[str], tuple[str, str] | None] | None = None,
 ) -> dict[str, Any]:
     """The true leak against the localizer's candidates (shown after "Reveal the true leak").
 
     Distances are along the pipes (``distance(a, b)``, metres). ``flow_m3h`` is the leak flow
     EPANET simulated; ``loss_now_m3h`` the system's current estimate of the lost water.
+    ``order_pipe`` is the first pipe of the work order that ends at the leak junction (its rank
+    in the order), so the check also says whether the crew's list reaches the leak.
     """
     node = str(leak.get("node_id"))
     rank = candidates.index(node) + 1 if node in candidates else None
@@ -517,6 +521,13 @@ def truth_view(
         short += f"; leak {flow:.1f} m³/h"
         if loss_now is not None:
             short += f", estimate {loss_now:.1f} m³/h"
+    checked = bool(order_pipes) and pipe_ends is not None
+    order_pipe = None
+    for k, pipe in enumerate(order_pipes if checked else ()):
+        ends = pipe_ends(pipe) if pipe_ends is not None else None
+        if ends is not None and node in ends:
+            order_pipe = {"rank": k + 1, "name": str(pipe)}
+            break
     return {
         "node_id": node,
         "rank": rank,
@@ -527,6 +538,8 @@ def truth_view(
         "flow_m3h": None if flow is None else round(flow, 1),
         "loss_now_m3h": loss_now,
         "short": short,
+        "order_checked": checked,
+        "order_pipe": order_pipe,
     }
 
 
@@ -902,6 +915,7 @@ def live_view(
     scores: Sequence[Mapping[str, Any]] = (),
     orders: Sequence[Mapping[str, Any]] = (),
     distance: Callable[[str, str], float | None] | None = None,
+    pipe_ends: Callable[[str], tuple[str, str] | None] | None = None,
 ) -> dict[str, Any]:
     """Everything the live page shows, from the runner state and the newest lake rows.
 
@@ -919,6 +933,7 @@ def live_view(
         scores: ``scores`` windows, oldest first (``window_end``, ``score``, ``threshold``).
         orders: ``work_orders`` rows (``alert_id``, ``generator``, ``generated_at``, JSON).
         distance: pipe distance between two junctions (None until the map geometry is built).
+        pipe_ends: the two nodes of a pipe (None until the map geometry is built).
 
     """
     tz = str(cfg["project"]["display_timezone"])
@@ -949,7 +964,14 @@ def live_view(
         incident["truth"] = (
             None
             if leak is None or distance is None or not incident["candidates"]
-            else truth_view(leak, incident["candidates"], incident["loss_now_m3h"], distance)
+            else truth_view(
+                leak,
+                incident["candidates"],
+                incident["loss_now_m3h"],
+                distance,
+                incident["order"].get("pipes") or (),
+                pipe_ends,
+            )
         )
     last = residuals[-1] if residuals else None
     drops = None
