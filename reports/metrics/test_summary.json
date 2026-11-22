@@ -1,22 +1,22 @@
 {
   "meta": {
-    "generated_at": "2026-11-22T03:52:34+00:00",
-    "git_commit": "3587628",
+    "generated_at": "2026-11-22T08:17:16+00:00",
+    "git_commit": "9675480",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "passed": 833,
+  "passed": 838,
   "failed": 0,
   "skipped": 0,
-  "duration_s": 848.3,
+  "duration_s": 1043.9,
   "by_folder": {
     "contract": 41,
     "integration": 2,
     "metamorphic": 5,
-    "unit": 785
+    "unit": 790
   },
-  "coverage_percent": 73.7,
+  "coverage_percent": 73.9,
   "coverage_by_module": {
     "__init__.py": {
       "statements": 1,
@@ -279,9 +279,9 @@
       "percent": 81.6
     },
     "demo/runner.py": {
-      "statements": 261,
-      "covered": 93,
-      "percent": 35.6
+      "statements": 290,
+      "covered": 131,
+      "percent": 45.2
     },
     "demo/signature.py": {
       "statements": 80,
