@@ -127,17 +127,20 @@ runner replays a quiet week of BattLeDIM 2018 through Kafka into the live Spark 
    start a leak. EPANET simulates it and adds its pressure and flow signature to the readings.
 3. When K-Means raises an alert, the banner turns amber, sensors whose pressure dropped get a
    ring, the area gets a dashed outline, and the map flies to the localizer's five candidates,
-   numbered by rank.
+   numbered by rank. They are junctions to inspect, best first, not one answer: on the
+   held-out benchmark the leak junction was among the five 69% of the time and candidate 1 lay a
+   median 54 m from it, and the screen says so.
 4. The work order appears in step 4: the template version first, then the model's version.
-5. **Reveal the true leak** marks the real junction and gives its distance along the pipes to
-   candidate 1.
+5. **Reveal the true leak** marks the real junction, gives its rank and its distance along the
+   pipes to candidate 1, and says which pipe of the work order ends at it.
 6. Ask the copilot a question, or press the loss question, which is answered from the alert
    without a model.
 
 The amber tint along the pipes is the only interpolated element on the map, and the legend says
 so. Every number on the screen comes from the demo lake, the runner's state file or
 `reports/metrics/`. The header shows how far the stream has analysed, which trails the replay
-when the laptop is busy. The **History** tab lists the batch alerts of 2018 and 2019; the
+when the laptop is busy; at the end of the week the header says **Finishing** until the stream has
+analysed the last readings. The **History** tab lists the batch alerts of 2018 and 2019; the
 **Results** tab shows the results table below with its source files.
 
 `make demo-stop` stops a demo left running. `make demo-check` runs the leak path five times
