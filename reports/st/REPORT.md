@@ -2,20 +2,20 @@
 
 Draft generated from the metrics files.
 
-- `make test-report`: 833 passed, 0 failed, 0 skipped in 848 s; line coverage of `src/leakwatch` 73.7% (`reports/metrics/test_summary.json` (code 3587628)).
+- `make test-report`: 838 passed, 0 failed, 0 skipped in 1,044 s; line coverage of `src/leakwatch` 73.9% (`reports/metrics/test_summary.json` (code 9675480)).
 
 | test folder | tests |
 |---|---|
 | contract | 41 |
 | integration | 2 |
 | metamorphic | 5 |
-| unit | 785 |
+| unit | 790 |
 
 Tests run: `slow or not slow`. Modules with the most uncovered lines (most are job entry points exercised by `make` targets rather than by unit tests):
 
 | module | statements | covered |
 |---|---|---|
-| `demo/runner.py` | 261 | 35.6% |
+| `demo/runner.py` | 290 | 45.2% |
 | `dl/gnn.py` | 459 | 71.0% |
 | `dl/gnn_data.py` | 170 | 26.5% |
 | `features/build.py` | 122 | 0.0% |
