@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from leakwatch.demo.runner import DemoRunner
@@ -94,6 +95,77 @@ def test_a_failed_evidence_warm_up_does_not_stop_the_runner(monkeypatch):
     r = DemoRunner(CFG, 720.0)
     r.warm_evidence()
     assert r.evidence_warm
+
+
+class FakeQuery:
+    """A streaming query as ``stream_drained`` sees it."""
+
+    def __init__(self, rows=0, at="2026-11-22T05:00:10Z", active=True, busy=False):
+        self.isActive = active  # PySpark's names
+        self.status = {"isTriggerActive": busy}
+        self.lastProgress = None if at is None else {"numInputRows": rows, "timestamp": at}
+
+
+SENT = datetime(2026, 11, 22, 5, 0, 0, tzinfo=UTC)  # the last reading went out
+
+
+def drained(*queries):
+    r = DemoRunner(CFG, 720.0)
+    r.queries = list(queries)
+    return r.stream_drained(SENT)
+
+
+def test_streams_are_drained_only_after_an_empty_trigger_that_began_after_the_last_reading():
+    """D-060: the replay is called finished only once the stream has analysed what it was sent."""
+    assert drained(FakeQuery(), FakeQuery())
+    assert not drained(FakeQuery(rows=2400))  # still reading
+    assert not drained(FakeQuery(at="2026-11-22T04:59:58Z"))  # empty, but from before the end
+    assert not drained(FakeQuery(busy=True))  # a batch is running
+    assert not drained(FakeQuery(at=None))  # no batch reported yet
+    assert not drained(FakeQuery(), FakeQuery(rows=10))  # every query counts
+    assert drained(FakeQuery(rows=10, active=False))  # a stopped query has nothing left
+
+
+class Inbox:
+    """A command consumer that hands out the queued messages, then nothing."""
+
+    def __init__(self, *commands):
+        self.queue = [
+            SimpleNamespace(error=lambda: None, value=lambda c=c: c.encode()) for c in commands
+        ]
+        self.polls = 0
+
+    def poll(self, timeout):
+        self.polls += 1
+        return self.queue.pop(0) if self.queue else None
+
+
+def finishing_runner(limit, queries):
+    r = DemoRunner({"demo": {**CFG["demo"], "drain_timeout_s": limit}}, 720.0)
+    r.queries = queries
+    r.write_state = lambda: None
+    return r
+
+
+def test_finish_waits_for_the_streams_and_a_reset_or_the_limit_ends_the_wait(monkeypatch):
+    from leakwatch.demo import runner as runner_mod
+
+    later = (datetime.now(UTC) + timedelta(seconds=30)).isoformat()
+    done = finishing_runner(60, [FakeQuery(at=later)])
+    inbox = Inbox()
+    done.finish_streams(inbox)
+    assert done.status == "finishing" and inbox.polls == 0  # caught up at once
+
+    behind = finishing_runner(60, [FakeQuery(rows=500)])
+    behind.finish_streams(Inbox('{"command": "reset", "params": {}}'))
+    assert behind._reset_flag  # a restart ends the wait
+
+    clock = iter(range(0, 1000, 30))
+    monkeypatch.setattr(runner_mod.time, "perf_counter", lambda: float(next(clock)))
+    stuck = finishing_runner(60, [FakeQuery(rows=500)])
+    inbox = Inbox()
+    stuck.finish_streams(inbox)
+    assert inbox.polls == 1 and not stuck._reset_flag  # gave up after the limit
 
 
 def test_dispatch_without_a_model_writes_only_the_template(tmp_path, monkeypatch):

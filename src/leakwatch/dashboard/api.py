@@ -418,6 +418,17 @@ def load_results(cfg: Mapping[str, Any]) -> dict[str, Any]:
     return view.results_view(reports.readme_rows(), reports.load, target)
 
 
+def load_localizer_benchmark() -> dict[str, Any] | None:
+    """The localizer's measured hit rates (``dl_localizer.json``), or None if unreadable."""
+    from leakwatch.eval import reports
+
+    try:
+        return view.localizer_benchmark(reports.load("dl_localizer"))
+    except Exception as exc:
+        log.warning("localizer benchmark not available: %s", exc)
+        return None
+
+
 def main_lake_alerts(cfg: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Batch alerts of the main lake (newest first), read with a short-lived connection."""
     from leakwatch.common import lake
@@ -571,6 +582,7 @@ def create_app(
 
     @app.get("/api/settings")
     def settings() -> Response:
+        localizer = load_localizer_benchmark()
         return json_response(
             {
                 "poll_ms": int(dash["poll_ms"]),
@@ -584,6 +596,7 @@ def create_app(
                 "tz": str(cfg["project"]["display_timezone"]),
                 "tz_name": datetime.now(ZoneInfo(str(cfg["project"]["display_timezone"]))).tzname(),
                 "loss_question": view.LOSS_QUESTION,
+                "localizer": localizer,
             }
         )
 

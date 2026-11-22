@@ -121,7 +121,7 @@ function Header({ runner, clock, analysed, tabs, children }) {
       ${clock && html`<div class="fact"><dt>Simulated time</dt><dd>${clock.sim_time}</dd></div>`}
       ${clock && analysed && html`<div class="fact" title="Newest window the stream has scored; the replay runs ahead of it"><dt>Analysed up to</dt><dd>${analysed}</dd></div>`}
       ${clock && clock.speed && html`<div class="fact"><dt>Replay speed</dt><dd>${clock.speed}</dd></div>`}
-      ${clock && clock.replay_left && runner.code !== 'finished' && html`<div class="fact"><dt>Replay ends in</dt><dd>${clock.replay_left}</dd></div>`}
+      ${clock && clock.replay_left && runner.code !== 'finished' && runner.code !== 'finishing' && html`<div class="fact"><dt>Replay ends in</dt><dd>${clock.replay_left}</dd></div>`}
     </dl>
     <div class="status" data-code=${runner.code} title=${runner.detail}><span class="dot" aria-hidden="true"></span>${runner.label}</div>
     ${children}
@@ -136,7 +136,7 @@ function Banner({ banner, runner, onRestart }) {
   return html`<div class="banner" data-kind=${banner.kind} role="status" aria-live="polite">
     <${Icon} kind=${banner.kind} />
     <div><b>${banner.title}</b>${banner.sub && html`<small>${banner.sub}</small>`}</div>
-    ${runner.code === 'finished' && html`<button class="btn" onClick=${onRestart}>Restart replay</button>`}
+    ${(runner.code === 'finished' || runner.code === 'finishing') && html`<button class="btn" onClick=${onRestart}>Restart replay</button>`}
   </div>`;
 }
 
@@ -298,16 +298,18 @@ function AlertStep({ inc }) {
       ${inc.sensors.map((s, i) => html`${i ? ', ' : ' '}<b>${s.label}</b>${s.share_pct != null ? ` ${s.share_pct}%` : ''}`)}</p>`}` };
 }
 
-function LocatedStep({ inc }) {
+// The localizer names junctions to inspect, not one answer; the benchmark says how good the list is.
+function LocatedStep({ inc, bench }) {
   if (!inc) return { on: false, title: STEPS[2] };
   if (!inc.candidates.length) {
     return { on: false, title: STEPS[2], body: html`<p>The localizer has not answered for this alert yet.</p>` };
   }
   const n = inc.candidates.length;
-  return { on: true, title: STEPS[2], short: `candidate 1: ${inc.candidates[0]}`, body: html`
-    <p>${COUNT[n] || n} candidate junction${n === 1 ? '' : 's'}, best first${inc.located_after_s != null
+  return { on: true, title: STEPS[2], short: `${n} to inspect, ${inc.candidates[0]} first`, body: html`
+    <p>${COUNT[n] || n} junction${n === 1 ? '' : 's'} to inspect, best first${inc.located_after_s != null
       ? html`, <b>${inc.located_after_s} s</b> after the click` : ''}.</p>
-    <ol class="cands" aria-label="Candidate junctions, best first">${inc.candidates.map((c, i) => html`<li><i>${i + 1}</i>${c}</li>`)}</ol>` };
+    <ol class="cands" aria-label="Candidate junctions, best first">${inc.candidates.map((c, i) => html`<li><i>${i + 1}</i>${c}</li>`)}</ol>
+    ${bench && html`<p class="fine">${bench.sentence}</p>`}` };
 }
 
 // A number that counts to its new value (the loss when the model's order replaces the template's).
@@ -378,7 +380,7 @@ function OrderStep({ inc }) {
 
 const thousands = (m) => m.toLocaleString('en');
 
-function RevealStep({ inc, revealed, onReveal }) {
+function RevealStep({ inc, revealed, onReveal, bench }) {
   const title = STEPS[4];
   if (!inc) return { on: false, title };
   const t = inc.truth;
@@ -393,7 +395,10 @@ function RevealStep({ inc, revealed, onReveal }) {
   }
   let where;
   if (t.rank === 1) where = html`Candidate 1 is the leak junction itself.`;
-  else if (t.to_first_m != null) where = html`Candidate 1 is <b>${thousands(t.to_first_m)} m</b> away along the pipes.`;
+  else if (t.to_first_m != null) {
+    where = html`Candidate 1 is <b>${thousands(t.to_first_m)} m</b> away along the pipes${bench
+      ? ` (benchmark median ${thousands(bench.first_median_m)} m)` : ''}.`;
+  }
   else where = 'No pipe path joins it to candidate 1.';
   const nearest = t.rank == null && t.nearest_rank != null && t.nearest_rank !== 1
     ? html` The nearest, candidate ${t.nearest_rank}, is <b>${thousands(t.nearest_m)} m</b> away.` : '';
@@ -482,11 +487,13 @@ function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, o
   const copilot = useCopilot(vm.incident);
   const first = LeakStep({ leaks: vm.leaks, net, size, canStart, why, busy, onStart });
   const inc = vm.incident;
-  const steps = [first, AlertStep({ inc }), LocatedStep({ inc }), OrderStep({ inc }),
-    RevealStep({ inc, revealed, onReveal }), CopilotStep({ inc, qa: copilot.qa, ask: copilot.ask, settings })];
+  const bench = settings ? settings.localizer : null;
+  const steps = [first, AlertStep({ inc }), LocatedStep({ inc, bench }), OrderStep({ inc }),
+    RevealStep({ inc, revealed, onReveal, bench }), CopilotStep({ inc, qa: copilot.qa, ask: copilot.ask, settings })];
   const now = steps.reduce((last, s, i) => (s.on ? i : last), 0);
   // Finished steps fold to one line once the work order is on screen, so the open step fits.
-  const foldable = (i) => (steps[3].on && i < 3) || ((steps[4].on || steps[5].on) && i === 3) || (steps[5].on && i === 4);
+  // The reveal stays open: it is the check of everything above it.
+  const foldable = (i) => (steps[3].on && i < 3) || ((steps[4].on || steps[5].on) && i === 3);
   const id = (i) => `${inc ? inc.alert_id : ''}:${i}`;
   const folded = (i) => foldable(i) && !unfolded[id(i)];
   const toggle = (i) => setUnfolded({ ...unfolded, [id(i)]: !unfolded[id(i)] });
@@ -635,7 +642,8 @@ function App() {
   const shown = lost ? { ...(vm || {}), ...SERVER_LOST } : vm;
   const leakSize = size ?? (settings ? settings.leak_mm.default : 30);
   const canStart = shown.runner.code === 'running';
-  const why = shown.runner.code === 'finished' ? 'The replay has finished. Restart it to start a leak.'
+  const why = shown.runner.code === 'finished' || shown.runner.code === 'finishing'
+    ? 'The replay has ended. Restart it to start a leak.'
     : `A leak can start once the replay says Running. Now: ${shown.runner.label}.`;
   const start = async (node) => {
     setBusy(true);

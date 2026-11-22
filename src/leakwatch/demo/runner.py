@@ -109,6 +109,49 @@ class DemoRunner:
             return False
         return done >= need
 
+    def stream_drained(self, since: datetime) -> bool:
+        """Every running query has read all it was sent (D-060).
+
+        True once each active query is idle and has reported an empty trigger that began after
+        ``since`` (when the last reading was sent). A stopped or failed query has nothing left.
+        """
+        for q in self.queries:
+            try:
+                if not q.isActive:
+                    continue
+                if q.status.get("isTriggerActive"):
+                    return False
+                p = q.lastProgress
+            except Exception:  # its JVM side is gone: nothing left to wait for
+                continue
+            if not p or int(p.get("numInputRows") or 0) > 0:
+                return False
+            if pd.Timestamp(p["timestamp"]) <= pd.Timestamp(since):
+                return False
+        return True
+
+    def finish_streams(self, consumer: Any) -> None:
+        """Let the streams analyse the last readings before the replay is called finished (D-060).
+
+        The producer runs ahead of the scored stream (3.5-14 simulated hours under load, finding
+        37), and stopping the queries right after the last reading left that tail unanalysed.
+        Waits until every query is idle, ``demo.drain_timeout_s`` at most; a reset ends the wait.
+        """
+        since = datetime.now(UTC)
+        self.status = "finishing"
+        self.write_state()
+        limit = float(self.dcfg.get("drain_timeout_s", 0))
+        t0 = time.perf_counter()
+        while not self._reset_flag and time.perf_counter() - t0 < limit:
+            if self.stream_drained(since):
+                waited = time.perf_counter() - t0
+                log.info("streams caught up %.1f s after the last reading", waited)
+                return
+            self._commands(consumer, 1.0)
+            self.write_state()
+        if not self._reset_flag:
+            log.warning("streams still behind after %.0f s; stopping them", limit)
+
     def write_state(self) -> None:
         """Atomically update ``state.json``."""
         doc = {
@@ -300,6 +343,17 @@ class DemoRunner:
             self.pending.append(leak)
             threading.Thread(target=self._prepare, args=(leak,), daemon=True).start()
 
+    def _commands(self, consumer: Any, timeout: float = 0.0) -> None:
+        """Apply every waiting ``demo.commands`` message (waits up to ``timeout`` for the first)."""
+        msg = consumer.poll(timeout)
+        while msg is not None:
+            if msg.error() is None:
+                try:
+                    self.handle(DemoCommand.model_validate_json(msg.value()))
+                except Exception as exc:
+                    log.warning("ignored command %r: %s", msg.value(), exc)
+            msg = consumer.poll(0)
+
     def _prepare(self, leak: dict[str, Any]) -> None:
         """Simulate the leak signature from the current simulated time (runs in a thread)."""
         try:
@@ -351,14 +405,7 @@ class DemoRunner:
             for i, ts in enumerate(wide.index):
                 self.sim_ts = ts
                 self.pacer.wait_for(ts)
-                msg = consumer.poll(0)
-                while msg is not None:
-                    if msg.error() is None:
-                        try:
-                            self.handle(DemoCommand.model_validate_json(msg.value()))
-                        except Exception as exc:
-                            log.warning("ignored command %r: %s", msg.value(), exc)
-                    msg = consumer.poll(0)
+                self._commands(consumer)
                 if self._reset_flag:
                     break
                 with self._lock:
@@ -381,18 +428,15 @@ class DemoRunner:
                         self.status = "running"
                     self.write_state()
             producer.flush(10)
+            if not self._reset_flag:
+                self.finish_streams(consumer)
             self.stop_streams()
             if not self._reset_flag:
                 self.status = "finished"
                 self.write_state()
                 log.info("background replay finished; waiting for reset")
                 while not self._reset_flag:
-                    msg = consumer.poll(1.0)
-                    if msg is not None and msg.error() is None:
-                        try:
-                            self.handle(DemoCommand.model_validate_json(msg.value()))
-                        except Exception as exc:
-                            log.warning("ignored command %r: %s", msg.value(), exc)
+                    self._commands(consumer, 1.0)
             log.info("reset")
 
 

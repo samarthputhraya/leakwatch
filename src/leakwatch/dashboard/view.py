@@ -18,12 +18,14 @@ STATUS_CODES = {
     "starting": "starting",
     "warming up": "warming",
     "running": "running",
+    "finishing": "finishing",
     "finished": "finished",
 }
 STATUS_TEXT = {
     "starting": ("Starting", "Loading the work-order tools, then starting the replay and Spark."),
     "warming": ("Warming up", "The first micro-batches are being scored."),
     "running": ("Running", ""),
+    "finishing": ("Finishing", "The replay has ended; the stream is analysing its last readings."),
     "finished": ("Replay finished", "The replayed week is over. Restart the replay to run again."),
     "unknown": ("Status unknown", "The runner reported a status this screen does not know."),
 }
@@ -176,7 +178,7 @@ def banner_view(
         return {"kind": "alert", "title": title, "sub": ", ".join(parts)}
     if code in ("starting", "warming"):
         return {"kind": "waiting", "title": runner["label"], "sub": runner["detail"]}
-    if code == "finished":
+    if code in ("finishing", "finished"):
         return {"kind": "waiting", "title": runner["label"], "sub": runner["detail"]}
     if code == "unknown":
         return {"kind": "unknown", "title": runner["label"], "sub": runner["detail"]}
@@ -465,6 +467,31 @@ def order_view(
         "version": line,
         "short": ", ".join(p for p in parts if p),
     }
+
+
+def localizer_benchmark(metrics: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """How often the live localizer's five candidates hold the leak, from ``dl_localizer.json``.
+
+    The held-out simulated medium and large leaks (diameter ≥ 10 mm) of the chosen method: the
+    candidates are a list to inspect, not one answer, and this says how good that list is.
+    """
+    try:
+        test = metrics["simulated_test"][metrics["chosen"]]["medium_large"]  # type: ignore[index]
+        out: dict[str, Any] = {
+            "n": int(test["n"]),
+            "in_top5_pct": round(100 * float(test["top5"])),
+            "first_exact_pct": round(100 * float(test["top1"])),
+            "first_median_m": round(float(test["median_distance_top1_m"])),
+        }
+    except (KeyError, TypeError, ValueError):
+        return None
+    out["sentence"] = (
+        f"A list to inspect, not one answer: on {out['n']:,} simulated leaks of 10 mm or more, the "
+        f"leak junction was among the five {out['in_top5_pct']}% of the time, candidate 1 itself "
+        f"{out['first_exact_pct']}%, and candidate 1 lay a median {out['first_median_m']} m "
+        "from it."
+    )
+    return out
 
 
 def truth_view(

@@ -151,6 +151,11 @@ def test_banner_says_no_open_alerts_only_when_the_screen_can_know():
     assert banner(state("starting"))["kind"] == "waiting"
     assert banner(state("warming up"))["title"] == "Warming up"
     assert banner(state("finished"))["title"] == "Replay finished"
+    # D-060: after the last reading the stream catches up before the replay is called finished.
+    finishing = banner(state("finishing"))
+    assert finishing["kind"] == "waiting" and finishing["title"] == "Finishing"
+    assert "analysing its last readings" in finishing["sub"]
+    assert view.runner_view(state("finishing"), NOW, 15)["live"] is False
 
 
 def test_banner_for_one_alert_names_area_time_and_score():
@@ -551,6 +556,38 @@ def test_reveal_of_the_n470_run_names_rank_distance_and_both_flows():
         "loss_now_m3h": 54.0,
         "short": "n470, candidate 2; leak 57.0 m³/h, estimate 54.0 m³/h",
     }
+
+
+def test_localizer_benchmark_comes_from_the_chosen_method_and_says_it_is_a_list():
+    metrics = {
+        "chosen": "gls_sim",
+        "simulated_test": {
+            "gls_sim": {
+                "medium_large": {
+                    "n": 382,
+                    "top1": 0.2749,
+                    "top5": 0.6937,
+                    "median_distance_top1_m": 53.8,
+                }
+            },
+            "network": {"medium_large": {"n": 382, "top1": 0.1, "top5": 0.3}},
+        },
+    }
+    out = view.localizer_benchmark(metrics)
+    assert {k: out[k] for k in ("n", "in_top5_pct", "first_exact_pct", "first_median_m")} == {
+        "n": 382,
+        "in_top5_pct": 69,
+        "first_exact_pct": 27,
+        "first_median_m": 54,
+    }
+    assert out["sentence"] == (
+        "A list to inspect, not one answer: on 382 simulated leaks of 10 mm or more, the leak "
+        "junction was among the five 69% of the time, candidate 1 itself 27%, and candidate 1 lay "
+        "a median 54 m from it."
+    )
+    assert view.localizer_benchmark(None) is None
+    assert view.localizer_benchmark({**metrics, "chosen": "missing"}) is None
+    assert view.localizer_benchmark({**metrics, "chosen": "network"}) is None  # no median
 
 
 def test_reveal_when_the_leak_is_not_a_candidate_or_cannot_be_reached():

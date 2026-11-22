@@ -222,7 +222,8 @@ def test_idle_page(page):
 def test_alert_page_waits_for_the_work_order(page):
     text = text_of(page("alert"))
     assert "Alert in Area A" in text and "score 79 times the threshold" in text
-    assert "Five candidate junctions, best first" in text and "n471" in text
+    assert "Five junctions to inspect, best first" in text and "n471" in text
+    assert "A list to inspect, not one answer" in text  # the localizer's measured hit rates
     assert "Writing the work order for this alert" in text
     assert "Context: the alert on screen is 5bab5c3a" in text
     no_placeholders(text)
@@ -232,7 +233,7 @@ def test_work_order_page(page):
     text = text_of(page("order"))
     assert "Priority P1" in text and "Pipes to inspect, in order" in text
     assert "p437" in text and "47.9" in text and "Model version" in text
-    assert "candidate 1: n469" in text  # finished steps folded to one line
+    assert "5 to inspect, n469 first" in text  # finished steps folded to one line
     assert "Reveal the true leak" in text
     no_placeholders(text)
 

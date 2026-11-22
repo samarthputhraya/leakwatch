@@ -228,6 +228,7 @@ demo:
   check_nodes: [n100, n300, n470]  # junctions `make demo-check` injects at (areas A)
   quiet_before_inject_s: 10
   warm_batches: 3                  # "running" once the scored stream has finished 3 batches with data (D-043)
+  drain_timeout_s: 180             # after the last reading, wait at most this long for the streams to catch up (D-060)
 
 dashboard:
   # Control-room screen (D-052). Display only: nothing here changes the pipeline or the demo runner.

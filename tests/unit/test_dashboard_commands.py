@@ -113,6 +113,14 @@ def test_settings_offer_the_configured_sizes_and_speeds():
     body = app([]).get("/api/settings").json()
     assert body["leak_mm"] == {"min": 10, "max": 50, "default": 30}
     assert body["speeds"] == [180, 360, 720, 1440, 2880]
+    # The localizer's measured hit rates come from reports/metrics/dl_localizer.json.
+    assert "not one answer" in body["localizer"]["sentence"]
+    assert 0 < body["localizer"]["in_top5_pct"] <= 100
+    assert app([], "finishing").post("/api/demo/restart").status_code == 200
+    refused = app([], "finishing").post(
+        "/api/demo/inject", json={"node_id": "n100", "diameter_mm": 30}
+    )
+    assert refused.status_code == 409
 
 
 def test_network_endpoint_serves_the_geometry_or_says_what_to_run():
