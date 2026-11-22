@@ -1,20 +1,20 @@
 {
   "meta": {
-    "generated_at": "2026-11-22T08:17:16+00:00",
-    "git_commit": "9675480",
+    "generated_at": "2026-11-22T09:38:29+00:00",
+    "git_commit": "24fbe37",
     "leakwatch_version": "0.1.0",
     "python": "3.11.18",
     "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
   },
-  "passed": 838,
+  "passed": 839,
   "failed": 0,
   "skipped": 0,
-  "duration_s": 1043.9,
+  "duration_s": 945.7,
   "by_folder": {
     "contract": 41,
     "integration": 2,
     "metamorphic": 5,
-    "unit": 790
+    "unit": 791
   },
   "coverage_percent": 73.9,
   "coverage_by_module": {
