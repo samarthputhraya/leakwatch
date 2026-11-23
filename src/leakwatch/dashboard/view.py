@@ -762,11 +762,12 @@ def _zone(tz: str, at: datetime | None = None) -> tuple[str, str]:
 
 
 def copilot_context(incident: Mapping[str, Any] | None, tz: str = "UTC") -> str:
-    """The line sent before every operator question, shown on the page as it is sent.
+    """The line sent to the model before every operator question.
 
     The copilot works in UTC (its tools and prompt write UTC, and its guardrail checks the times
     it writes against them); the line gives the alert on screen in both zones and says that a
-    time the operator types is in the display zone.
+    time the operator types is in the display zone. The page shows :func:`ask_about` instead,
+    and this exact line under "How this was answered".
     """
     name, offset = _zone(tz)
     zone = f"Times in the question are {name} (UTC{offset}) unless marked UTC; the lake is in UTC."
@@ -781,6 +782,20 @@ def copilot_context(incident: Mapping[str, Any] | None, tz: str = "UTC") -> str:
         f"Context: the alert on screen is {incident['alert_id']} in Area {incident['area']}{when}. "
         f"{zone}"
     )
+
+
+def ask_about(incident: Mapping[str, Any] | None, tz: str = "UTC") -> str:
+    """The short line above the question box: what the copilot is told, in the operator's words.
+
+    ``Questions are about the alert in Area A since Mon 19 Nov, 22:00 IST. Times are in IST.``
+    """
+    name, _ = _zone(tz)
+    times = f"Times are in {name}."
+    if not incident:
+        return times
+    start = to_utc(incident.get("start_ts"))
+    since = "" if start is None else f" since {fmt_time(start, tz)}"
+    return f"Questions are about the alert in Area {incident.get('area')}{since}. {times}"
 
 
 # A date-time the copilot wrote: ISO date, time, optional seconds, optional UTC mark; not one
@@ -1153,7 +1168,6 @@ def live_view(
         )
         theirs = [o for o in orders if o.get("alert_id") == current.get("alert_id")]
         incident["order"] = order_view(theirs, mine, leak, tz)
-        incident["context"] = copilot_context(incident, tz)
         incident["truth"] = (
             None
             if leak is None or distance is None or not incident["candidates"]
@@ -1183,8 +1197,8 @@ def live_view(
         "open_alerts": len(open_alerts),
         "leaks": leaks_view(state, failed_leaks, tz, alerts),
         "incident": incident,
-        # sent before every copilot question (the alert on screen, if any, and the time zone)
-        "ask_context": copilot_context(incident, tz),
+        # above the question box: what the copilot's questions are about, in plain words
+        "ask_about": ask_about(incident, tz),
         "drops": drops,
         "analysed": None
         if last is None or (end := to_utc(last.get("window_end"))) is None

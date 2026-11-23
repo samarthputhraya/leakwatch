@@ -467,8 +467,8 @@ function AnswerChart({ chart, tz, tzName }) {
 
 function Answer({ qa, tz, tzName }) {
   if (qa.state === 'asking') {
-    return html`<div class="answer"><p class="q">${qa.question}</p><p>Waiting for the copilot.</p>
-      <div class="working" role="progressbar" aria-label="Waiting for the copilot"></div></div>`;
+    return html`<li class="answer"><p class="q">${qa.question}</p><p>Waiting for the copilot.</p>
+      <div class="working" role="progressbar" aria-label="Waiting for the copilot"></div></li>`;
   }
   const how = qa.how;
   const summary = how && [
@@ -476,11 +476,12 @@ function Answer({ qa, tz, tzName }) {
     how.model ? `model ${how.model}` : 'no model',
     `${how.seconds} s`,
   ].join(' · ');
-  return html`<div class="answer" data-state=${qa.state}>
+  return html`<li class="answer" data-state=${qa.state}>
     <p class="q">${qa.question}</p>
     <p class="a">${rich(qa.text || '')}</p>
     ${(qa.charts || []).map((c) => html`<${AnswerChart} chart=${c} tz=${tz} tzName=${tzName} />`)}
     ${how && html`<details class="how"><summary>How this was answered: ${summary}</summary>
+      ${qa.sent && how.model && html`<p>Sent to the model before the question: ${qa.sent}</p>`}
       ${how.sql.length > 0 && html`<p>SQL that ran:</p>${how.sql.map((q) => html`<pre class="sql">${q}</pre>`)}`}
       ${how.checked.length > 0 && html`<p>Checked against the tool results (times in ${tzName}): ${how.checked.join('; ')}</p>`}
       ${how.sql.length > 0 && html`<p>The lake keeps UTC; the answer's times are shown in ${tzName}.</p>`}
@@ -488,52 +489,90 @@ function Answer({ qa, tz, tzName }) {
         ? 'Refused by the scope filter before any model call: the question is off-topic or tries to change the copilot\'s instructions.'
         : 'Answered by the estimate_loss tool directly; no language model was involved.'}</p>`}
     </details>`}
-  </div>`;
+  </li>`;
 }
 
-function CopilotStep({ inc, qa, ask, settings, context }) {
+// A conversation: every question and answer stays above the question box, oldest first, until a
+// new leak is started or the replay restarts (useCopilot). The newest one is scrolled into view.
+function CopilotStep({ inc, items, asking, ask, settings, about }) {
   const title = STEPS[5];
   const [text, setText] = useState('');
-  const asking = !!qa && qa.state === 'asking';
+  const last = useRef(null);
   const loss = settings ? settings.loss_question : null;
+  const tz = settings ? settings.tz : 'UTC';
+  const tzName = settings ? settings.tz_name : 'UTC';
+  const newest = items.length ? `${items[items.length - 1].key}:${items[items.length - 1].state}` : '';
+  useEffect(() => {
+    if (!last.current || !newest) return;  // nothing asked yet: leave the rail where it is
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    last.current.scrollIntoView({ block: 'nearest', behavior: smooth ? 'smooth' : 'auto' });
+  }, [newest]);
   const submit = (e) => {
     e.preventDefault();
     if (text.trim() && !asking) { ask({ question: text.trim() }); setText(''); }
   };
-  return { on: !!qa && qa.state !== 'asking', title, body: html`
-    ${context && html`<p class="context"><span>Sent with your question</span>${context}</p>`}
-    <form class="row ask" onSubmit=${submit}>
-      <input aria-label="Question for the copilot" maxlength="500" value=${text}
-        placeholder=${inc ? 'Ask about this alert, a sensor or a procedure' : 'Ask about a sensor, an alert or a procedure'}
-        onInput=${(e) => setText(e.target.value)} />
-      <button class="btn" type="submit" disabled=${asking || !text.trim()}>Ask</button>
-    </form>
-    ${inc && loss && html`<button class="chipq" disabled=${asking} onClick=${() => ask({ direct: true, question: loss })}>${loss}</button>`}
-    <div aria-live="polite">${qa && html`<${Answer} qa=${qa} tz=${settings ? settings.tz : 'UTC'} tzName=${settings ? settings.tz_name : 'UTC'} />`}</div>` };
+  return { on: items.some((q) => q.state !== 'asking'), title, body: html`
+    ${items.length > 0 && html`<ol class="chat" aria-label="Questions and answers" aria-live="polite">
+      ${items.map((q) => html`<${Answer} key=${q.key} qa=${q} tz=${tz} tzName=${tzName} />`)}
+    </ol>`}
+    <div class="ask-box" ref=${last}>
+      ${inc && loss && html`<button class="chipq" disabled=${asking} onClick=${() => ask({ direct: true, question: loss })}>${loss}</button>`}
+      <form class="row ask" onSubmit=${submit}>
+        <input aria-label="Question for the copilot" maxlength="500" value=${text}
+          placeholder=${inc ? 'Ask about this alert, a sensor or a procedure' : 'Ask about a sensor, an alert or a procedure'}
+          onInput=${(e) => setText(e.target.value)} />
+        <button class="btn" type="submit" disabled=${asking || !text.trim()}>Ask</button>
+      </form>
+      ${about && html`<p class="fine about">${about}</p>`}
+    </div>` };
 }
 
-// One question at a time; the answer belongs to the alert it was asked about.
-function useCopilot(inc) {
-  const [qa, setQa] = useState(null);
-  const id = inc ? inc.alert_id : null;
-  useEffect(() => { setQa(null); }, [id]);
+// One question at a time. The conversation is kept until `session` changes: a new leak (its id)
+// or a restarted replay. An answer that arrives after that is dropped with its question. The
+// tab's sessionStorage keeps the answered ones across a reload of the page (F5).
+const CHAT_STORE = 'leakwatch.copilot';
+
+function storedChat(session) {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(CHAT_STORE) || 'null');
+    return saved && saved.session === session && Array.isArray(saved.items) ? saved.items : [];
+  } catch {
+    return [];
+  }
+}
+
+function useCopilot(inc, session) {
+  const [items, setItems] = useState(() => storedChat(session));
+  const last = useRef(session);
+  useEffect(() => {
+    if (last.current === session) return;  // a new leak or a restart: a new conversation
+    last.current = session;
+    setItems([]);
+  }, [session]);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CHAT_STORE, JSON.stringify({ session, items: items.filter((q) => q.state !== 'asking') }));
+    } catch { /* storage full or off: the conversation still lasts until the page is reloaded */ }
+  }, [items, session]);
   const ask = async ({ question, direct = false }) => {
-    setQa({ state: 'asking', question, alert_id: id });
-    const res = await call('POST', '/api/copilot/ask', { question, direct, alert_id: id });
-    setQa(res.ok ? { ...res, question, alert_id: id } : { state: 'error', question, text: res.message, alert_id: id });
+    const key = `q${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    setItems((xs) => [...xs, { key, state: 'asking', question }]);
+    const res = await call('POST', '/api/copilot/ask', { question, direct, alert_id: inc ? inc.alert_id : null });
+    const done = res.ok ? { ...res, key, question } : { key, state: 'error', question, text: res.message };
+    setItems((xs) => xs.map((q) => (q.key === key ? done : q)));
   };
-  return { qa: qa && qa.alert_id === id ? qa : null, ask };
+  return { items, asking: items.some((q) => q.state === 'asking'), ask };
 }
 
-function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, onReveal, settings }) {
+function Rail({ vm, net, size, canStart, why, busy, onStart, notice, revealed, onReveal, settings, session }) {
   const [unfolded, setUnfolded] = useState({});
-  const copilot = useCopilot(vm.incident);
+  const copilot = useCopilot(vm.incident, session);
   const inc = vm.incident;
   const first = LeakStep({ leaks: vm.leaks, net, size, canStart, why, busy, onStart, inc,
     detector: settings ? settings.detector : null, days: settings ? settings.leak_visible_days : null });
   const bench = settings ? settings.localizer : null;
   const steps = [first, AlertStep({ inc }), LocatedStep({ inc, bench, net }), OrderStep({ inc }),
-    RevealStep({ inc, revealed, onReveal, bench }), CopilotStep({ inc, qa: copilot.qa, ask: copilot.ask, settings, context: vm.ask_context })];
+    RevealStep({ inc, revealed, onReveal, bench }), CopilotStep({ inc, items: copilot.items, asking: copilot.asking, ask: copilot.ask, settings, about: vm.ask_about })];
   const now = steps.reduce((last, s, i) => (s.on ? i : last), 0);
   // Finished steps fold to one line once the work order is on screen, so the open step fits.
   // The reveal stays open: it is the check of everything above it.
@@ -676,6 +715,14 @@ function App() {
   const [view, setView] = useState('live');
   const mapBox = useRef(null);
   const camera = useCamera(map, lost ? null : vm && vm.incident);
+  // The copilot's conversation lasts until a new leak is started (the newest leak's id) or the
+  // replay restarts; a moment without the server keeps it.
+  const session = useRef('none');
+  if (vm && !lost) {
+    const { pending, active } = vm.leaks;
+    const newestLeak = pending.length ? pending[pending.length - 1] : active[active.length - 1];
+    session.current = vm.runner.code === 'starting' ? 'starting' : newestLeak ? newestLeak.leak_id : 'none';
+  }
   useEffect(() => {
     if (!pick) return undefined;
     const close = (e) => { if (e.key === 'Escape') setPick(null); };
@@ -731,7 +778,7 @@ function App() {
     </main>
     <${Instruments} charts=${shown.charts} />
     <${Rail} vm=${shown} net=${net} size=${leakSize} canStart=${canStart} why=${why} busy=${busy} onStart=${start} notice=${notice}
-      revealed=${!!(inc && revealed[inc.alert_id])} onReveal=${reveal} settings=${settings} />
+      revealed=${!!(inc && revealed[inc.alert_id])} onReveal=${reveal} settings=${settings} session=${session.current} />
     </div>
     ${view === 'history' && html`<${HistoryView} active=${true} />`}
     ${view === 'results' && html`<${ResultsView} active=${true} />`}

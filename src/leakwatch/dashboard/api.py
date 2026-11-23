@@ -769,7 +769,8 @@ def create_app(
             # The line shown above the question box: the alert asked about (if any) and the zone.
             context = view.copilot_context(incident if body.alert_id else None, tz)
             answer = helper.ask(question, context)
-            return json_response({**view.copilot_view(answer, tz), "question": question})
+            out = view.copilot_view(answer, tz)
+            return json_response({**out, "question": question, "sent": context})
         except Exception as exc:
             log.error("copilot question failed: %s", exc)
             return json_response(

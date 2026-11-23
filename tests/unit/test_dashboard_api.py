@@ -338,6 +338,7 @@ def test_questions_go_to_the_model_with_the_visible_context_line():
         )
     ]
     assert res.json()["text"] == "It fired at 2018-11-20 01:45 IST."  # the copilot's UTC, in IST
+    assert res.json()["sent"] == fake.sent[0][2]  # shown under "How this was answered"
     plain = FakeCopilot()
     copilot_client(plain).post("/api/copilot/ask", json={"question": "What is L-Town?"})
     # no alert named: the line only gives the time zone

@@ -140,7 +140,8 @@ runner replays a quiet week of BattLeDIM 2018 through Kafka into the live Spark 
 6. Ask the copilot a question, or press the loss question, which is answered from the alert
    without a model. Questions outside LeakWatch (a poem, a capital city, sums, attempts to change
    its instructions) get one fixed refusal. The copilot works in UTC like the lake; the screen
-   shows its times in IST, and times you type are read as IST.
+   shows its times in IST, and times you type are read as IST. Questions and answers stay in a
+   list above the question box until a new leak is started or the replay restarts.
 
 The amber tint along the pipes is the only interpolated element on the map, and the legend says
 so. Every number on the screen comes from the demo lake, the runner's state file or

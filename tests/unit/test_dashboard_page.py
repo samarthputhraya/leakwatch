@@ -225,7 +225,10 @@ def test_alert_page_waits_for_the_work_order(page):
     assert "Five junctions to inspect, best first" in text and "n471" in text
     assert "A list to inspect, not one answer" in text  # the localizer's measured hit rates
     assert "Writing the work order for this alert" in text
-    assert "Context: the alert on screen is 5bab5c3a" in text
+    # the copilot box says in plain words what questions are about (the full line sent to the
+    # model is under each answer's "How this was answered")
+    assert "Questions are about the alert in Area A since" in text and "Times are in IST" in text
+    assert "5bab5c3a" not in text
     no_placeholders(text)
 
 

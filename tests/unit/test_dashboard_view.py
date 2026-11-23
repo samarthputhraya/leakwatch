@@ -710,6 +710,14 @@ def test_the_context_line_names_the_alert_and_the_time_zone_as_it_is_sent():
     )
 
 
+def test_the_question_box_says_in_plain_words_what_it_asks_about():
+    incident = view.incident_view(RUN_ALERT, [LEAK], VERSIONS, TZ)
+    assert view.ask_about(incident, TZ) == (
+        "Questions are about the alert in Area A since Tue 20 Nov, 01:45 IST. Times are in IST."
+    )
+    assert view.ask_about(None, TZ) == "Times are in IST."
+
+
 def test_copilot_times_are_shown_in_ist():
     """The copilot writes UTC (as its tools do); the screen shows every time in IST."""
     said = (
